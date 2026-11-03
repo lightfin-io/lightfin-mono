@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "node"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Lets the demo import the library by its package name. Runtime resolution
+       of this alias is handled by Vite (see vite.demo.config.ts). */
+    "paths": {
+      "lightfin-web-chart": ["./src/index.ts"],
+      "lightfin-web-chart/indicators": ["./src/indicators/index.ts"],
+      "lightfin-web-chart/annotations": ["./src/annotations/index.ts"]
+    },
+
+    /* Strictness */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src", "demo", "vite.config.ts", "vite.demo.config.ts"]
+}

@@ -1,0 +1,14 @@
+plugins: ['@trivago/prettier-plugin-sort-imports']
+printWidth: 80
+tabWidth: 2
+singleQuote: true
+semi: false
+importOrder: [
+    '^~@/(.*)$',
+    "^[./].*(?<!\\.css)$", # Relative that doesn't end in style file
+    "^[^./].*\\.css$", # Absolute that ends in style file
+    "^[./].*\\.css$", # Relative that ends in style file
+  ]
+importOrderSeparation: true
+importOrderSortSpecifiers: true
+arrowParens: 'avoid'
