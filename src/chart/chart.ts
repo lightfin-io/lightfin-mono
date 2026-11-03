@@ -1,3 +1,4 @@
+import type { DataSource } from '../data/dataSource.ts'
 import { CrosshairController } from '../interaction/crosshair.ts'
 import { PanZoomController } from '../interaction/panzoom.ts'
 import { LayerManager } from '../render/layers.ts'
@@ -6,7 +7,6 @@ import { PriceScale } from '../scales/priceScale.ts'
 import { priceTicks, stepDecimals } from '../scales/ticks.ts'
 import { TimeScale } from '../scales/timeScale.ts'
 import { timeAxisLabels } from '../scales/timeTicks.ts'
-import type { DataSource } from '../data/dataSource.ts'
 import { CandlestickSeries } from '../series/candlestick.ts'
 import type { SeriesChange } from '../series/candlestick.ts'
 import { drawVolume } from '../series/volume.ts'
@@ -99,7 +99,8 @@ export class Chart {
     // otherwise just keep the existing view in bounds. An in-place tick changes
     // neither the bar count nor the scroll bounds, so only a repaint is needed.
     if (change === 'new-bar') {
-      if (this.following) this.timeScaleModel.scrollIndex = this.maxScrollIndex()
+      if (this.following)
+        this.timeScaleModel.scrollIndex = this.maxScrollIndex()
       else this.clampScroll()
     }
     // A `prepend` leaves logical indices (and thus the scroll position) bound to
@@ -252,7 +253,8 @@ export class Chart {
   private syncFollowing(): void {
     const store = this.series?.store
     if (!store || store.size === 0) return
-    this.following = this.timeScaleModel.scrollIndex >= this.maxScrollIndex() - 0.5
+    this.following =
+      this.timeScaleModel.scrollIndex >= this.maxScrollIndex() - 0.5
   }
 
   /** Mark the viewport-dependent layers dirty (data or pan/zoom changed). */
@@ -482,7 +484,10 @@ export class Chart {
   }
 
   /** Dotted crosshair lines + axis value labels, following the pointer (PLAN §8.2). */
-  private paintCrosshair(point: { x: number; y: number }, plot: PlotRect): void {
+  private paintCrosshair(
+    point: { x: number; y: number },
+    plot: PlotRect,
+  ): void {
     const store = this.series!.store
     const { width, height } = this.layers.getSize()
     const { theme } = this.options

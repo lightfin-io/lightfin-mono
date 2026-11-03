@@ -43,7 +43,8 @@ export class PriceScale {
   yToPrice(y: number, height: number): number {
     const span = this.max - this.min || 1
     return (
-      this.min + (1 - (y - height * this.topMargin) / this.usable(height)) * span
+      this.min +
+      (1 - (y - height * this.topMargin) / this.usable(height)) * span
     )
   }
 
