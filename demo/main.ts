@@ -6,7 +6,7 @@ import './style.css'
 
 const container = document.querySelector<HTMLDivElement>('#chart')!
 
-const chart = createChart(container)
+const chart = createChart(container, { volumeVisible: true })
 const candles = chart.addCandlestickSeries()
 candles.setData(generateBars(500))
 

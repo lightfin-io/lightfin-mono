@@ -10,6 +10,9 @@ export interface ChartTheme {
   /** Wick color; defaults to body color when omitted at draw time. */
   wickUpColor: string
   wickDownColor: string
+  /** Volume histogram fill for up bars; usually semi-transparent so candles read through. */
+  volumeUpColor: string
+  volumeDownColor: string
   crosshairColor: string
   fontFamily: string
   fontSize: number
@@ -28,6 +31,15 @@ export interface ChartOptions {
    * (PLAN §8.3). On by default; set false for charts that don't want it.
    */
   priceLineVisible: boolean
+  /**
+   * Draw a volume histogram in the bottom slice of the main pane on a hidden,
+   * auto-scaled volume scale (PLAN §7). Off by default (opt-in, lightweight);
+   * only renders when the series actually carries volume. Colored by candle
+   * direction, drawn behind the candles.
+   */
+  volumeVisible: boolean
+  /** Fraction of the plot height the volume histogram occupies (PLAN §7: ~15–20%). */
+  volumeHeightRatio: number
   /**
    * Minimum decimal places shown on price axis & crosshair labels (default 2,
    * i.e. normal currency). Extra decimals are added automatically when the
@@ -57,6 +69,8 @@ export const DEFAULT_THEME: ChartTheme = {
   downColor: '#ef5350',
   wickUpColor: '#26a69a',
   wickDownColor: '#ef5350',
+  volumeUpColor: 'rgba(38, 166, 154, 0.5)',
+  volumeDownColor: 'rgba(239, 83, 80, 0.5)',
   crosshairColor: '#758696',
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -70,6 +84,8 @@ export const DEFAULT_OPTIONS: ChartOptions = {
   rightOffset: 6,
   priceDecimals: 2,
   priceLineVisible: true,
+  volumeVisible: false,
+  volumeHeightRatio: 0.18,
 }
 
 export function resolveOptions(partial: ChartOptionsInput): ChartOptions {

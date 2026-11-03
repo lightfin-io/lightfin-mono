@@ -4,8 +4,15 @@ import type { Bar } from '../data/types.ts'
 import { TimeScale } from '../scales/timeScale.ts'
 import { CandlestickSeries } from './candlestick.ts'
 
-function bar(time: number, o: number, h: number, l: number, c: number): Bar {
-  return { time, open: o, high: h, low: l, close: c }
+function bar(
+  time: number,
+  o: number,
+  h: number,
+  l: number,
+  c: number,
+  v?: number,
+): Bar {
+  return { time, open: o, high: h, low: l, close: c, volume: v }
 }
 
 function series(): CandlestickSeries {
@@ -59,5 +66,33 @@ describe('CandlestickSeries.priceRange', () => {
   it('returns null for an empty window', () => {
     const s = series()
     expect(s.priceRange({ from: 2, to: 1 })).toBeNull()
+  })
+})
+
+describe('CandlestickSeries.volumeMax', () => {
+  function volSeries(): CandlestickSeries {
+    const s = new CandlestickSeries()
+    s.setData([
+      bar(10, 5, 8, 4, 7, 100),
+      bar(20, 7, 9, 6, 6, 500),
+      bar(30, 6, 11, 5, 10, 300),
+    ])
+    return s
+  }
+
+  it('returns the largest volume across the window', () => {
+    expect(volSeries().volumeMax({ from: 0, to: 2 })).toBe(500)
+  })
+
+  it('narrows to the window', () => {
+    expect(volSeries().volumeMax({ from: 0, to: 0 })).toBe(100)
+  })
+
+  it('returns 0 when the series carries no volume', () => {
+    expect(series().volumeMax({ from: 0, to: 3 })).toBe(0)
+  })
+
+  it('returns 0 for an empty window', () => {
+    expect(volSeries().volumeMax({ from: 2, to: 1 })).toBe(0)
   })
 })

@@ -6,6 +6,7 @@ import { PriceScale } from '../scales/priceScale.ts'
 import { chooseBarStep, priceTicks, stepDecimals } from '../scales/ticks.ts'
 import { TimeScale } from '../scales/timeScale.ts'
 import { CandlestickSeries } from '../series/candlestick.ts'
+import { drawVolume } from '../series/volume.ts'
 import type { ChartOptions, ChartOptionsInput } from './options.ts'
 import { resolveOptions } from './options.ts'
 
@@ -215,13 +216,35 @@ export class Chart {
     if (!this.series) return
     this.layers.clear('series')
     const ctx = this.layers.getContext('series')
+    const plot = this.plotRect()
+    const dpr = this.layers.getDpr()
+
+    // Volume first so the candles draw on top of its (semi-transparent) bars.
+    if (this.options.volumeVisible && this.series.store.hasVolumeData) {
+      const window = this.series.visibleWindow(this.timeScaleModel, plot.width)
+      drawVolume(
+        ctx,
+        this.series.store,
+        window,
+        this.timeScaleModel,
+        plot,
+        {
+          max: this.series.volumeMax(window),
+          heightRatio: this.options.volumeHeightRatio,
+          upColor: this.options.theme.volumeUpColor,
+          downColor: this.options.theme.volumeDownColor,
+        },
+        dpr,
+      )
+    }
+
     this.series.draw(
       ctx,
       this.timeScaleModel,
       this.priceScale,
-      this.plotRect(),
+      plot,
       this.options.theme,
-      this.layers.getDpr(),
+      dpr,
     )
   }
 

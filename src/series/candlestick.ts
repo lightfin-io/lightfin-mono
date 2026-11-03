@@ -74,6 +74,21 @@ export class CandlestickSeries {
     return low <= high ? { low, high } : null
   }
 
+  /**
+   * Max volume across an inclusive index window, for the hidden volume scale
+   * (PLAN §7). Returns 0 when the window is empty or no bar carries volume.
+   */
+  volumeMax(window: IndexWindow): number {
+    const { store } = this
+    if (window.from > window.to || !store.hasVolumeData) return 0
+    let max = 0
+    for (let i = window.from; i <= window.to; i++) {
+      const v = store.volumes[store.physical(i)]!
+      if (!Number.isNaN(v) && v > max) max = v
+    }
+    return max
+  }
+
   draw(
     ctx: CanvasRenderingContext2D,
     timeScale: TimeScale,
