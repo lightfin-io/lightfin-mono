@@ -276,14 +276,71 @@ export class Chart {
     return priceTicks(this.priceScale.min, this.priceScale.max, count)
   }
 
-  /** Dotted crosshair lines + axis value labels, following the pointer (PLAN §8.2). */
+  /**
+   * Overlay layer (PLAN §5 layers 3–4): the always-on current-price line plus
+   * the pointer-following crosshair. Cheap by construction — redrawn on every
+   * pointer move and every live tick without touching the series layer.
+   */
   private paintOverlay(): void {
     this.layers.clear('overlay')
-    const point = this.crosshairPoint
     const store = this.series?.store
-    if (!point || !store || store.size === 0) return
+    if (!store || store.size === 0) return
 
     const plot = this.plotRect()
+    if (this.options.priceLineVisible) this.paintPriceLine(plot)
+    if (this.crosshairPoint) this.paintCrosshair(this.crosshairPoint, plot)
+  }
+
+  /**
+   * Dotted horizontal line + filled price-axis badge at the last bar's close
+   * (PLAN §8.3), colored by the last candle's direction like TradingView. Drawn
+   * only when that price sits within the autoscaled visible range.
+   */
+  private paintPriceLine(plot: PlotRect): void {
+    const store = this.series!.store
+    const { width, height } = this.layers.getSize()
+    const { theme } = this.options
+    const dpr = this.layers.getDpr()
+
+    const p = store.physical(store.lastIndex)
+    const close = store.closes[p]!
+    const up = close >= store.opens[p]!
+    const y = this.priceScale.priceToY(close, plot.height)
+    if (y < 0 || y > plot.height) return
+
+    const color = up ? theme.upColor : theme.downColor
+    const ctx = this.layers.getContext('overlay')
+    const lineY = snap(y, dpr)
+
+    ctx.save()
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1
+    ctx.setLineDash([4, 4])
+    ctx.beginPath()
+    ctx.moveTo(0, lineY)
+    ctx.lineTo(plot.width, lineY)
+    ctx.stroke()
+    ctx.restore()
+
+    const text = formatPrice(
+      close,
+      this.visiblePriceTicks(plot.height),
+      this.options,
+    )
+    const boxH = theme.fontSize + 8
+    const boxY = clamp(y - boxH / 2, 0, height - boxH)
+    ctx.font = `${theme.fontSize}px ${theme.fontFamily}`
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = color
+    ctx.fillRect(plot.width, boxY, width - plot.width, boxH)
+    ctx.fillStyle = theme.background
+    ctx.textAlign = 'left'
+    ctx.fillText(text, plot.width + 6, boxY + boxH / 2)
+  }
+
+  /** Dotted crosshair lines + axis value labels, following the pointer (PLAN §8.2). */
+  private paintCrosshair(point: { x: number; y: number }, plot: PlotRect): void {
+    const store = this.series!.store
     const { width, height } = this.layers.getSize()
     const { theme } = this.options
     const ts = this.timeScaleModel

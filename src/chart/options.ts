@@ -24,6 +24,11 @@ export interface ChartOptions {
   /** Blank bars of room kept to the right of the newest bar (TradingView-style). */
   rightOffset: number
   /**
+   * Draw the dotted horizontal line + price-axis badge at the last bar's close
+   * (PLAN §8.3). On by default; set false for charts that don't want it.
+   */
+  priceLineVisible: boolean
+  /**
    * Minimum decimal places shown on price axis & crosshair labels (default 2,
    * i.e. normal currency). Extra decimals are added automatically when the
    * price-axis tick step is finer than this, e.g. sub-cent crypto prices.
@@ -64,6 +69,7 @@ export const DEFAULT_OPTIONS: ChartOptions = {
   timeAxisHeight: 24,
   rightOffset: 6,
   priceDecimals: 2,
+  priceLineVisible: true,
 }
 
 export function resolveOptions(partial: ChartOptionsInput): ChartOptions {
