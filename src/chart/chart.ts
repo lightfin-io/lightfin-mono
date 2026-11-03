@@ -6,6 +6,7 @@ import { PriceScale } from '../scales/priceScale.ts'
 import { priceTicks, stepDecimals } from '../scales/ticks.ts'
 import { TimeScale } from '../scales/timeScale.ts'
 import { timeAxisLabels } from '../scales/timeTicks.ts'
+import type { DataSource } from '../data/dataSource.ts'
 import { CandlestickSeries } from '../series/candlestick.ts'
 import type { SeriesChange } from '../series/candlestick.ts'
 import { drawVolume } from '../series/volume.ts'
@@ -55,6 +56,12 @@ export class Chart {
   // away from the right edge and back on when they return to it.
   private following = true
 
+  // Optional pull-based adapter (PLAN §6): live subscription + history backfill.
+  private dataSource: DataSource | null = null
+  private unsubscribeLive: (() => void) | null = null
+  // Guards against firing overlapping backfill requests for the same gap.
+  private backfilling = false
+
   constructor(container: HTMLElement, options: ChartOptionsInput = {}) {
     this.container = container
     this.options = resolveOptions(options)
@@ -95,7 +102,33 @@ export class Chart {
       if (this.following) this.timeScaleModel.scrollIndex = this.maxScrollIndex()
       else this.clampScroll()
     }
+    // A `prepend` leaves logical indices (and thus the scroll position) bound to
+    // the same bars, so the view holds still — just repaint the wider data.
     this.invalidateViewport()
+  }
+
+  /**
+   * Attach a pull-based {@link DataSource} (PLAN §6) for live ticks and/or
+   * history backfill. Additive to `series.setData()`: set the initial bars
+   * directly, then attach a source to stream live updates and lazily fetch
+   * older bars as the user pans left. Replaces any previous source; returns a
+   * detach function (also cleaned up by {@link Chart.remove}).
+   */
+  setDataSource(source: DataSource): () => void {
+    this.detachDataSource()
+    this.dataSource = source
+    if (source.subscribeLive) {
+      this.unsubscribeLive = source.subscribeLive(bar => {
+        this.series?.update(bar)
+      })
+    }
+    return () => this.detachDataSource()
+  }
+
+  private detachDataSource(): void {
+    this.unsubscribeLive?.()
+    this.unsubscribeLive = null
+    this.dataSource = null
   }
 
   /** The time scale, for programmatic pan/zoom (PLAN §11). */
@@ -136,6 +169,7 @@ export class Chart {
     this.timeScaleModel.panByPixels(dx)
     this.clampScroll()
     this.syncFollowing()
+    this.maybeBackfill()
     this.invalidateViewport()
   }
 
@@ -145,7 +179,45 @@ export class Chart {
     ts.zoom(next / ts.barWidth, anchorX)
     this.clampScroll()
     this.syncFollowing()
+    this.maybeBackfill()
     this.invalidateViewport()
+  }
+
+  /**
+   * When panning/zooming brings the view within a screenful of the oldest bar,
+   * ask the data source (if any) for the preceding window and prepend it. One
+   * request in flight at a time; the next pan re-triggers if we're still near
+   * the edge. The time span is inferred from the oldest bars' spacing.
+   */
+  private maybeBackfill(): void {
+    const store = this.series?.store
+    if (!this.dataSource || this.backfilling || !store || store.size < 2) return
+
+    const plot = this.plotRect()
+    const viewBars = plot.width / this.timeScaleModel.barWidth
+    const from = this.timeScaleModel.visibleRange(plot.width).from
+    // Prefetch when the oldest visible bar is within one screen of the data.
+    if (from > store.firstIndex + viewBars) return
+
+    const oldestTime = store.times[store.physical(store.firstIndex)]!
+    const nextTime = store.times[store.physical(store.firstIndex + 1)]!
+    const interval = Math.max(1, nextTime - oldestTime)
+    const span = Math.max(Math.ceil(viewBars), 1) * interval
+    const range = { from: oldestTime - span, to: oldestTime - interval }
+
+    this.backfilling = true
+    Promise.resolve(this.dataSource.getBars(range))
+      .then(bars => {
+        // Drop anything not strictly older than our current oldest bar.
+        const older = bars.filter(b => b.time < oldestTime)
+        if (older.length > 0) this.series?.prepend(older)
+      })
+      .catch(() => {
+        /* host-side failure; a later pan will retry */
+      })
+      .finally(() => {
+        this.backfilling = false
+      })
   }
 
   /**
@@ -498,6 +570,7 @@ export class Chart {
 
   /** Tear down observers, listeners, canvases, and any pending frame. */
   remove(): void {
+    this.detachDataSource()
     this.resizeObserver.disconnect()
     this.panzoom.dispose()
     this.crosshair.dispose()

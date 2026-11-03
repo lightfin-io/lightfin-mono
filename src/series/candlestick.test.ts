@@ -51,6 +51,52 @@ describe('CandlestickSeries.visibleWindow', () => {
   })
 })
 
+describe('CandlestickSeries change signals', () => {
+  it('signals reset on setData', () => {
+    const s = new CandlestickSeries()
+    const seen: string[] = []
+    s.onChange = c => seen.push(c)
+    s.setData([bar(10, 5, 8, 4, 7)])
+    expect(seen).toEqual(['reset'])
+  })
+
+  it('signals new-bar for a newer time and tick for an in-place update', () => {
+    const s = series()
+    const seen: string[] = []
+    s.onChange = c => seen.push(c)
+    s.update(bar(50, 4, 6, 3, 5)) // newer than last (40) → appends
+    s.update(bar(50, 4, 7, 3, 6)) // same time → mutates in place
+    expect(seen).toEqual(['new-bar', 'tick'])
+    expect(s.store.size).toBe(5)
+  })
+
+  it('prepend backfills older bars, keeps logical indices, and signals prepend', () => {
+    const s = series()
+    const firstBefore = s.store.firstIndex // 0
+    const lastBefore = s.store.lastIndex // 3
+    const seen: string[] = []
+    s.onChange = c => seen.push(c)
+
+    s.prepend([bar(-10, 1, 2, 1, 2), bar(0, 2, 3, 1, 3)])
+
+    expect(seen).toEqual(['prepend'])
+    expect(s.store.size).toBe(6)
+    // Older bars push firstIndex down; the newest bar keeps its logical index.
+    expect(s.store.firstIndex).toBe(firstBefore - 2)
+    expect(s.store.lastIndex).toBe(lastBefore)
+    expect(s.store.get(lastBefore).time).toBe(40)
+  })
+
+  it('prepend of an empty array is a no-op and fires nothing', () => {
+    const s = series()
+    const seen: string[] = []
+    s.onChange = c => seen.push(c)
+    s.prepend([])
+    expect(seen).toEqual([])
+    expect(s.store.size).toBe(4)
+  })
+})
+
 describe('CandlestickSeries.priceRange', () => {
   it('spans min low to max high across the window', () => {
     const s = series()

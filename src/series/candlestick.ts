@@ -18,8 +18,11 @@ export interface IndexWindow {
  *                 when it's following the live edge (PLAN §8.3 follow-mode).
  *   - `tick`    — `update` mutated the last bar in place; only a repaint is
  *                 needed, the scroll bounds are unchanged.
+ *   - `prepend` — older bars were backfilled at the front; logical indices stay
+ *                 bound to their bars (PLAN §6), so the view holds still and
+ *                 only a repaint is needed.
  */
-export type SeriesChange = 'reset' | 'new-bar' | 'tick'
+export type SeriesChange = 'reset' | 'new-bar' | 'tick' | 'prepend'
 
 /**
  * Candlestick series (PLAN §5 layer 2, §9 batching rules).
@@ -49,6 +52,13 @@ export class CandlestickSeries {
     const result = this.store.push(bar)
     this.onChange?.(result.isNewBar ? 'new-bar' : 'tick')
     return result
+  }
+
+  /** Backfill older bars at the front (history), e.g. from a {@link DataSource}. */
+  prepend(bars: readonly Bar[]): void {
+    if (bars.length === 0) return
+    this.store.prepend(bars)
+    this.onChange?.('prepend')
   }
 
   /**
