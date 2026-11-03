@@ -163,6 +163,9 @@ export class Chart {
     if (change === 'reset') {
       this.following = true
       this.fitContent()
+      // Fresh data sits at its left edge; pull history so indicators (and the
+      // left of the view) have lookback without needing a pan first.
+      this.maybeBackfill()
       return
     }
     // A new bar extends the right edge; follow it if we're pinned there,
@@ -193,6 +196,9 @@ export class Chart {
         this.series?.update(bar)
       })
     }
+    // If data is already loaded at its left edge, start pulling history now
+    // (e.g. so indicators added later have lookback without a pan).
+    this.maybeBackfill()
     return () => this.detachDataSource()
   }
 
@@ -295,10 +301,13 @@ export class Chart {
   }
 
   /**
-   * When panning/zooming brings the view within a screenful of the oldest bar,
-   * ask the data source (if any) for the preceding window and prepend it. One
-   * request in flight at a time; the next pan re-triggers if we're still near
-   * the edge. The time span is inferred from the oldest bars' spacing.
+   * Pull older history whenever the view is within a screenful of the oldest
+   * bar — on pan/zoom *and* proactively on load (see {@link setDataSource}), so
+   * indicators have lookback immediately instead of only after a pan. Fetches
+   * the preceding window from the data source and prepends it, then re-checks:
+   * it keeps pulling until the view has a full screen of lookback or history
+   * runs out, one request in flight at a time. The bar interval is inferred
+   * from the oldest bars' spacing.
    */
   private maybeBackfill(): void {
     const store = this.series?.store
@@ -319,14 +328,16 @@ export class Chart {
     this.backfilling = true
     Promise.resolve(this.dataSource.getBars(range))
       .then(bars => {
-        // Drop anything not strictly older than our current oldest bar.
+        this.backfilling = false
+        // Keep only bars strictly older than our current oldest.
         const older = bars.filter(b => b.time < oldestTime)
-        if (older.length > 0) this.series?.prepend(older)
+        if (older.length === 0) return // reached the start of available history
+        this.series?.prepend(older)
+        // Prepending reduces firstIndex; re-check until the view is covered.
+        this.maybeBackfill()
       })
       .catch(() => {
-        /* host-side failure; a later pan will retry */
-      })
-      .finally(() => {
+        // Host-side failure; a later pan will retry.
         this.backfilling = false
       })
   }
