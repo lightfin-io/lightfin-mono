@@ -1,3 +1,4 @@
+import { CrosshairController } from '../interaction/crosshair.ts'
 import { PanZoomController } from '../interaction/panzoom.ts'
 import { LayerManager } from '../render/layers.ts'
 import { FrameScheduler } from '../render/scheduler.ts'
@@ -36,6 +37,8 @@ export class Chart {
   private readonly scheduler: FrameScheduler
   private readonly resizeObserver: ResizeObserver
   private readonly panzoom: PanZoomController
+  private readonly crosshair: CrosshairController
+  private crosshairPoint: { x: number; y: number } | null = null
 
   private readonly timeScaleModel = new TimeScale()
   private readonly priceScale = new PriceScale()
@@ -50,6 +53,9 @@ export class Chart {
     this.panzoom = new PanZoomController(this.layers.root, {
       onPan: dx => this.onPan(dx),
       onZoom: (factor, anchorX) => this.onZoom(factor, anchorX),
+    })
+    this.crosshair = new CrosshairController(this.layers.root, {
+      onMove: point => this.onCrosshairMove(point),
     })
 
     this.resizeObserver = new ResizeObserver(() => this.syncSize())
@@ -133,7 +139,12 @@ export class Chart {
 
   /** Mark the viewport-dependent layers dirty (data or pan/zoom changed). */
   private invalidateViewport(): void {
-    this.scheduler.invalidate('background', 'series', 'axes')
+    this.scheduler.invalidate('background', 'series', 'axes', 'overlay')
+  }
+
+  private onCrosshairMove(point: { x: number; y: number } | null): void {
+    this.crosshairPoint = point
+    this.scheduler.invalidate('overlay')
   }
 
   /** Match the container size and device pixel ratio, repainting if changed. */
@@ -143,6 +154,7 @@ export class Chart {
     const dpr = window.devicePixelRatio || 1
     if (this.layers.resize({ width, height }, dpr)) {
       this.panzoom.refreshRect()
+      this.crosshair.refreshRect()
       this.clampScroll()
       this.scheduler.invalidate('background', 'series', 'overlay', 'axes')
     }
@@ -150,10 +162,13 @@ export class Chart {
 
   private paint(dirty: ReadonlySet<string>): void {
     // Autoscale the price axis to what's visible before drawing dependents.
-    this.autoScalePrice()
+    if (dirty.has('background') || dirty.has('series') || dirty.has('axes')) {
+      this.autoScalePrice()
+    }
     if (dirty.has('background')) this.paintBackground()
     if (dirty.has('series')) this.paintSeries()
     if (dirty.has('axes')) this.paintAxes()
+    if (dirty.has('overlay')) this.paintOverlay()
   }
 
   private autoScalePrice(): void {
@@ -180,11 +195,7 @@ export class Chart {
     ctx.beginPath()
 
     // Horizontal gridlines at price ticks.
-    const ticks = priceTicks(
-      this.priceScale.min,
-      this.priceScale.max,
-      Math.max(2, Math.floor(plot.height / PRICE_LABEL_SPACING)),
-    )
+    const ticks = this.visiblePriceTicks(plot.height)
     for (const price of ticks) {
       const y = snap(this.priceScale.priceToY(price, plot.height), dpr)
       ctx.moveTo(0, y)
@@ -235,9 +246,8 @@ export class Chart {
 
     ctx.fillStyle = theme.axisTextColor
     ctx.textAlign = 'left'
-    const count = Math.max(2, Math.floor(plot.height / PRICE_LABEL_SPACING))
-    const ticks = priceTicks(this.priceScale.min, this.priceScale.max, count)
-    const decimals = stepDecimals(ticks.length > 1 ? ticks[1]! - ticks[0]! : 1)
+    const ticks = this.visiblePriceTicks(plot.height)
+    const decimals = priceTickDecimals(ticks)
     for (const price of ticks) {
       const y = this.priceScale.priceToY(price, plot.height)
       if (y < 0 || y > plot.height) continue
@@ -259,6 +269,78 @@ export class Chart {
       ctx.fillText(formatTimeLabel(time, prevTime), x, plot.height + 6)
       prevTime = time
     }
+  }
+
+  /** "Nice" price-axis tick values for the current price scale and plot height. */
+  private visiblePriceTicks(plotHeight: number): number[] {
+    const count = Math.max(2, Math.floor(plotHeight / PRICE_LABEL_SPACING))
+    return priceTicks(this.priceScale.min, this.priceScale.max, count)
+  }
+
+  /** Dotted crosshair lines + axis value labels, following the pointer (PLAN §8.2). */
+  private paintOverlay(): void {
+    this.layers.clear('overlay')
+    const point = this.crosshairPoint
+    const store = this.series?.store
+    if (!point || !store || store.size === 0) return
+
+    const plot = this.plotRect()
+    const { width, height } = this.layers.getSize()
+    const { theme } = this.options
+    const ts = this.timeScaleModel
+    const dpr = this.layers.getDpr()
+
+    const nearest = clamp(
+      ts.nearestIndex(point.x),
+      store.firstIndex,
+      store.lastIndex,
+    )
+    const lineX = snap(ts.indexToX(nearest), dpr)
+    const clampedY = clamp(point.y, 0, plot.height)
+    const lineY = snap(clampedY, dpr)
+
+    const ctx = this.layers.getContext('overlay')
+    ctx.save()
+    ctx.strokeStyle = theme.crosshairColor
+    ctx.lineWidth = 1
+    ctx.setLineDash([4, 4])
+    ctx.beginPath()
+    ctx.moveTo(lineX, 0)
+    ctx.lineTo(lineX, height)
+    ctx.moveTo(0, lineY)
+    ctx.lineTo(width, lineY)
+    ctx.stroke()
+    ctx.restore()
+
+    ctx.font = `${theme.fontSize}px ${theme.fontFamily}`
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = theme.crosshairColor
+
+    // Price label (right gutter), centered on the horizontal line.
+    const price = this.priceScale.yToPrice(clampedY, plot.height)
+    const decimals = priceTickDecimals(this.visiblePriceTicks(plot.height))
+    const priceText = price.toFixed(decimals)
+    const priceBoxH = theme.fontSize + 8
+    const priceBoxY = clamp(clampedY - priceBoxH / 2, 0, height - priceBoxH)
+    ctx.fillRect(plot.width, priceBoxY, width - plot.width, priceBoxH)
+    ctx.fillStyle = theme.background
+    ctx.textAlign = 'left'
+    ctx.fillText(priceText, plot.width + 6, priceBoxY + priceBoxH / 2)
+
+    // Time label (bottom gutter), centered on the vertical line.
+    const time = store.times[store.physical(nearest)]!
+    const timeText = formatCrosshairTime(time)
+    const timeBoxW = ctx.measureText(timeText).width + 12
+    const timeBoxX = clamp(lineX - timeBoxW / 2, 0, width - timeBoxW)
+    ctx.fillStyle = theme.crosshairColor
+    ctx.fillRect(timeBoxX, plot.height, timeBoxW, height - plot.height)
+    ctx.fillStyle = theme.background
+    ctx.textAlign = 'center'
+    ctx.fillText(
+      timeText,
+      timeBoxX + timeBoxW / 2,
+      plot.height + (height - plot.height) / 2,
+    )
   }
 
   /** x positions and timestamps of time-axis labels for the visible range. */
@@ -285,6 +367,7 @@ export class Chart {
   remove(): void {
     this.resizeObserver.disconnect()
     this.panzoom.dispose()
+    this.crosshair.dispose()
     this.scheduler.dispose()
     this.layers.dispose()
   }
@@ -320,4 +403,22 @@ function formatTimeLabel(timeSec: number, prevSec: number | null): string {
   const hh = String(d.getUTCHours()).padStart(2, '0')
   const mm = String(d.getUTCMinutes()).padStart(2, '0')
   return `${hh}:${mm}`
+}
+
+/** Decimal places implied by the spacing between adjacent price ticks. */
+function priceTickDecimals(ticks: readonly number[]): number {
+  return stepDecimals(ticks.length > 1 ? ticks[1]! - ticks[0]! : 1)
+}
+
+/**
+ * Full date + time label for the crosshair's time-axis box — unlike
+ * {@link formatTimeLabel}, always shows both since it has no previous label
+ * to diff against.
+ */
+function formatCrosshairTime(timeSec: number): string {
+  const d = new Date(timeSec * 1000)
+  const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+  const hh = String(d.getUTCHours()).padStart(2, '0')
+  const mm = String(d.getUTCMinutes()).padStart(2, '0')
+  return `${month} ${d.getUTCDate()} ${hh}:${mm}`
 }

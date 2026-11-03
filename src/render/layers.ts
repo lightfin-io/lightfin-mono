@@ -7,14 +7,16 @@
 export type LayerName =
   | 'background' // gridlines, pane backgrounds — redraw on resize/scale change
   | 'series' // candles, volume, indicator overlays — redraw on data/viewport change
-  | 'overlay' // crosshair, current-price line, in-flight annotations — redraw per pointer move
   | 'axes' // time/price axis strips — redraw on scale change
+  | 'overlay' // crosshair, current-price line, in-flight annotations — redraw per pointer move
 
+// Bottom to top. `overlay` paints last so the crosshair's axis labels sit on
+// top of the (otherwise static) axis strips instead of being hidden by them.
 export const LAYER_ORDER: readonly LayerName[] = [
   'background',
   'series',
-  'overlay',
   'axes',
+  'overlay',
 ]
 
 export interface Size {
