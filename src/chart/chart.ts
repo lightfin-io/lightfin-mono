@@ -7,6 +7,7 @@ import { priceTicks, stepDecimals } from '../scales/ticks.ts'
 import { TimeScale } from '../scales/timeScale.ts'
 import { timeAxisLabels } from '../scales/timeTicks.ts'
 import { CandlestickSeries } from '../series/candlestick.ts'
+import type { SeriesChange } from '../series/candlestick.ts'
 import { drawVolume } from '../series/volume.ts'
 import type { ChartOptions, ChartOptionsInput } from './options.ts'
 import { resolveOptions } from './options.ts'
@@ -49,6 +50,10 @@ export class Chart {
   private readonly timeScaleModel = new TimeScale()
   private readonly priceScale = new PriceScale()
   private series: CandlestickSeries | null = null
+  // Whether the viewport is pinned to the live edge, so new bars scroll it
+  // along (PLAN §8.3 follow-mode). On by default; turns off when the user pans
+  // away from the right edge and back on when they return to it.
+  private following = true
 
   constructor(container: HTMLElement, options: ChartOptionsInput = {}) {
     this.container = container
@@ -72,12 +77,25 @@ export class Chart {
   /** Add the chart's candlestick series. Phase 1 supports one. */
   addCandlestickSeries(): CandlestickSeries {
     const series = new CandlestickSeries()
-    series.onChange = reset => {
-      if (reset) this.fitContent()
-      else this.invalidateViewport()
-    }
+    series.onChange = change => this.onSeriesChange(change)
     this.series = series
     return series
+  }
+
+  private onSeriesChange(change: SeriesChange): void {
+    if (change === 'reset') {
+      this.following = true
+      this.fitContent()
+      return
+    }
+    // A new bar extends the right edge; follow it if we're pinned there,
+    // otherwise just keep the existing view in bounds. An in-place tick changes
+    // neither the bar count nor the scroll bounds, so only a repaint is needed.
+    if (change === 'new-bar') {
+      if (this.following) this.timeScaleModel.scrollIndex = this.maxScrollIndex()
+      else this.clampScroll()
+    }
+    this.invalidateViewport()
   }
 
   /** The time scale, for programmatic pan/zoom (PLAN §11). */
@@ -117,6 +135,7 @@ export class Chart {
   private onPan(dx: number): void {
     this.timeScaleModel.panByPixels(dx)
     this.clampScroll()
+    this.syncFollowing()
     this.invalidateViewport()
   }
 
@@ -125,7 +144,19 @@ export class Chart {
     const next = clamp(ts.barWidth * factor, MIN_BAR_WIDTH, MAX_BAR_WIDTH)
     ts.zoom(next / ts.barWidth, anchorX)
     this.clampScroll()
+    this.syncFollowing()
     this.invalidateViewport()
+  }
+
+  /**
+   * The largest `scrollIndex` that keeps data on screen, i.e. the newest bar
+   * parked at the right edge with `rightOffset` empty slots beyond it.
+   */
+  private maxScrollIndex(): number {
+    const store = this.series!.store
+    const plot = this.plotRect()
+    const viewBars = plot.width / this.timeScaleModel.barWidth
+    return store.lastIndex + 1 + this.options.rightOffset - viewBars
   }
 
   /** Keep data on screen with at most `rightOffset` empty slots at the edges. */
@@ -133,14 +164,23 @@ export class Chart {
     const store = this.series?.store
     if (!store || store.size === 0) return
     const ts = this.timeScaleModel
-    const plot = this.plotRect()
-    const viewBars = plot.width / ts.barWidth
-    const maxScroll = store.lastIndex + 1 + this.options.rightOffset - viewBars
+    const maxScroll = this.maxScrollIndex()
     const minScroll = store.firstIndex
     ts.scrollIndex =
       maxScroll < minScroll
         ? maxScroll
         : clamp(ts.scrollIndex, minScroll, maxScroll)
+  }
+
+  /**
+   * After a user-driven pan/zoom, re-arm follow-mode when the view is sitting at
+   * the live edge and disarm it once they scroll back into history (PLAN §8.3).
+   * The half-bar tolerance keeps it armed through sub-bar fractional offsets.
+   */
+  private syncFollowing(): void {
+    const store = this.series?.store
+    if (!store || store.size === 0) return
+    this.following = this.timeScaleModel.scrollIndex >= this.maxScrollIndex() - 0.5
   }
 
   /** Mark the viewport-dependent layers dirty (data or pan/zoom changed). */

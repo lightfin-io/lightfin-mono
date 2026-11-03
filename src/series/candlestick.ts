@@ -12,6 +12,16 @@ export interface IndexWindow {
 }
 
 /**
+ * How a series' data changed, so the chart can respond appropriately:
+ *   - `reset`   — full replacement via `setData`; the chart refits the viewport.
+ *   - `new-bar` — `update` appended a newer bar; the chart advances the viewport
+ *                 when it's following the live edge (PLAN §8.3 follow-mode).
+ *   - `tick`    — `update` mutated the last bar in place; only a repaint is
+ *                 needed, the scroll bounds are unchanged.
+ */
+export type SeriesChange = 'reset' | 'new-bar' | 'tick'
+
+/**
  * Candlestick series (PLAN §5 layer 2, §9 batching rules).
  *
  * Owns a {@link ColumnStore} and draws it with the batched-path technique:
@@ -26,19 +36,18 @@ export class CandlestickSeries {
 
   /**
    * Set by the chart when the series is added, so `setData`/`update` can
-   * trigger a repaint. `reset` is true for a full data replacement (the chart
-   * refits the viewport), false for a live push.
+   * trigger the right repaint/viewport response (see {@link SeriesChange}).
    */
-  onChange?: (reset: boolean) => void
+  onChange?: (change: SeriesChange) => void
 
   setData(bars: readonly Bar[]): void {
     this.store.setData(bars)
-    this.onChange?.(true)
+    this.onChange?.('reset')
   }
 
   update(bar: Bar): PushResult {
     const result = this.store.push(bar)
-    this.onChange?.(false)
+    this.onChange?.(result.isNewBar ? 'new-bar' : 'tick')
     return result
   }
 
