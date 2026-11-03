@@ -62,4 +62,14 @@ describe('PriceScale', () => {
     ps.autoScale(50, 50)
     expect(ps.max).toBeGreaterThan(ps.min)
   })
+
+  it('maps the domain into the band left by top/bottom margins', () => {
+    const ps = new PriceScale(0, 100)
+    ps.bottomMargin = 0.2 // reserve the bottom 20% (e.g. for volume)
+    // Domain bottom now lands at the top of the reserved slice, not y=height.
+    expect(ps.priceToY(0, 400)).toBeCloseTo(320)
+    expect(ps.priceToY(100, 400)).toBeCloseTo(0)
+    // Still invertible within the band.
+    expect(ps.yToPrice(ps.priceToY(42, 400), 400)).toBeCloseTo(42)
+  })
 })

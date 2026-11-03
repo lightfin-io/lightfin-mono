@@ -11,6 +11,15 @@ export class PriceScale {
   max: number
   /** Fraction of the domain kept as empty margin above and below the data. */
   marginRatio: number
+  /**
+   * Pixel-space insets (fraction of plot height) reserved at the top and bottom
+   * of the plot, so the price domain maps only into the band between them. The
+   * chart uses the bottom inset to lift candles clear of the volume histogram
+   * (PLAN §7) — it occupies the bottom slice, so prices shouldn't draw over it.
+   * Both default to 0 (domain fills the full height).
+   */
+  topMargin = 0
+  bottomMargin = 0
 
   constructor(min = 0, max = 1, marginRatio = 0.1) {
     this.min = min
@@ -18,14 +27,24 @@ export class PriceScale {
     this.marginRatio = marginRatio
   }
 
+  /** Usable vertical band in px after the top/bottom insets; at least 1px. */
+  private usable(height: number): number {
+    return Math.max(1, height * (1 - this.topMargin - this.bottomMargin))
+  }
+
   priceToY(price: number, height: number): number {
     const span = this.max - this.min || 1
-    return height * (1 - (price - this.min) / span)
+    return (
+      height * this.topMargin +
+      (1 - (price - this.min) / span) * this.usable(height)
+    )
   }
 
   yToPrice(y: number, height: number): number {
     const span = this.max - this.min || 1
-    return this.min + (1 - y / height) * span
+    return (
+      this.min + (1 - (y - height * this.topMargin) / this.usable(height)) * span
+    )
   }
 
   /**

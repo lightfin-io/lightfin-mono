@@ -175,6 +175,12 @@ export class Chart {
 
   private autoScalePrice(): void {
     if (!this.series) return
+    // Lift the price domain clear of the volume histogram's bottom slice so
+    // candles don't draw over it (PLAN §7).
+    this.priceScale.bottomMargin =
+      this.options.volumeVisible && this.series.store.hasVolumeData
+        ? this.options.volumeHeightRatio
+        : 0
     const plot = this.plotRect()
     const window = this.series.visibleWindow(this.timeScaleModel, plot.width)
     const range = this.series.priceRange(window)
