@@ -247,11 +247,10 @@ export class Chart {
     ctx.fillStyle = theme.axisTextColor
     ctx.textAlign = 'left'
     const ticks = this.visiblePriceTicks(plot.height)
-    const decimals = priceTickDecimals(ticks)
     for (const price of ticks) {
       const y = this.priceScale.priceToY(price, plot.height)
       if (y < 0 || y > plot.height) continue
-      ctx.fillText(price.toFixed(decimals), plot.width + 6, y)
+      ctx.fillText(formatPrice(price, ticks, this.options), plot.width + 6, y)
     }
 
     // Time axis strip (bottom).
@@ -318,8 +317,11 @@ export class Chart {
 
     // Price label (right gutter), centered on the horizontal line.
     const price = this.priceScale.yToPrice(clampedY, plot.height)
-    const decimals = priceTickDecimals(this.visiblePriceTicks(plot.height))
-    const priceText = price.toFixed(decimals)
+    const priceText = formatPrice(
+      price,
+      this.visiblePriceTicks(plot.height),
+      this.options,
+    )
     const priceBoxH = theme.fontSize + 8
     const priceBoxY = clamp(clampedY - priceBoxH / 2, 0, height - priceBoxH)
     ctx.fillRect(plot.width, priceBoxY, width - plot.width, priceBoxH)
@@ -408,6 +410,18 @@ function formatTimeLabel(timeSec: number, prevSec: number | null): string {
 /** Decimal places implied by the spacing between adjacent price ticks. */
 function priceTickDecimals(ticks: readonly number[]): number {
   return stepDecimals(ticks.length > 1 ? ticks[1]! - ticks[0]! : 1)
+}
+
+/** Formats a price for axis/crosshair labels, honoring `priceDecimals`/`priceFormatter`. */
+function formatPrice(
+  price: number,
+  ticks: readonly number[],
+  options: ChartOptions,
+): string {
+  const decimals = Math.max(options.priceDecimals, priceTickDecimals(ticks))
+  return options.priceFormatter
+    ? options.priceFormatter(price, decimals)
+    : price.toFixed(decimals)
 }
 
 /**

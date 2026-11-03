@@ -23,6 +23,19 @@ export interface ChartOptions {
   timeAxisHeight: number
   /** Blank bars of room kept to the right of the newest bar (TradingView-style). */
   rightOffset: number
+  /**
+   * Minimum decimal places shown on price axis & crosshair labels (default 2,
+   * i.e. normal currency). Extra decimals are added automatically when the
+   * price-axis tick step is finer than this, e.g. sub-cent crypto prices.
+   */
+  priceDecimals: number
+  /**
+   * Overrides price label formatting entirely — e.g. for locales using "," or
+   * " " as the decimal/thousands separator. Receives the price and the
+   * decimal count computed from {@link ChartOptions.priceDecimals} and the
+   * current tick step.
+   */
+  priceFormatter?: (price: number, decimals: number) => string
 }
 
 /** What consumers pass to {@link createChart} — every field optional, theme deep-partial. */
@@ -50,6 +63,7 @@ export const DEFAULT_OPTIONS: ChartOptions = {
   priceAxisWidth: 64,
   timeAxisHeight: 24,
   rightOffset: 6,
+  priceDecimals: 2,
 }
 
 export function resolveOptions(partial: ChartOptionsInput): ChartOptions {
