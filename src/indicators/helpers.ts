@@ -67,3 +67,22 @@ export function meanClose(
   for (let j = index - period + 1; j <= index; j++) sum += reader.close(j)
   return sum / period
 }
+
+/**
+ * Population standard deviation of `close` over the `period` bars ending at
+ * `index`, given their precomputed `mean` (Bollinger convention: divide by N,
+ * not N-1).
+ */
+export function stdDevClose(
+  reader: BarReader,
+  index: number,
+  period: number,
+  mean: number,
+): number {
+  let sumSq = 0
+  for (let j = index - period + 1; j <= index; j++) {
+    const d = reader.close(j) - mean
+    sumSq += d * d
+  }
+  return Math.sqrt(sumSq / period)
+}

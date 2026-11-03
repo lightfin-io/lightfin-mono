@@ -28,6 +28,10 @@ const ema = await chart.addIndicator(
   import('lightfin-web-chart/indicators/ema'),
   { period: 50, color: '#ff6d00' },
 )
+const bb = await chart.addIndicator(
+  import('lightfin-web-chart/indicators/bollinger'),
+  { period: 20, mult: 2 },
+)
 
 // Expose for manual poking in the console.
 Object.assign(window as unknown as Record<string, unknown>, {
@@ -36,4 +40,5 @@ Object.assign(window as unknown as Record<string, unknown>, {
   detach,
   sma,
   ema,
+  bb,
 })

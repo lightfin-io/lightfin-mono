@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { StoreReader } from '../data/barReader.ts'
 import { ColumnStore } from '../data/store.ts'
 import type { Bar } from '../data/types.ts'
+import bollingerDef from './bollinger.ts'
 import emaDef from './ema.ts'
 import smaDef from './sma.ts'
 import type { IndicatorDefinition } from './types.ts'
@@ -53,6 +54,7 @@ function snapshot(
 const definitions: [string, AnyDef, Record<string, unknown>][] = [
   ['SMA', smaDef as unknown as AnyDef, { period: 10 }],
   ['EMA', emaDef as unknown as AnyDef, { period: 10 }],
+  ['Bollinger', bollingerDef as unknown as AnyDef, { period: 10, mult: 2 }],
 ]
 
 describe.each(definitions)('%s indicator', (_name, def, options) => {

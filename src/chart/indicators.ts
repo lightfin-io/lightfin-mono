@@ -1,5 +1,6 @@
 import type { StoreReader } from '../data/barReader.ts'
 import type {
+  BandFill,
   IndicatorCalc,
   IndicatorDefinition,
   PlotStyle,
@@ -18,6 +19,7 @@ interface IndexWindow {
 export class IndicatorInstance {
   readonly overlay: boolean
   readonly plots: PlotStyle[]
+  readonly fills: BandFill[]
   private readonly calc: IndicatorCalc
 
   // The core doesn't model each indicator's option shape — it just merges
@@ -28,6 +30,7 @@ export class IndicatorInstance {
     const resolved = { ...def.defaultOptions, ...options }
     this.overlay = def.overlay
     this.plots = def.plots(resolved)
+    this.fills = def.fills?.(resolved) ?? []
     this.calc = def.create(resolved)
   }
 
@@ -113,6 +116,10 @@ export class IndicatorController {
   ): void {
     for (const inst of this.instances) {
       if (!inst.overlay) continue
+      // Bands first, so the lines read on top of their own shaded fill.
+      for (const fill of inst.fills) {
+        drawBandFill(ctx, inst, fill, window, timeScale, priceScale, plot)
+      }
       for (const style of inst.plots) {
         drawLinePlot(ctx, inst, style, window, timeScale, priceScale, plot)
       }
@@ -151,4 +158,60 @@ function drawLinePlot(
   ctx.strokeStyle = style.color
   ctx.lineWidth = style.lineWidth ?? 1.5
   ctx.stroke()
+}
+
+/**
+ * Fill the region between an `upper` and `lower` plot across the visible window
+ * as a translucent band. Each contiguous run where both edges are defined
+ * becomes one polygon (forward along the upper edge, back along the lower), so
+ * warmup gaps don't smear the fill across undefined regions.
+ */
+function drawBandFill(
+  ctx: CanvasRenderingContext2D,
+  inst: IndicatorInstance,
+  fill: BandFill,
+  window: IndexWindow,
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+  plot: PlotRect,
+): void {
+  ctx.fillStyle = fill.color
+  // Lower-edge x/y of the current run, to retrace backwards when it ends.
+  const lowerXs: number[] = []
+  const lowerYs: number[] = []
+  let open = false
+
+  const flush = () => {
+    if (!open) return
+    for (let k = lowerXs.length - 1; k >= 0; k--) {
+      ctx.lineTo(lowerXs[k]!, lowerYs[k]!)
+    }
+    ctx.closePath()
+    ctx.fill()
+    lowerXs.length = 0
+    lowerYs.length = 0
+    open = false
+  }
+
+  for (let i = window.from; i <= window.to; i++) {
+    const up = inst.value(fill.upper, i)
+    const lo = inst.value(fill.lower, i)
+    if (!Number.isFinite(up) || !Number.isFinite(lo)) {
+      flush()
+      continue
+    }
+    const x = plot.left + timeScale.indexToX(i)
+    const yUp = plot.top + priceScale.priceToY(up, plot.height)
+    const yLo = plot.top + priceScale.priceToY(lo, plot.height)
+    if (!open) {
+      ctx.beginPath()
+      ctx.moveTo(x, yUp)
+      open = true
+    } else {
+      ctx.lineTo(x, yUp)
+    }
+    lowerXs.push(x)
+    lowerYs.push(yLo)
+  }
+  flush()
 }

@@ -37,6 +37,18 @@ export interface PlotStyle {
 }
 
 /**
+ * A translucent fill between two of an indicator's line plots (e.g. the
+ * Bollinger band between its upper and lower lines).
+ */
+export interface BandFill {
+  /** Plot key for the upper edge of the band. */
+  upper: string
+  /** Plot key for the lower edge of the band. */
+  lower: string
+  color: string
+}
+
+/**
  * The compute half of a live indicator instance. The one hard rule (PLAN §8.4):
  * panning/zooming must never call these — they only run on data change.
  *   - `calculateAll` recomputes every plot over the whole dataset (on reset /
@@ -68,6 +80,8 @@ export interface IndicatorDefinition<Options = Record<string, never>> {
   defaultOptions: Options
   /** The plots this indicator emits for the given (resolved) options. */
   plots(options: Options): PlotStyle[]
+  /** Optional translucent bands drawn between pairs of plots (behind the lines). */
+  fills?(options: Options): BandFill[]
   create(options: Options): IndicatorCalc
 }
 

@@ -24,6 +24,7 @@ export default defineConfig({
         // per new built-in; the `./indicators/*` export pattern covers the rest.
         'indicators/sma': resolve(root, 'src/indicators/sma.ts'),
         'indicators/ema': resolve(root, 'src/indicators/ema.ts'),
+        'indicators/bollinger': resolve(root, 'src/indicators/bollinger.ts'),
         annotations: resolve(root, 'src/annotations/index.ts'),
       },
       formats: ['es'],
