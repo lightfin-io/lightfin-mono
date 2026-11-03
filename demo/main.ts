@@ -10,7 +10,7 @@ const chart = createChart(container, { volumeVisible: true })
 const candles = chart.addCandlestickSeries()
 
 // Seed with recent history, then attach the live/backfill data source (PLAN §6).
-const feed = createMockFeed({ intervalSec: 60, initialCount: 200, tickMs: 200 })
+const feed = createMockFeed({ intervalSec: 60, initialCount: 200, tickMs: 1000 })
 candles.setData(feed.initial())
 const detach = chart.setDataSource(feed.source)
 
