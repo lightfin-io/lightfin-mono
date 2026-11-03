@@ -25,6 +25,10 @@ const MIN_BAR_WIDTH = 0.5
 const MAX_BAR_WIDTH = 200
 const PRICE_LABEL_SPACING = 48
 const TIME_LABEL_SPACING = 90
+// Fraction of the volume region the price domain is lifted above. <1 so candles
+// still dip slightly into the (translucent) volume bars, TradingView-style,
+// rather than sitting entirely clear of them.
+const VOLUME_PRICE_MARGIN = 0.6
 
 /**
  * The root chart object (PLAN §4 `chart/`). Owns the layered canvas stack, the
@@ -179,7 +183,7 @@ export class Chart {
     // candles don't draw over it (PLAN §7).
     this.priceScale.bottomMargin =
       this.options.volumeVisible && this.series.store.hasVolumeData
-        ? this.options.volumeHeightRatio
+        ? this.options.volumeHeightRatio * VOLUME_PRICE_MARGIN
         : 0
     const plot = this.plotRect()
     const window = this.series.visibleWindow(this.timeScaleModel, plot.width)
