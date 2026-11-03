@@ -15,3 +15,5 @@ export type {
 } from './chart/options.ts'
 export { DEFAULT_OPTIONS, DEFAULT_THEME } from './chart/options.ts'
 export type { Bar, UTCTimestamp } from './data/types.ts'
+export { CandlestickSeries } from './series/candlestick.ts'
+export type { PushResult } from './data/store.ts'
