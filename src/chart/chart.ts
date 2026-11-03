@@ -3,8 +3,9 @@ import { PanZoomController } from '../interaction/panzoom.ts'
 import { LayerManager } from '../render/layers.ts'
 import { FrameScheduler } from '../render/scheduler.ts'
 import { PriceScale } from '../scales/priceScale.ts'
-import { chooseBarStep, priceTicks, stepDecimals } from '../scales/ticks.ts'
+import { priceTicks, stepDecimals } from '../scales/ticks.ts'
 import { TimeScale } from '../scales/timeScale.ts'
+import { timeAxisLabels } from '../scales/timeTicks.ts'
 import { CandlestickSeries } from '../series/candlestick.ts'
 import { drawVolume } from '../series/volume.ts'
 import type { ChartOptions, ChartOptionsInput } from './options.ts'
@@ -204,7 +205,7 @@ export class Chart {
     }
 
     // Vertical gridlines at time labels.
-    for (const { x } of this.timeLabelPositions(plot)) {
+    for (const { x } of this.timeTicks(plot)) {
       const sx = snap(x, dpr)
       ctx.moveTo(sx, 0)
       ctx.lineTo(sx, plot.height)
@@ -284,12 +285,9 @@ export class Chart {
 
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
-    const labels = this.timeLabelPositions(plot)
-    let prevTime: number | null = null
-    for (const { x, time } of labels) {
+    for (const { x, text } of this.timeTicks(plot)) {
       if (x < 0 || x > plot.width) continue
-      ctx.fillText(formatTimeLabel(time, prevTime), x, plot.height + 6)
-      prevTime = time
+      ctx.fillText(text, x, plot.height + 6)
     }
   }
 
@@ -425,24 +423,27 @@ export class Chart {
     )
   }
 
-  /** x positions and timestamps of time-axis labels for the visible range. */
-  private timeLabelPositions(plot: PlotRect): { x: number; time: number }[] {
+  /**
+   * Interval-aware time-axis ticks (x position + label text) for the visible
+   * range — labels land on round wall-clock boundaries and skip data gaps
+   * (PLAN §7). Shared by the gridlines (x only) and the axis strip (x + text).
+   */
+  private timeTicks(plot: PlotRect): { x: number; text: string }[] {
     const store = this.series?.store
     if (!store || store.size === 0) return []
     const ts = this.timeScaleModel
-    const step = chooseBarStep(ts.barWidth, TIME_LABEL_SPACING)
     const range = ts.visibleRange(plot.width)
     const from = Math.max(store.firstIndex, Math.floor(range.from))
     const to = Math.min(store.lastIndex, Math.ceil(range.to))
 
-    const out: { x: number; time: number }[] = []
-    // Anchor labels to multiples of `step` so they don't jitter while panning.
-    const start = Math.ceil(from / step) * step
-    for (let i = start; i <= to; i += step) {
-      if (!store.has(i)) continue
-      out.push({ x: ts.indexToX(i), time: store.times[store.physical(i)]! })
+    const bars: { index: number; time: number }[] = []
+    for (let i = from; i <= to; i++) {
+      bars.push({ index: i, time: store.times[store.physical(i)]! })
     }
-    return out
+    return timeAxisLabels(bars, ts.barWidth, TIME_LABEL_SPACING).map(l => ({
+      x: ts.indexToX(l.index),
+      text: l.text,
+    }))
   }
 
   /** Tear down observers, listeners, canvases, and any pending frame. */
@@ -462,29 +463,6 @@ function clamp(value: number, min: number, max: number): number {
 /** Snap a CSS-px coordinate to a whole device pixel for crisp 1px lines. */
 function snap(cssPx: number, dpr: number): number {
   return (Math.round(cssPx * dpr) + 0.5) / dpr
-}
-
-/**
- * Phase 1 time label: show the date when the day differs from the previous
- * label, otherwise HH:MM. The interval-aware ladder is a Phase 2 concern
- * (PLAN §7, §14). UTC so rendering is deterministic for tests/screenshots.
- */
-function formatTimeLabel(timeSec: number, prevSec: number | null): string {
-  const d = new Date(timeSec * 1000)
-  const sameDay =
-    prevSec !== null &&
-    new Date(prevSec * 1000).getUTCDate() === d.getUTCDate() &&
-    new Date(prevSec * 1000).getUTCMonth() === d.getUTCMonth()
-  if (!sameDay) {
-    const month = d.toLocaleString('en-US', {
-      month: 'short',
-      timeZone: 'UTC',
-    })
-    return `${month} ${d.getUTCDate()}`
-  }
-  const hh = String(d.getUTCHours()).padStart(2, '0')
-  const mm = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${hh}:${mm}`
 }
 
 /** Decimal places implied by the spacing between adjacent price ticks. */

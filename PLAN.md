@@ -275,6 +275,7 @@ Each top-level folder is also a candidate subpath export (`lightfin-web-chart/in
   bespoke scripting language, for v1. Ship a handful of built-ins (SMA, EMA,
   RSI, MACD, Bollinger Bands, Volume MA) as separate dynamically-importable
   modules.
+- **AI friendly** we want AI enabled UI to be able to dynamically add existing or create new indicators
 - **On Pine Script specifically:** don't build a Pine Script-compatible
   engine. "Pine Script" is a proprietary, trademarked TradingView product;
   its reference docs/behavior are TradingView's IP and reverse-engineering

@@ -3,9 +3,8 @@
  * `ticks()`: pick a round step (1/2/2.5/5 × 10ⁿ) near the target density and
  * emit the round values inside the domain.
  *
- * The interval-aware, index-based *time* ladder (1s/5s/… up to 1Y) is a Phase 2
- * decision (PLAN §14); Phase 1 uses {@link chooseBarStep} for evenly-spaced bar
- * labels.
+ * The interval-aware, index-based *time* ladder (1s/5s/… up to 1Y) lives in
+ * `timeTicks.ts`; this module is price-axis only.
  */
 
 /** Round `value` up/near to a 1/2/2.5/5 × 10ⁿ step. */
@@ -55,13 +54,4 @@ export function priceTicks(
 export function stepDecimals(step: number): number {
   if (step >= 1 || step <= 0) return 0
   return Math.min(8, Math.ceil(-Math.log10(step)))
-}
-
-/**
- * Choose how many bars apart time labels should sit so they land ~`targetPx`
- * apart at the current `barWidth`, rounded to a 1/2/5 × 10ⁿ multiple of bars.
- */
-export function chooseBarStep(barWidth: number, targetPx: number): number {
-  const rawBars = Math.max(1, targetPx / barWidth)
-  return Math.max(1, Math.round(niceStep(rawBars)))
 }

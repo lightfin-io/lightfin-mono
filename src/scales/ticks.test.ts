@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { chooseBarStep, niceStep, priceTicks, stepDecimals } from './ticks.ts'
+import { niceStep, priceTicks, stepDecimals } from './ticks.ts'
 
 describe('niceStep', () => {
   it('snaps to 1/2/2.5/5 × 10ⁿ', () => {
@@ -45,13 +45,5 @@ describe('stepDecimals', () => {
     expect(stepDecimals(0.5)).toBe(1)
     expect(stepDecimals(0.05)).toBe(2)
     expect(stepDecimals(0.001)).toBe(3)
-  })
-})
-
-describe('chooseBarStep', () => {
-  it('asks for more bars-per-label as bars get narrower', () => {
-    expect(chooseBarStep(50, 80)).toBe(2) // wide bars → ~1.6 bars rounds to 2
-    const narrow = chooseBarStep(4, 80) // 20 bars raw → nice 20
-    expect(narrow).toBeGreaterThanOrEqual(10)
   })
 })
