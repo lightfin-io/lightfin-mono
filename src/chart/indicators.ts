@@ -4,8 +4,9 @@ import type {
   IndicatorCalc,
   IndicatorDefinition,
   PlotStyle,
+  ReferenceLevel,
 } from '../indicators/types.ts'
-import type { PriceScale } from '../scales/priceScale.ts'
+import { PriceScale } from '../scales/priceScale.ts'
 import type { TimeScale } from '../scales/timeScale.ts'
 import type { PlotRect } from './chart.ts'
 
@@ -20,6 +21,10 @@ export class IndicatorInstance {
   readonly overlay: boolean
   readonly plots: PlotStyle[]
   readonly fills: BandFill[]
+  readonly levels: ReferenceLevel[]
+  /** Pane indicators only: the pane's own price scale (null for overlays). */
+  readonly scale: PriceScale | null
+  private readonly fixedRange: { min: number; max: number } | null
   private readonly calc: IndicatorCalc
 
   // The core doesn't model each indicator's option shape — it just merges
@@ -31,6 +36,9 @@ export class IndicatorInstance {
     this.overlay = def.overlay
     this.plots = def.plots(resolved)
     this.fills = def.fills?.(resolved) ?? []
+    this.levels = def.overlay ? [] : (def.levels?.(resolved) ?? [])
+    this.fixedRange = def.overlay ? null : (def.fixedRange?.(resolved) ?? null)
+    this.scale = def.overlay ? null : new PriceScale(0, 1, 0.1)
     this.calc = def.create(resolved)
   }
 
@@ -44,6 +52,36 @@ export class IndicatorInstance {
 
   value(plotKey: string, index: number): number {
     return this.calc.value(plotKey, index)
+  }
+
+  /**
+   * Set this pane indicator's scale for the visible window: its fixed range if
+   * declared, else autoscaled to its plot values (always including 0 when it
+   * has a histogram so the baseline is on screen). No-op for overlays.
+   */
+  autoScalePane(window: IndexWindow): void {
+    if (!this.scale) return
+    if (this.fixedRange) {
+      this.scale.min = this.fixedRange.min
+      this.scale.max = this.fixedRange.max
+      return
+    }
+    let low = Infinity
+    let high = -Infinity
+    const hasHistogram = this.plots.some(p => p.type === 'histogram')
+    if (hasHistogram) {
+      low = 0
+      high = 0
+    }
+    for (const plot of this.plots) {
+      for (let i = window.from; i <= window.to; i++) {
+        const v = this.value(plot.key, i)
+        if (!Number.isFinite(v)) continue
+        if (v < low) low = v
+        if (v > high) high = v
+      }
+    }
+    if (low <= high) this.scale.autoScale(low, high)
   }
 }
 
@@ -72,6 +110,15 @@ export class IndicatorController {
 
   get isEmpty(): boolean {
     return this.instances.length === 0
+  }
+
+  get hasOverlays(): boolean {
+    return this.instances.some(i => i.overlay)
+  }
+
+  /** Pane indicators (own sub-pane), in the order they were added. */
+  paneInstances(): IndicatorInstance[] {
+    return this.instances.filter(i => !i.overlay)
   }
 
   recomputeAll(reader: StoreReader): void {
@@ -122,6 +169,45 @@ export class IndicatorController {
       }
       for (const style of inst.plots) {
         drawLinePlot(ctx, inst, style, window, timeScale, priceScale, plot)
+      }
+    }
+  }
+
+  /**
+   * Draw one pane indicator into its own sub-pane `rect` using its own `scale`:
+   * reference levels first, then histogram columns, then lines. The caller
+   * clips to `rect`.
+   */
+  drawPane(
+    ctx: CanvasRenderingContext2D,
+    inst: IndicatorInstance,
+    window: IndexWindow,
+    timeScale: TimeScale,
+    rect: PlotRect,
+    dpr: number,
+  ): void {
+    const scale = inst.scale
+    if (!scale) return
+
+    for (const level of inst.levels) {
+      const y = rect.top + scale.priceToY(level.value, rect.height)
+      if (y < rect.top || y > rect.top + rect.height) continue
+      ctx.save()
+      ctx.strokeStyle = level.color
+      ctx.lineWidth = 1
+      if (level.dashed !== false) ctx.setLineDash([3, 3])
+      ctx.beginPath()
+      ctx.moveTo(rect.left, snapPx(y, dpr))
+      ctx.lineTo(rect.left + rect.width, snapPx(y, dpr))
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    for (const style of inst.plots) {
+      if (style.type === 'histogram') {
+        drawHistogramPlot(ctx, inst, style, window, timeScale, scale, rect, dpr)
+      } else {
+        drawLinePlot(ctx, inst, style, window, timeScale, scale, rect)
       }
     }
   }
@@ -214,4 +300,46 @@ function drawBandFill(
     lowerYs.push(yLo)
   }
   flush()
+}
+
+/**
+ * Draw a histogram plot (e.g. MACD) as columns from the pane's zero baseline,
+ * bucketed into positive vs negative so each color is one batched `fill()`
+ * (PLAN §9). Columns fill ~80% of the bar slot.
+ */
+function drawHistogramPlot(
+  ctx: CanvasRenderingContext2D,
+  inst: IndicatorInstance,
+  style: PlotStyle,
+  window: IndexWindow,
+  timeScale: TimeScale,
+  scale: PriceScale,
+  rect: PlotRect,
+  dpr: number,
+): void {
+  const baseY = rect.top + scale.priceToY(0, rect.height)
+  const colW = Math.max(1 / dpr, timeScale.barWidth * 0.8)
+  const half = colW / 2
+  const pos = new Path2D()
+  const neg = new Path2D()
+
+  for (let i = window.from; i <= window.to; i++) {
+    const v = inst.value(style.key, i)
+    if (!Number.isFinite(v) || v === 0) continue
+    const x = snapPx(rect.left + timeScale.indexToX(i) - half, dpr)
+    const y = rect.top + scale.priceToY(v, rect.height)
+    const top = Math.min(y, baseY)
+    const h = Math.max(1, Math.abs(y - baseY))
+    ;(v >= 0 ? pos : neg).rect(x, top, colW, h)
+  }
+
+  ctx.fillStyle = style.color
+  ctx.fill(pos)
+  ctx.fillStyle = style.negativeColor ?? style.color
+  ctx.fill(neg)
+}
+
+/** Snap a CSS-px coordinate to a whole device pixel for crisp edges (PLAN §9). */
+function snapPx(cssPx: number, dpr: number): number {
+  return Math.round(cssPx * dpr) / dpr
 }

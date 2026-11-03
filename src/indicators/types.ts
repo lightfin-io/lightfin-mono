@@ -32,8 +32,21 @@ export interface PlotStyle {
   /** Line (default) or histogram columns (e.g. MACD histogram). */
   type?: 'line' | 'histogram'
   color: string
+  /** Fill for negative histogram columns; falls back to `color` when omitted. */
+  negativeColor?: string
   /** Line width in CSS px (line plots only). Defaults to 1.5. */
   lineWidth?: number
+}
+
+/**
+ * A horizontal reference line drawn across an indicator's own pane (e.g. RSI's
+ * 30/70 lines, MACD's zero line).
+ */
+export interface ReferenceLevel {
+  value: number
+  color: string
+  /** Draw dashed (default) rather than solid. */
+  dashed?: boolean
 }
 
 /**
@@ -82,6 +95,13 @@ export interface IndicatorDefinition<Options = Record<string, never>> {
   plots(options: Options): PlotStyle[]
   /** Optional translucent bands drawn between pairs of plots (behind the lines). */
   fills?(options: Options): BandFill[]
+  /**
+   * Pane indicators only: a fixed value range for the pane's scale (e.g. RSI's
+   * 0–100). When omitted, the pane autoscales to its plots' visible values.
+   */
+  fixedRange?(options: Options): { min: number; max: number }
+  /** Pane indicators only: horizontal reference lines (e.g. RSI 30/70). */
+  levels?(options: Options): ReferenceLevel[]
   create(options: Options): IndicatorCalc
 }
 

@@ -43,6 +43,10 @@ const MIN_BAR_WIDTH = 0.5
 const MAX_BAR_WIDTH = 200
 const PRICE_LABEL_SPACING = 48
 const TIME_LABEL_SPACING = 90
+// Each indicator sub-pane's share of the plot height, and the cap on how much
+// of it all sub-panes may claim together (so the main price pane stays usable).
+const INDICATOR_PANE_RATIO = 0.22
+const MAX_PANES_FRACTION = 0.6
 // Fraction of the volume region the price domain is lifted above. <1 so candles
 // still dip slightly into the (translucent) volume bars, TradingView-style,
 // rather than sitting entirely clear of them.
@@ -50,9 +54,10 @@ const VOLUME_PRICE_MARGIN = 0.6
 
 /**
  * The root chart object (PLAN §4 `chart/`). Owns the layered canvas stack, the
- * frame scheduler, the time/price scales, the pan/zoom controller, and the
- * series. Phase 1 supports a single candlestick series with an index-based time
- * axis, autoscaled price axis, and anchored pan/zoom over static data.
+ * frame scheduler, the time/price scales, the pan/zoom controller, the series,
+ * and the indicators. Supports a candlestick series on an index-based time axis
+ * with an autoscaled price axis, anchored pan/zoom, a crosshair and live
+ * data/follow-mode, plus overlay and own-pane indicators (PLAN §8.4).
  */
 export class Chart {
   private readonly container: HTMLElement
@@ -202,7 +207,11 @@ export class Chart {
     return this.timeScaleModel
   }
 
-  /** Current plot rect (candle region), excluding axis strips. */
+  /**
+   * Full plot rect (all panes) in CSS px, excluding the axis strips. Shared x
+   * extent for every pane; the vertical space is split between the main price
+   * pane and the indicator sub-panes (see {@link mainRect}/{@link paneSlots}).
+   */
   plotRect(): PlotRect {
     const { width, height } = this.layers.getSize()
     const { priceAxisWidth, timeAxisHeight } = this.options
@@ -212,6 +221,42 @@ export class Chart {
       width: Math.max(0, width - priceAxisWidth),
       height: Math.max(0, height - timeAxisHeight),
     }
+  }
+
+  /** Height of one indicator sub-pane given `n` of them share the plot. */
+  private paneHeight(full: PlotRect, n: number): number {
+    return Math.min(
+      full.height * INDICATOR_PANE_RATIO,
+      (full.height * MAX_PANES_FRACTION) / n,
+    )
+  }
+
+  /** The main (candle) pane rect — the full plot minus any indicator sub-panes. */
+  private mainRect(): PlotRect {
+    const full = this.plotRect()
+    const n = this.indicators.paneInstances().length
+    if (n === 0) return full
+    const used = this.paneHeight(full, n) * n
+    return { ...full, height: full.height - used }
+  }
+
+  /** The indicator sub-panes stacked below the main pane, top to bottom. */
+  private paneSlots(): { instance: IndicatorInstance; rect: PlotRect }[] {
+    const full = this.plotRect()
+    const insts = this.indicators.paneInstances()
+    const n = insts.length
+    if (n === 0) return []
+    const each = this.paneHeight(full, n)
+    const mainH = full.height - each * n
+    return insts.map((instance, i) => ({
+      instance,
+      rect: {
+        left: full.left,
+        top: full.top + mainH + i * each,
+        width: full.width,
+        height: each,
+      },
+    }))
   }
 
   /** Fit all data into view, with `rightOffset` bars of empty space at the right. */
@@ -349,6 +394,7 @@ export class Chart {
     // Autoscale the price axis to what's visible before drawing dependents.
     if (dirty.has('background') || dirty.has('series') || dirty.has('axes')) {
       this.autoScalePrice()
+      this.autoScalePanes()
     }
     if (dirty.has('background')) this.paintBackground()
     if (dirty.has('series')) this.paintSeries()
@@ -378,11 +424,24 @@ export class Chart {
     this.priceScale.autoScale(low, high)
   }
 
+  /** Autoscale each indicator sub-pane's own scale to its visible plot values. */
+  private autoScalePanes(): void {
+    if (!this.series) return
+    const panes = this.indicators.paneInstances()
+    if (panes.length === 0) return
+    const window = this.series.visibleWindow(
+      this.timeScaleModel,
+      this.plotRect().width,
+    )
+    for (const inst of panes) inst.autoScalePane(window)
+  }
+
   private paintBackground(): void {
     const ctx = this.layers.getContext('background')
     const { width, height } = this.layers.getSize()
     const { theme } = this.options
     const plot = this.plotRect()
+    const main = this.mainRect()
     const dpr = this.layers.getDpr()
 
     this.layers.clear('background')
@@ -393,19 +452,29 @@ export class Chart {
     ctx.lineWidth = 1
     ctx.beginPath()
 
-    // Horizontal gridlines at price ticks.
-    const ticks = this.visiblePriceTicks(plot.height)
+    // Horizontal gridlines at the main pane's price ticks.
+    const ticks = this.visiblePriceTicks(main.height)
     for (const price of ticks) {
-      const y = snap(this.priceScale.priceToY(price, plot.height), dpr)
+      const y = snap(this.priceScale.priceToY(price, main.height), dpr)
       ctx.moveTo(0, y)
-      ctx.lineTo(plot.width, y)
+      ctx.lineTo(main.width, y)
     }
 
-    // Vertical gridlines at time labels.
+    // Vertical gridlines at time labels, spanning every pane.
     for (const { x } of this.timeTicks(plot)) {
       const sx = snap(x, dpr)
       ctx.moveTo(sx, 0)
       ctx.lineTo(sx, plot.height)
+    }
+    ctx.stroke()
+
+    // A divider line along the top of each indicator sub-pane.
+    ctx.strokeStyle = theme.axisBorderColor
+    ctx.beginPath()
+    for (const { rect } of this.paneSlots()) {
+      const y = snap(rect.top, dpr)
+      ctx.moveTo(0, y)
+      ctx.lineTo(plot.width, y)
     }
     ctx.stroke()
   }
@@ -414,18 +483,18 @@ export class Chart {
     if (!this.series) return
     this.layers.clear('series')
     const ctx = this.layers.getContext('series')
-    const plot = this.plotRect()
+    const main = this.mainRect()
     const dpr = this.layers.getDpr()
+    const window = this.series.visibleWindow(this.timeScaleModel, main.width)
 
     // Volume first so the candles draw on top of its (semi-transparent) bars.
     if (this.options.volumeVisible && this.series.store.hasVolumeData) {
-      const window = this.series.visibleWindow(this.timeScaleModel, plot.width)
       drawVolume(
         ctx,
         this.series.store,
         window,
         this.timeScaleModel,
-        plot,
+        main,
         {
           max: this.series.volumeMax(window),
           heightRatio: this.options.volumeHeightRatio,
@@ -440,29 +509,45 @@ export class Chart {
       ctx,
       this.timeScaleModel,
       this.priceScale,
-      plot,
+      main,
       this.options.theme,
       dpr,
     )
 
-    // Overlay indicators draw on top of the candles, sharing the price scale,
-    // clipped to the plot so lines don't bleed into the axis strips.
-    if (!this.indicators.isEmpty) {
-      const window = this.series.visibleWindow(this.timeScaleModel, plot.width)
-      if (window.from <= window.to) {
-        ctx.save()
-        ctx.beginPath()
-        ctx.rect(plot.left, plot.top, plot.width, plot.height)
-        ctx.clip()
-        this.indicators.drawOverlays(
-          ctx,
-          window,
-          this.timeScaleModel,
-          this.priceScale,
-          plot,
-        )
-        ctx.restore()
-      }
+    if (this.indicators.isEmpty || window.from > window.to) return
+
+    // Overlay indicators draw on top of the candles, sharing the main price
+    // scale, clipped to the main pane so lines don't bleed into other regions.
+    if (this.indicators.hasOverlays) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(main.left, main.top, main.width, main.height)
+      ctx.clip()
+      this.indicators.drawOverlays(
+        ctx,
+        window,
+        this.timeScaleModel,
+        this.priceScale,
+        main,
+      )
+      ctx.restore()
+    }
+
+    // Pane indicators draw in their own sub-panes, each on its own scale.
+    for (const { instance, rect } of this.paneSlots()) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(rect.left, rect.top, rect.width, rect.height)
+      ctx.clip()
+      this.indicators.drawPane(
+        ctx,
+        instance,
+        window,
+        this.timeScaleModel,
+        rect,
+        dpr,
+      )
+      ctx.restore()
     }
   }
 
@@ -487,11 +572,29 @@ export class Chart {
 
     ctx.fillStyle = theme.axisTextColor
     ctx.textAlign = 'left'
-    const ticks = this.visiblePriceTicks(plot.height)
+
+    // Main pane price labels.
+    const main = this.mainRect()
+    const ticks = this.visiblePriceTicks(main.height)
     for (const price of ticks) {
-      const y = this.priceScale.priceToY(price, plot.height)
-      if (y < 0 || y > plot.height) continue
+      const y = this.priceScale.priceToY(price, main.height)
+      if (y < 0 || y > main.height) continue
       ctx.fillText(formatPrice(price, ticks, this.options), plot.width + 6, y)
+    }
+
+    // Indicator sub-pane price labels (fewer, on each pane's own scale).
+    for (const { instance, rect } of this.paneSlots()) {
+      const scale = instance.scale!
+      const paneTicks = scaleTicks(
+        scale,
+        rect.height,
+        PRICE_LABEL_SPACING * 1.5,
+      )
+      for (const value of paneTicks) {
+        const y = rect.top + scale.priceToY(value, rect.height)
+        if (y < rect.top + 2 || y > rect.top + rect.height - 2) continue
+        ctx.fillText(formatAxisNumber(value, paneTicks), plot.width + 6, y)
+      }
     }
 
     // Time axis strip (bottom).
@@ -524,9 +627,23 @@ export class Chart {
     const store = this.series?.store
     if (!store || store.size === 0) return
 
-    const plot = this.plotRect()
-    if (this.options.priceLineVisible) this.paintPriceLine(plot)
-    if (this.crosshairPoint) this.paintCrosshair(this.crosshairPoint, plot)
+    const main = this.mainRect()
+    if (this.options.priceLineVisible) this.paintPriceLine(main)
+    if (this.crosshairPoint) this.paintCrosshair(this.crosshairPoint)
+  }
+
+  /** The pane containing CSS-pixel y, with its scale — main pane or a sub-pane. */
+  private paneAt(y: number): {
+    rect: PlotRect
+    scale: PriceScale
+    isMain: boolean
+  } {
+    for (const { instance, rect } of this.paneSlots()) {
+      if (y >= rect.top && y <= rect.top + rect.height) {
+        return { rect, scale: instance.scale!, isMain: false }
+      }
+    }
+    return { rect: this.mainRect(), scale: this.priceScale, isMain: true }
   }
 
   /**
@@ -534,7 +651,7 @@ export class Chart {
    * (PLAN §8.3), colored by the last candle's direction like TradingView. Drawn
    * only when that price sits within the autoscaled visible range.
    */
-  private paintPriceLine(plot: PlotRect): void {
+  private paintPriceLine(main: PlotRect): void {
     const store = this.series!.store
     const { width, height } = this.layers.getSize()
     const { theme } = this.options
@@ -543,8 +660,8 @@ export class Chart {
     const p = store.physical(store.lastIndex)
     const close = store.closes[p]!
     const up = close >= store.opens[p]!
-    const y = this.priceScale.priceToY(close, plot.height)
-    if (y < 0 || y > plot.height) return
+    const y = this.priceScale.priceToY(close, main.height)
+    if (y < 0 || y > main.height) return
 
     const color = up ? theme.upColor : theme.downColor
     const ctx = this.layers.getContext('overlay')
@@ -556,13 +673,13 @@ export class Chart {
     ctx.setLineDash([4, 4])
     ctx.beginPath()
     ctx.moveTo(0, lineY)
-    ctx.lineTo(plot.width, lineY)
+    ctx.lineTo(main.width, lineY)
     ctx.stroke()
     ctx.restore()
 
     const text = formatPrice(
       close,
-      this.visiblePriceTicks(plot.height),
+      this.visiblePriceTicks(main.height),
       this.options,
     )
     const boxH = theme.fontSize + 8
@@ -570,22 +687,20 @@ export class Chart {
     ctx.font = `${theme.fontSize}px ${theme.fontFamily}`
     ctx.textBaseline = 'middle'
     ctx.fillStyle = color
-    ctx.fillRect(plot.width, boxY, width - plot.width, boxH)
+    ctx.fillRect(main.width, boxY, width - main.width, boxH)
     ctx.fillStyle = theme.background
     ctx.textAlign = 'left'
-    ctx.fillText(text, plot.width + 6, boxY + boxH / 2)
+    ctx.fillText(text, main.width + 6, boxY + boxH / 2)
   }
 
   /** Dotted crosshair lines + axis value labels, following the pointer (PLAN §8.2). */
-  private paintCrosshair(
-    point: { x: number; y: number },
-    plot: PlotRect,
-  ): void {
+  private paintCrosshair(point: { x: number; y: number }): void {
     const store = this.series!.store
     const { width, height } = this.layers.getSize()
     const { theme } = this.options
     const ts = this.timeScaleModel
     const dpr = this.layers.getDpr()
+    const plot = this.plotRect()
 
     const nearest = clamp(
       ts.nearestIndex(point.x),
@@ -593,7 +708,14 @@ export class Chart {
       store.lastIndex,
     )
     const lineX = snap(ts.indexToX(nearest), dpr)
-    const clampedY = clamp(point.y, 0, plot.height)
+    // The horizontal line + price label belong to whichever pane the pointer is
+    // in, read on that pane's own scale.
+    const pane = this.paneAt(point.y)
+    const clampedY = clamp(
+      point.y,
+      pane.rect.top,
+      pane.rect.top + pane.rect.height,
+    )
     const lineY = snap(clampedY, dpr)
 
     const ctx = this.layers.getContext('overlay')
@@ -613,13 +735,22 @@ export class Chart {
     ctx.textBaseline = 'middle'
     ctx.fillStyle = theme.crosshairColor
 
-    // Price label (right gutter), centered on the horizontal line.
-    const price = this.priceScale.yToPrice(clampedY, plot.height)
-    const priceText = formatPrice(
-      price,
-      this.visiblePriceTicks(plot.height),
-      this.options,
+    // Price label (right gutter), centered on the horizontal line, read on the
+    // pointer's pane scale (price for the main pane, plain value for sub-panes).
+    const value = pane.scale.yToPrice(
+      clampedY - pane.rect.top,
+      pane.rect.height,
     )
+    const priceText = pane.isMain
+      ? formatPrice(
+          value,
+          this.visiblePriceTicks(pane.rect.height),
+          this.options,
+        )
+      : formatAxisNumber(
+          value,
+          scaleTicks(pane.scale, pane.rect.height, PRICE_LABEL_SPACING * 1.5),
+        )
     const priceBoxH = theme.fontSize + 8
     const priceBoxY = clamp(clampedY - priceBoxH / 2, 0, height - priceBoxH)
     ctx.fillRect(plot.width, priceBoxY, width - plot.width, priceBoxH)
@@ -689,6 +820,21 @@ function snap(cssPx: number, dpr: number): number {
 /** Decimal places implied by the spacing between adjacent price ticks. */
 function priceTickDecimals(ticks: readonly number[]): number {
   return stepDecimals(ticks.length > 1 ? ticks[1]! - ticks[0]! : 1)
+}
+
+/** "Nice" tick values for an arbitrary scale/height, targeting `spacing` px per label. */
+function scaleTicks(
+  scale: PriceScale,
+  height: number,
+  spacing: number,
+): number[] {
+  const count = Math.max(2, Math.floor(height / spacing))
+  return priceTicks(scale.min, scale.max, count)
+}
+
+/** Formats a plain indicator-axis number at the precision implied by its tick step. */
+function formatAxisNumber(value: number, ticks: readonly number[]): string {
+  return value.toFixed(priceTickDecimals(ticks))
 }
 
 /** Formats a price for axis/crosshair labels, honoring `priceDecimals`/`priceFormatter`. */

@@ -7,9 +7,6 @@ export interface ChartTheme {
   axisBorderColor: string
   upColor: string
   downColor: string
-  /** Wick color; defaults to body color when omitted at draw time. */
-  wickUpColor: string
-  wickDownColor: string
   /** Volume histogram fill for up bars; usually semi-transparent so candles read through. */
   volumeUpColor: string
   volumeDownColor: string
@@ -67,8 +64,6 @@ export const DEFAULT_THEME: ChartTheme = {
   axisBorderColor: '#2a2e39',
   upColor: '#26a69a',
   downColor: '#ef5350',
-  wickUpColor: '#26a69a',
-  wickDownColor: '#ef5350',
   volumeUpColor: 'rgba(38, 166, 154, 0.5)',
   volumeDownColor: 'rgba(239, 83, 80, 0.5)',
   crosshairColor: '#758696',

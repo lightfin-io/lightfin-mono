@@ -32,6 +32,13 @@ const bb = await chart.addIndicator(
   import('lightfin-web-chart/indicators/bollinger'),
   { period: 20, mult: 2 },
 )
+// Pane indicators get their own sub-panes with independent scales.
+const rsi = await chart.addIndicator(
+  import('lightfin-web-chart/indicators/rsi'),
+)
+const macd = await chart.addIndicator(
+  import('lightfin-web-chart/indicators/macd'),
+)
 
 // Expose for manual poking in the console.
 Object.assign(window as unknown as Record<string, unknown>, {
@@ -41,4 +48,6 @@ Object.assign(window as unknown as Record<string, unknown>, {
   sma,
   ema,
   bb,
+  rsi,
+  macd,
 })

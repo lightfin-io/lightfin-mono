@@ -25,6 +25,8 @@ export default defineConfig({
         'indicators/sma': resolve(root, 'src/indicators/sma.ts'),
         'indicators/ema': resolve(root, 'src/indicators/ema.ts'),
         'indicators/bollinger': resolve(root, 'src/indicators/bollinger.ts'),
+        'indicators/rsi': resolve(root, 'src/indicators/rsi.ts'),
+        'indicators/macd': resolve(root, 'src/indicators/macd.ts'),
         annotations: resolve(root, 'src/annotations/index.ts'),
       },
       formats: ['es'],

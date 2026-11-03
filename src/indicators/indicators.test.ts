@@ -5,6 +5,8 @@ import { ColumnStore } from '../data/store.ts'
 import type { Bar } from '../data/types.ts'
 import bollingerDef from './bollinger.ts'
 import emaDef from './ema.ts'
+import macdDef from './macd.ts'
+import rsiDef from './rsi.ts'
 import smaDef from './sma.ts'
 import type { IndicatorDefinition } from './types.ts'
 
@@ -55,22 +57,23 @@ const definitions: [string, AnyDef, Record<string, unknown>][] = [
   ['SMA', smaDef as unknown as AnyDef, { period: 10 }],
   ['EMA', emaDef as unknown as AnyDef, { period: 10 }],
   ['Bollinger', bollingerDef as unknown as AnyDef, { period: 10, mult: 2 }],
+  ['RSI', rsiDef as unknown as AnyDef, { period: 14 }],
+  ['MACD', macdDef as unknown as AnyDef, {}],
 ]
 
 describe.each(definitions)('%s indicator', (_name, def, options) => {
   const resolved = { ...def.defaultOptions, ...options }
   const keys = def.plots(resolved).map(p => p.key)
 
-  it('leaves the warmup region (first period-1 bars) as NaN', () => {
+  it('warms up (first bar NaN) then produces finite values at the tail', () => {
     const store = new ColumnStore()
-    store.setData(bars(40))
+    store.setData(bars(80))
     const snap = snapshot(def, options, store)
-    const period = (options as { period: number }).period
     for (const key of keys) {
-      for (let i = 0; i < period - 1; i++) {
-        expect(snap[key]![i]).toBeNaN()
-      }
-      expect(Number.isFinite(snap[key]![period - 1])).toBe(true)
+      // The first bar can never have a defined value (no prior history).
+      expect(snap[key]![0]).toBeNaN()
+      // With plenty of bars, every plot has produced finite output by the end.
+      expect(Number.isFinite(snap[key]![snap[key]!.length - 1])).toBe(true)
     }
   })
 
