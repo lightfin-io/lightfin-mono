@@ -18,6 +18,7 @@
     "paths": {
       "lightfin-web-chart": ["./src/index.ts"],
       "lightfin-web-chart/indicators": ["./src/indicators/index.ts"],
+      "lightfin-web-chart/indicators/*": ["./src/indicators/*.ts"],
       "lightfin-web-chart/annotations": ["./src/annotations/index.ts"]
     },
 

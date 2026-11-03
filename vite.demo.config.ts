@@ -11,14 +11,27 @@ const root = import.meta.dirname
 export default defineConfig({
   root: resolve(root, 'demo'),
   resolve: {
-    alias: {
-      'lightfin-web-chart/indicators': resolve(root, 'src/indicators/index.ts'),
-      'lightfin-web-chart/annotations': resolve(
-        root,
-        'src/annotations/index.ts',
-      ),
-      'lightfin-web-chart': resolve(root, 'src/index.ts'),
-    },
+    // Ordered, most-specific first. The regex maps per-indicator subpaths
+    // (`lightfin-web-chart/indicators/sma`) straight to their source file so the
+    // demo exercises real dynamic imports against `src`.
+    alias: [
+      {
+        find: /^lightfin-web-chart\/indicators\/(.+)$/,
+        replacement: resolve(root, 'src/indicators/$1.ts'),
+      },
+      {
+        find: 'lightfin-web-chart/indicators',
+        replacement: resolve(root, 'src/indicators/index.ts'),
+      },
+      {
+        find: 'lightfin-web-chart/annotations',
+        replacement: resolve(root, 'src/annotations/index.ts'),
+      },
+      {
+        find: 'lightfin-web-chart',
+        replacement: resolve(root, 'src/index.ts'),
+      },
+    ],
   },
   server: {
     port: 5173,

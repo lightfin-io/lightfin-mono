@@ -19,6 +19,11 @@ export default defineConfig({
       entry: {
         index: resolve(root, 'src/index.ts'),
         indicators: resolve(root, 'src/indicators/index.ts'),
+        // Each built-in indicator is its own entry → its own chunk, so it loads
+        // on demand and never weighs down the core (PLAN §10). Add a line here
+        // per new built-in; the `./indicators/*` export pattern covers the rest.
+        'indicators/sma': resolve(root, 'src/indicators/sma.ts'),
+        'indicators/ema': resolve(root, 'src/indicators/ema.ts'),
         annotations: resolve(root, 'src/annotations/index.ts'),
       },
       formats: ['es'],

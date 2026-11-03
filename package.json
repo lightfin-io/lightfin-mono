@@ -20,6 +20,10 @@
       "types": "./dist/indicators/index.d.ts",
       "import": "./dist/indicators.js"
     },
+    "./indicators/*": {
+      "types": "./dist/indicators/*.d.ts",
+      "import": "./dist/indicators/*.js"
+    },
     "./annotations": {
       "types": "./dist/annotations/index.d.ts",
       "import": "./dist/annotations.js"

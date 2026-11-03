@@ -1,4 +1,10 @@
+import { StoreReader } from '../data/barReader.ts'
 import type { DataSource } from '../data/dataSource.ts'
+import type {
+  IndicatorDefinition,
+  IndicatorHandle,
+  IndicatorModule,
+} from '../indicators/types.ts'
 import { CrosshairController } from '../interaction/crosshair.ts'
 import { PanZoomController } from '../interaction/panzoom.ts'
 import { LayerManager } from '../render/layers.ts'
@@ -10,8 +16,18 @@ import { timeAxisLabels } from '../scales/timeTicks.ts'
 import { CandlestickSeries } from '../series/candlestick.ts'
 import type { SeriesChange } from '../series/candlestick.ts'
 import { drawVolume } from '../series/volume.ts'
+import { IndicatorController, IndicatorInstance } from './indicators.ts'
 import type { ChartOptions, ChartOptionsInput } from './options.ts'
 import { resolveOptions } from './options.ts'
+
+/**
+ * Any indicator definition/module, regardless of its option shape. The core
+ * treats options opaquely (the Options generic is erased to `any`): it merges
+ * caller options over the definition's defaults and hands them back to the
+ * definition, which owns their meaning.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyIndicatorSource = IndicatorModule<any> | IndicatorDefinition<any>
 
 /**
  * The plot area (the candle region) in CSS pixels, excluding the axis strips.
@@ -51,6 +67,8 @@ export class Chart {
   private readonly timeScaleModel = new TimeScale()
   private readonly priceScale = new PriceScale()
   private series: CandlestickSeries | null = null
+  private reader: StoreReader | null = null
+  private readonly indicators = new IndicatorController()
   // Whether the viewport is pinned to the live edge, so new bars scroll it
   // along (PLAN §8.3 follow-mode). On by default; turns off when the user pans
   // away from the right edge and back on when they return to it.
@@ -86,10 +104,57 @@ export class Chart {
     const series = new CandlestickSeries()
     series.onChange = change => this.onSeriesChange(change)
     this.series = series
+    this.reader = new StoreReader(series.store)
     return series
   }
 
+  /**
+   * Add an indicator (PLAN §8.4). Pass a dynamically-imported module so the
+   * indicator's code only loads when used (keeping the core lean, PLAN §10):
+   *
+   * ```ts
+   * const sma = await chart.addIndicator(
+   *   import('lightfin-web-chart/indicators/sma'),
+   *   { period: 20 },
+   * )
+   * ```
+   *
+   * A resolved module or bare definition is accepted too. The indicator is
+   * computed once against the current data and thereafter updated incrementally;
+   * pan/zoom only re-slices its cache. Returns a handle for removal.
+   */
+  async addIndicator(
+    source: AnyIndicatorSource | Promise<AnyIndicatorSource>,
+    options: Record<string, unknown> = {},
+  ): Promise<IndicatorHandle> {
+    const resolved = await source
+    const def = 'default' in resolved ? resolved.default : resolved
+    if (!this.reader) {
+      throw new Error('lightfin: addIndicator requires a series; add one first')
+    }
+    const instance = new IndicatorInstance(def, options)
+    this.indicators.add(instance, this.reader)
+    this.invalidateViewport()
+    return {
+      remove: () => {
+        this.indicators.remove(instance)
+        this.invalidateViewport()
+      },
+    }
+  }
+
   private onSeriesChange(change: SeriesChange): void {
+    // Keep indicator caches in step with the data (PLAN §8.4). A reset or
+    // backfill shifts the index space, so recompute from scratch; a live tick or
+    // new bar only needs the tail recomputed. Pan/zoom never lands here.
+    if (this.reader && !this.indicators.isEmpty) {
+      if (change === 'reset' || change === 'prepend') {
+        this.indicators.recomputeAll(this.reader)
+      } else {
+        this.indicators.updateLast(this.reader)
+      }
+    }
+
     if (change === 'reset') {
       this.following = true
       this.fitContent()
@@ -302,7 +367,15 @@ export class Chart {
     const plot = this.plotRect()
     const window = this.series.visibleWindow(this.timeScaleModel, plot.width)
     const range = this.series.priceRange(window)
-    if (range) this.priceScale.autoScale(range.low, range.high)
+    if (!range) return
+    // Widen the domain to contain overlay indicator lines (EMA, Bollinger) so
+    // they aren't clipped at the edges of the candle-only range.
+    const { low, high } = this.indicators.extendOverlayRange(
+      window,
+      range.low,
+      range.high,
+    )
+    this.priceScale.autoScale(low, high)
   }
 
   private paintBackground(): void {
@@ -371,6 +444,26 @@ export class Chart {
       this.options.theme,
       dpr,
     )
+
+    // Overlay indicators draw on top of the candles, sharing the price scale,
+    // clipped to the plot so lines don't bleed into the axis strips.
+    if (!this.indicators.isEmpty) {
+      const window = this.series.visibleWindow(this.timeScaleModel, plot.width)
+      if (window.from <= window.to) {
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(plot.left, plot.top, plot.width, plot.height)
+        ctx.clip()
+        this.indicators.drawOverlays(
+          ctx,
+          window,
+          this.timeScaleModel,
+          this.priceScale,
+          plot,
+        )
+        ctx.restore()
+      }
+    }
   }
 
   private paintAxes(): void {
