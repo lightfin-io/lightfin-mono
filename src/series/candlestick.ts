@@ -121,10 +121,17 @@ export class CandlestickSeries {
       path.rect(bodyX, bodyTop, bodyW, Math.max(1, Math.abs(yClose - yOpen)))
     }
 
+    // Clip to the plot rect: the rightmost/leftmost visible candle can be
+    // partially in view, and its wick/body must not bleed into the axis strips.
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(plot.left, plot.top, plot.width, plot.height)
+    ctx.clip()
     ctx.fillStyle = theme.upColor
     ctx.fill(up)
     ctx.fillStyle = theme.downColor
     ctx.fill(down)
+    ctx.restore()
   }
 }
 
