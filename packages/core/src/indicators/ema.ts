@@ -41,6 +41,7 @@ class EmaCalc extends BaseCalc {
 const definition: IndicatorDefinition<EmaOptions> = {
   name: 'EMA',
   overlay: true,
+  colorKeys: ['color'],
   defaultOptions: { period: 20, color: '#ff6d00', lineWidth: 1.5 },
   params: o => [o.period],
   plots: o => [{ key: KEY, color: o.color, lineWidth: o.lineWidth }],

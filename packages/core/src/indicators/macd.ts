@@ -92,6 +92,9 @@ class MacdCalc extends BaseCalc {
 const definition: IndicatorDefinition<MacdOptions> = {
   name: 'MACD',
   overlay: false,
+  // The histogram stays tied to the theme's up/down colors (it's directional,
+  // not arbitrary), so only the two line colors pull from the palette.
+  colorKeys: ['macdColor', 'signalColor'],
   defaultOptions: {
     fastPeriod: 12,
     slowPeriod: 26,

@@ -75,6 +75,7 @@ class RsiCalc extends BaseCalc {
 const definition: IndicatorDefinition<RsiOptions> = {
   name: 'RSI',
   overlay: false,
+  colorKeys: ['color'],
   defaultOptions: {
     period: 14,
     color: '#7e57c2',

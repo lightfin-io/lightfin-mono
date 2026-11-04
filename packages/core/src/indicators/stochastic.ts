@@ -82,6 +82,7 @@ class StochasticCalc extends BaseCalc {
 const definition: IndicatorDefinition<StochasticOptions> = {
   name: 'Stoch',
   overlay: false,
+  colorKeys: ['kColor', 'dColor'],
   defaultOptions: {
     kPeriod: 14,
     kSmooth: 1,

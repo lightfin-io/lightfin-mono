@@ -58,6 +58,7 @@ class AtrCalc extends BaseCalc {
 const definition: IndicatorDefinition<AtrOptions> = {
   name: 'ATR',
   overlay: false,
+  colorKeys: ['color'],
   defaultOptions: { period: 14, color: '#f23645', lineWidth: 1.5 },
   params: o => [o.period],
   plots: o => [{ key: ATR, color: o.color, lineWidth: o.lineWidth }],

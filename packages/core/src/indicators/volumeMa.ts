@@ -40,6 +40,7 @@ const definition: IndicatorDefinition<VolumeMaOptions> = {
   name: 'Volume MA',
   overlay: true,
   scale: 'volume',
+  colorKeys: ['color'],
   defaultOptions: { period: 20, color: '#f7a600', lineWidth: 1.5 },
   params: o => [o.period],
   plots: o => [{ key: KEY, color: o.color, lineWidth: o.lineWidth }],

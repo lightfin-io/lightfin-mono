@@ -22,6 +22,13 @@ export interface ChartTheme {
   crosshairColor: string
   fontFamily: string
   fontSize: number
+  /**
+   * Default colors assigned to indicator plots in the order they're added
+   * (PLAN §14), cycled when more indicators are added than colors in the
+   * list. Only applies to a plot whose indicator didn't receive an explicit
+   * color in its options — an explicit `color`/`macdColor`/etc. always wins.
+   */
+  indicatorPalette: string[]
 }
 
 /**
@@ -91,6 +98,14 @@ export const DEFAULT_THEME: ChartTheme = {
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   fontSize: 11,
+  indicatorPalette: [
+    '#2962ff',
+    '#ff6d00',
+    '#7e57c2',
+    '#26a69a',
+    '#ec407a',
+    '#9ccc65',
+  ],
 }
 
 export const DEFAULT_OPTIONS: ChartOptions = {

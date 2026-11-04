@@ -99,6 +99,14 @@ export interface IndicatorDefinition<Options = Record<string, never>> {
   /** Options applied when the caller omits them. */
   defaultOptions: Options
   /**
+   * Which option keys hold a plot color (e.g. `['color']`, or
+   * `['macdColor', 'signalColor']` for MACD's two lines — its histogram stays
+   * tied to the theme's up/down colors, not the palette). A key listed here
+   * that the caller didn't set explicitly is assigned a color from
+   * `theme.indicatorPalette` instead of `defaultOptions`' value.
+   */
+  colorKeys?: readonly string[]
+  /**
    * The parameters a legend shows after the name, e.g. `[20, 2]` → "BB 20 2".
    * Omit for name-only labels.
    */

@@ -47,6 +47,7 @@ class BollingerCalc extends BaseCalc {
 const definition: IndicatorDefinition<BollingerOptions> = {
   name: 'BB',
   overlay: true,
+  colorKeys: ['color'],
   defaultOptions: {
     period: 20,
     mult: 2,

@@ -30,6 +30,7 @@ class SmaCalc extends BaseCalc {
 const definition: IndicatorDefinition<SmaOptions> = {
   name: 'SMA',
   overlay: true,
+  colorKeys: ['color'],
   defaultOptions: { period: 20, color: '#2962ff', lineWidth: 1.5 },
   params: o => [o.period],
   plots: o => [{ key: KEY, color: o.color, lineWidth: o.lineWidth }],

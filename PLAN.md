@@ -261,6 +261,16 @@ public entry.
   importable module. Built-ins: SMA, EMA, RSI, MACD, Bollinger, ATR (Wilder
   true-range volatility, pane), Stochastic (%K/%D on a 0–100 pane), Volume MA
   (an overlay on the hidden volume scale, `scale: 'volume'`).
+- **Default plot colors come from the theme palette, not hardcoded hex.**
+  `ChartTheme.indicatorPalette` is an array of colors; a definition lists
+  which of its option keys are colors via `colorKeys` (e.g. `['color']`, or
+  MACD's `['macdColor', 'signalColor']` — its histogram stays tied to
+  `upColor`/`downColor`, not the palette, since it's directional rather than
+  arbitrary). `chart.addIndicator()` assigns each new indicator the next
+  palette slot, cycling once exhausted; an explicit `color` in the caller's
+  options always wins over the palette. Reconfiguring via `setOptions()`
+  keeps the already-resolved color since it's merged back in before the next
+  resolution runs.
 - **AI-friendly:** an AI-driven UI can dynamically add existing or author new
   indicators.
 - **JS/TS is the indicator language — no custom DSL.** No Pine Script clone
@@ -565,9 +575,9 @@ Container sizing is implicit — no `width`/`height` option.
 - Settings modal, saving annotations, reset to defaults etc
 - **Ecosystem** — React wrapper ✅ (shipped as `@lightfin/react`, §8.8,
   which also moved the repo to a Bun-workspace monorepo, §4); still to do: a
-  theming system and a docs site. Theming open question: today the canvas takes
-  a JS `theme` object and chrome mirrors it into CSS variables; decide whether
-  CSS variables become the source of truth.
+  docs site. Theming: the JS `ChartTheme` object is the source of truth;
+  chrome's `themeVars()` derives CSS variables from it one-way for the DOM
+  widgets. Settled — no reverse (CSS-as-source) path.
 - Add more indicators
 
 ## 15. Open questions
@@ -575,5 +585,4 @@ Container sizing is implicit — no `width`/`height` option.
 - **Date locale** — axis/crosshair month names are English and the clock is
   24h `en-GB`; numbers go through `priceFormatter`. A `locale` option would
   route dates through `Intl.DateTimeFormat` too.
-- **Left price scale** — a second scale per pane (e.g. comparing two symbols).
 - **WebGL backend** — only if a real benchmark hits a wall (many panes/series at high DPR is the likely trigger, not raw candle count). WebGL, not WebGPU.

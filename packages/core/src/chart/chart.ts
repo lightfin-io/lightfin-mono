@@ -174,6 +174,9 @@ export class Chart {
   // Public handles, keyed by the instance currently backing each (setOptions
   // swaps the instance but keeps the handle).
   private readonly handleOf = new Map<IndicatorInstance, IndicatorHandle>()
+  // Rotates default indicator colors through the theme palette (PLAN §14):
+  // each `addIndicator` call claims the next slot.
+  private nextIndicatorColorSlot = 0
   private readonly events = new Emitter<ChartEventMap>()
   private instrumentInfo: InstrumentInfo | null = null
   // Whether the viewport is pinned to the live edge, so new bars scroll it
@@ -439,7 +442,12 @@ export class Chart {
     if (!this.reader) {
       throw new Error('lightfin: addIndicator requires a series; add one first')
     }
-    const instance = new IndicatorInstance(def, options)
+    const instance = new IndicatorInstance(
+      def,
+      options,
+      this.options.theme,
+      this.nextIndicatorColorSlot++,
+    )
     this.indicatorCtl.add(instance, this.reader)
     const handle = this.createHandle(instance)
     this.handleOf.set(instance, handle)
@@ -483,10 +491,12 @@ export class Chart {
       setOptions: options => {
         const handle = this.handleOf.get(inst)
         if (!handle || !this.reader) return
-        const next = new IndicatorInstance(inst.def, {
-          ...inst.options,
-          ...options,
-        })
+        const next = new IndicatorInstance(
+          inst.def,
+          { ...inst.options, ...options },
+          this.options.theme,
+          0, // irrelevant: colorKeys are already resolved onto inst.options
+        )
         this.indicatorCtl.replace(inst, next, this.reader)
         this.handleOf.delete(inst)
         this.handleOf.set(next, handle)

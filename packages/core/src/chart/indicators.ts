@@ -9,6 +9,7 @@ import type {
 import { PriceScale } from '../scales/priceScale'
 import type { TimeScale } from '../scales/timeScale'
 import type { PlotRect } from './chart'
+import type { ChartTheme } from './options'
 
 /** Inclusive integer index window actually on screen. */
 interface IndexWindow {
@@ -39,8 +40,22 @@ export class IndicatorInstance {
   private readonly calc: IndicatorCalc
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(def: IndicatorDefinition<any>, options: Record<string, unknown>) {
-    const resolved = { ...def.defaultOptions, ...options }
+  constructor(
+    def: IndicatorDefinition<any>,
+    options: Record<string, unknown>,
+    theme: ChartTheme,
+    colorSlot: number,
+  ) {
+    // Colors from the theme palette fill in for any `colorKeys` the caller
+    // didn't set explicitly; an explicit color (including one already
+    // resolved onto `options` by a prior `setOptions` call) always wins.
+    const paletteDefaults: Record<string, string> = {}
+    def.colorKeys?.forEach((key: string, i: number) => {
+      if (key in options) return
+      const palette = theme.indicatorPalette
+      paletteDefaults[key] = palette[(colorSlot + i) % palette.length]!
+    })
+    const resolved = { ...def.defaultOptions, ...paletteDefaults, ...options }
     this.def = def
     this.options = resolved
     this.params = def.params?.(resolved) ?? []
