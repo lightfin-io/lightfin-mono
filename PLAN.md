@@ -19,7 +19,7 @@ Phases 0–11 shipped: cleanup/scaffold, core rendering (candlesticks, index
 time axis, price axis, pan/zoom, resize), crosshair + current-price line, volume
 sub-pane, interval-aware time ticks, live data (update/follow-mode/DataSource +
 history backfill), the indicator framework with SMA, EMA, Bollinger, RSI,
-MACD, Volume MA, candlestick/bar/line/area series switchable in place via
+MACD, ATR, Stochastic, Volume MA, candlestick/bar/line/area series switchable in place via
 `setChartType()`, the `/chrome` widgets (instrument metadata + timezone,
 HUD/legend, indicator rows, top/bottom/left toolbars, go-to modal, exchange
 clock), the `/annotations` drawing tools (21 types — lines, channels,
@@ -258,8 +258,9 @@ public entry.
   their window per bar) and time-sliced recompute.
 - **Extensibility:** plain TS/JS functions against a small runtime API
   (`ta.sma()`, `ta.ema()`, `ta.rsi()`, series accessors), each a dynamically
-  importable module. Built-ins: SMA, EMA, RSI, MACD, Bollinger, Volume MA (an
-  overlay on the hidden volume scale, `scale: 'volume'`).
+  importable module. Built-ins: SMA, EMA, RSI, MACD, Bollinger, ATR (Wilder
+  true-range volatility, pane), Stochastic (%K/%D on a 0–100 pane), Volume MA
+  (an overlay on the hidden volume scale, `scale: 'volume'`).
 - **AI-friendly:** an AI-driven UI can dynamically add existing or author new
   indicators.
 - **JS/TS is the indicator language — no custom DSL.** No Pine Script clone

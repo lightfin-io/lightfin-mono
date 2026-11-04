@@ -36,7 +36,7 @@
   {
     "name": "all built-in indicators",
     "path": "dist/indicators/*.js",
-    "limit": "3.5 kB"
+    "limit": "4.3 kB"
   },
   {
     "name": "everything (core + chrome + annotations + price lines + indicators)",

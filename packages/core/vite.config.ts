@@ -27,6 +27,8 @@ export default defineConfig({
         'indicators/bollinger': resolve(root, 'src/indicators/bollinger.ts'),
         'indicators/rsi': resolve(root, 'src/indicators/rsi.ts'),
         'indicators/macd': resolve(root, 'src/indicators/macd.ts'),
+        'indicators/atr': resolve(root, 'src/indicators/atr.ts'),
+        'indicators/stochastic': resolve(root, 'src/indicators/stochastic.ts'),
         'indicators/volumeMa': resolve(root, 'src/indicators/volumeMa.ts'),
         chrome: resolve(root, 'src/chrome/index.ts'),
         annotations: resolve(root, 'src/annotations/index.ts'),

@@ -51,6 +51,14 @@ export const BUILTIN_INDICATORS: readonly IndicatorCatalogEntry[] = [
     load: () => import('../indicators/rsi'),
   },
   { name: 'MACD', load: () => import('../indicators/macd') },
+  {
+    name: 'Average True Range (ATR)',
+    load: () => import('../indicators/atr'),
+  },
+  {
+    name: 'Stochastic Oscillator',
+    load: () => import('../indicators/stochastic'),
+  },
   { name: 'Volume MA', load: () => import('../indicators/volumeMa') },
 ]
 

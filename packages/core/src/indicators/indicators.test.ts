@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { StoreReader } from '../data/barReader'
 import { ColumnStore } from '../data/store'
 import type { Bar } from '../data/types'
+import atrDef from './atr'
 import bollingerDef from './bollinger'
 import emaDef from './ema'
 import macdDef from './macd'
 import rsiDef from './rsi'
 import smaDef from './sma'
+import stochasticDef from './stochastic'
 import type { IndicatorDefinition } from './types'
 import volumeMaDef from './volumeMa'
 
@@ -61,6 +63,12 @@ const definitions: [string, AnyDef, Record<string, unknown>][] = [
   ['Bollinger', bollingerDef as unknown as AnyDef, { period: 10, mult: 2 }],
   ['RSI', rsiDef as unknown as AnyDef, { period: 14 }],
   ['MACD', macdDef as unknown as AnyDef, {}],
+  ['ATR', atrDef as unknown as AnyDef, { period: 14 }],
+  [
+    'Stochastic',
+    stochasticDef as unknown as AnyDef,
+    { kPeriod: 14, kSmooth: 3, dPeriod: 3 },
+  ],
   ['Volume MA', volumeMaDef as unknown as AnyDef, { period: 10 }],
 ]
 
