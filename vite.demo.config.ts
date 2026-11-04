@@ -32,6 +32,10 @@ export default defineConfig({
         replacement: resolve(root, 'src/annotations/index.ts'),
       },
       {
+        find: 'lightfin-web-chart/price-lines',
+        replacement: resolve(root, 'src/priceLines/index.ts'),
+      },
+      {
         find: 'lightfin-web-chart',
         replacement: resolve(root, 'src/index.ts'),
       },

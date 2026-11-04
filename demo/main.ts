@@ -1,6 +1,8 @@
 import { createChart } from 'lightfin-web-chart'
 import { createAnnotations } from 'lightfin-web-chart/annotations'
 import { createChrome } from 'lightfin-web-chart/chrome'
+import { addPriceLine } from 'lightfin-web-chart/price-lines'
+import type { PriceLine } from 'lightfin-web-chart/price-lines'
 
 import { createMockFeed } from './mockFeed.ts'
 
@@ -28,6 +30,9 @@ const INTERVALS: Record<string, number> = {
   '4H': 14_400,
   '1D': 86_400,
 }
+// `?live=0` keeps history backfill but drops the live ticks, so the chart
+// holds still (the e2e tests use it).
+const live = new URLSearchParams(location.search).get('live') !== '0'
 let detach = () => {}
 function loadInterval(interval: string): void {
   detach()
@@ -37,7 +42,9 @@ function loadInterval(interval: string): void {
     tickMs: 1000,
   })
   candles.setData(feed.initial())
-  detach = chart.setDataSource(feed.source)
+  detach = chart.setDataSource(
+    live ? feed.source : { getBars: feed.source.getBars },
+  )
 }
 loadInterval('1m')
 
@@ -89,20 +96,42 @@ const volumeMa = await chart.addIndicator(
 )
 
 // The chart only draws the "+" button on the crosshair line; the order form is
-// ours to render (PLAN §8.2). This stand-in just shows the clicked price.
+// ours to render (PLAN §8.2). This stand-in places a draggable limit-order
+// line, the way a trading UI would show a working order.
 const orderPopup = document.createElement('div')
 orderPopup.className = 'order-popup'
 orderPopup.hidden = true
+const orderLabel = document.createElement('span')
+const placeButton = document.createElement('button')
+placeButton.textContent = 'Place'
+orderPopup.append(orderLabel, placeButton)
 document.body.append(orderPopup)
+let orderPrice = 0
+const orders: PriceLine[] = []
 chart.onOrderIntent(e => {
-  orderPopup.textContent = `Limit order @ ${chart.formatPrice(e.price)}`
+  orderPrice = e.price
+  orderLabel.textContent = `Limit @ ${chart.formatPrice(e.price)}`
   orderPopup.style.left = `${e.clientPoint.x - 8}px`
   orderPopup.style.top = `${e.clientPoint.y + 14}px`
   orderPopup.style.transform = 'translateX(-100%)'
   orderPopup.hidden = false
 })
+placeButton.addEventListener('click', () => {
+  orderPopup.hidden = true
+  const order = addPriceLine(chart, {
+    price: orderPrice,
+    title: 'Limit 1.0',
+    color: '#f7a600',
+    draggable: true,
+  })
+  // Snap to whole cents while dragging, as an exchange's tick size would.
+  order.on('drag', price =>
+    order.setOptions({ price: Math.round(price * 100) / 100 }),
+  )
+  orders.push(order)
+})
 document.addEventListener('pointerdown', e => {
-  if (e.target !== orderPopup) orderPopup.hidden = true
+  if (!orderPopup.contains(e.target as Node)) orderPopup.hidden = true
 })
 
 // "M" toggles the magnet crosshair (snaps to the hovered bar's OHLC).
@@ -118,6 +147,7 @@ Object.assign(window as unknown as Record<string, unknown>, {
   chart,
   chrome,
   drawings,
+  orders,
   candles,
   sma,
   ema,

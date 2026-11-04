@@ -50,12 +50,13 @@ src/
   interaction/  Pointer handling, pan/zoom/inertia, crosshair, hit-testing
   indicators/   Indicator runtime + built-ins (dynamically importable, §8.4)
   annotations/  Drawing tools (dynamically importable, §8.5)
+  priceLines/   Host-managed order/position lines (§8.2)
   chrome/       Optional DOM widgets: HUD/legend, toolbars, date modal (§9)
   api/          Public entry assembling the above into createChart()
   index.ts      Package entry — re-exports the minimal "core" surface only
 ```
 
-`indicators/`, `annotations/`, `chrome/` are subpath exports (§10).
+`indicators/`, `annotations/`, `priceLines/`, `chrome/` are subpath exports (§10).
 
 ## 5. Rendering engine
 
@@ -176,7 +177,12 @@ src/
     /* host renders its own form */
   })
   ```
-  Draggable order/position price-line primitive is a later follow-on (§15).
+- **Price lines** (`/price-lines` subpath, on the primitive hook): host-managed
+  horizontal lines for working orders, positions, or alerts — line style,
+  title label at the pane's right edge, price badge on the axis. A
+  `draggable` line follows the pointer and fires `drag` (the host may snap it
+  via `setOptions({ price })`) and `dragEnd` (send the order update); the
+  host owns the state and can move it back if the update is rejected.
 
 ### 8.3 Live last candle & current-price line
 
@@ -269,12 +275,12 @@ theme-aware and overlay the canvas stack.
 
 - **Core export** = chart engine + candlestick/line/area/bar/volume series +
   time/price axes + crosshair + pan/zoom. Everything else is opt-in.
-- **Subpath exports**, each dynamically importable: `/indicators` (maybe
-  per-indicator), `/annotations`, `/chrome`, future `/react`.
+- **Subpath exports**, each dynamically importable: `/indicators` (and
+  per-indicator), `/annotations`, `/price-lines`, `/chrome`, future `/react`.
 - `package.json` `exports` map + `sideEffects: false` for tree-shaking.
 - Bundle size is budgeted in CI with `size-limit` (`.size-limit.json`, `bun run
-size`): core, chrome, annotations, one indicator, all indicators, and
-  everything together, each with ~10% headroom. Raising a budget is a deliberate, reviewed change.
+size`): core, chrome, annotations, price lines, one indicator, all
+  indicators, and everything together, each with ~10% headroom. Raising a budget is a deliberate, reviewed change.
 
 ## 11. Public API sketch
 
@@ -307,6 +313,14 @@ chart.on('crosshairMove', e => {
   /* e?.index, e?.time */
 }) // + dataChange, indicatorsChange, layoutChange, …
 chart.onOrderIntent(e => openMyOrderForm(e.price, e.clientPoint)) // §8.2
+
+// Working orders/positions (§8.2), from 'lightfin-web-chart/price-lines'.
+const order = addPriceLine(chart, {
+  price,
+  title: 'Limit 1.0',
+  draggable: true,
+})
+order.on('dragEnd', price => modifyOrder(id, price))
 
 // Drawing tools (§8.5), from 'lightfin-web-chart/annotations'.
 const drawings = createAnnotations(chart)
@@ -362,11 +376,13 @@ Container sizing is implicit — no `width`/`height` option.
 
 ## 14. Don't pick up yet
 
+- Connect demo to real datasource e.g. Binance BTC-USD
 - Tradingview has tags that show events for example has E tags along the bottom of the price chart which when clicked open an earnings modal.
 - Settings modal, saving annotations, reset to defaults etc
 - **Ecosystem** — React wrapper (first), theming system, docs site. Theming
   open question: today the canvas takes a JS `theme` object and chrome mirrors
   it into CSS variables; decide whether CSS variables become the source of truth.
+- Achieve approximate feature parity of annotations with TradingView e.g. more tools, and tools get popover menus with customizations (e.g. text font, style, and color)
 
 ## 15. Open questions
 
@@ -376,6 +392,4 @@ Container sizing is implicit — no `width`/`height` option.
 - **Left price scale** — a second scale per pane (e.g. comparing two symbols).
 - **Accessibility** — canvas is invisible to AT. Baseline: `aria-label`/described
   container + optional hidden data-table; keyboard pan/zoom/crosshair nice-to-have.
-  Decide before calling v1 "done".
-- **Order/position price-line primitive** — draggable, host-managed markers; Phase 8 follow-on to the order hook.
-- **WebGL backend** — only if a real benchmark hits a wall (many panes/series at high DPR is the likely trigger, not raw candle count). WebGL, not WebGPU.
+  Decide before calling v1 "done".- **WebGL backend** — only if a real benchmark hits a wall (many panes/series at high DPR is the likely trigger, not raw candle count). WebGL, not WebGPU.

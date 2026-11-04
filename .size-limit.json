@@ -18,6 +18,12 @@
     "limit": "4.5 kB"
   },
   {
+    "name": "price lines",
+    "path": "dist/price-lines.js",
+    "import": "{ addPriceLine }",
+    "limit": "1 kB"
+  },
+  {
     "name": "one indicator (SMA)",
     "path": "dist/indicators/sma.js",
     "limit": "1 kB"
@@ -28,11 +34,12 @@
     "limit": "3.5 kB"
   },
   {
-    "name": "everything (core + chrome + annotations + indicators)",
+    "name": "everything (core + chrome + annotations + price lines + indicators)",
     "path": [
       "dist/index.js",
       "dist/chrome.js",
       "dist/annotations.js",
+      "dist/price-lines.js",
       "dist/indicators/*.js"
     ],
     "limit": "29 kB"
