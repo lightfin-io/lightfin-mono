@@ -112,6 +112,13 @@ describe('Series.bars', () => {
     expect(times(series().bars({ from: 0, to: 99 }))).toEqual([10, 20, 30, 40])
   })
 
+  it('handles a range starting before backfilled history', () => {
+    const s = series()
+    s.prepend([bar(-10, 1, 2, 1, 2), bar(0, 2, 3, 1, 3)])
+    expect(times(s.bars({ from: 5 }))).toEqual([10, 20, 30, 40])
+    expect(times(s.bars({ from: -20, to: 0 }))).toEqual([-10, 0])
+  })
+
   it('returns copies', () => {
     const s = series()
     s.bars()[0]!.close = 999

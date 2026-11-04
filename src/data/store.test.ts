@@ -152,7 +152,13 @@ describe('ColumnStore.indexAtOrBefore', () => {
     expect(s.indexAtOrBefore(999)).toBe(3)
   })
 
-  it('returns -1 before the first bar', () => {
+  it('returns one before the first index before the first bar', () => {
     expect(s.indexAtOrBefore(5)).toBe(-1)
+    // After a backfill -1 is a real bar, so "before the data" moves down.
+    const b = new ColumnStore()
+    b.setData([bar(30), bar(40)])
+    b.prepend([bar(10), bar(20)])
+    expect(b.indexAtOrBefore(10)).toBe(-2)
+    expect(b.indexAtOrBefore(5)).toBe(-3)
   })
 })

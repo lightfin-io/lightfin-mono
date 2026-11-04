@@ -183,11 +183,13 @@ export class ColumnStore {
 
   /**
    * Logical index of the bar whose time is the greatest ≤ `time` (binary
-   * search over `times`), or -1 if `time` precedes the first bar. Useful for
-   * time→index lookups and crosshair snapping.
+   * search over `times`), or `firstIndex - 1` if `time` precedes the first
+   * bar (not -1: backfill makes indices negative, so -1 can be a real bar).
+   * Useful for time→index lookups and crosshair snapping.
    */
   indexAtOrBefore(time: UTCTimestamp): number {
-    if (this.count === 0 || time < this.times[this.head]!) return -1
+    if (this.count === 0) return -1
+    if (time < this.times[this.head]!) return this.base - 1
     let lo = 0
     let hi = this.count - 1
     while (lo < hi) {

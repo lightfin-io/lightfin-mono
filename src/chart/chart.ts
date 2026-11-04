@@ -617,8 +617,12 @@ export class Chart {
     if (!store || store.size === 0 || plot.width <= 0) return
 
     let fromIdx = store.indexAtOrBefore(range.from)
-    if (fromIdx === -1) fromIdx = store.firstIndex
-    else if (store.times[store.physical(fromIdx)]! < range.from) fromIdx++
+    if (
+      !store.has(fromIdx) ||
+      store.times[store.physical(fromIdx)]! < range.from
+    ) {
+      fromIdx++
+    }
     fromIdx = Math.min(fromIdx, store.lastIndex)
     const toIdx = Math.max(fromIdx, store.indexAtOrBefore(range.to))
 

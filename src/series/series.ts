@@ -92,9 +92,9 @@ export class Series {
     if (store.size === 0) return []
     let from = store.firstIndex
     if (range.from !== undefined) {
-      const i = store.indexAtOrBefore(range.from)
-      if (i !== -1) {
-        from = store.times[store.physical(i)]! < range.from ? i + 1 : i
+      from = store.indexAtOrBefore(range.from)
+      if (!store.has(from) || store.times[store.physical(from)]! < range.from) {
+        from++
       }
     }
     const to =
