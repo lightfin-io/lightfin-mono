@@ -355,6 +355,7 @@ chart.indicators() // handles: name, params, plots, value(key, index)
 
 chart.fitContent()
 await chart.setVisibleTimeRange({ from, to }) // backfills older history first
+candles.bars(chart.visibleTimeRange()!) // the bars on screen, e.g. for an AI to read
 await chart.scrollToTime(time)
 chart.on('crosshairMove', e => {
   /* e?.index, e?.time */

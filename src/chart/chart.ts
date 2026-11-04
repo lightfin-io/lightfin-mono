@@ -582,6 +582,25 @@ export class Chart {
   }
 
   /**
+   * Times of the oldest and newest bar at least partly on screen, or null
+   * with none in view. `series.bars(range)` reads them.
+   */
+  visibleTimeRange(): { from: UTCTimestamp; to: UTCTimestamp } | null {
+    const series = this.series
+    if (!series) return null
+    const { from, to } = series.visibleWindow(
+      this.timeScaleModel,
+      this.plotRect().width,
+    )
+    if (from > to) return null
+    const { times } = series.store
+    return {
+      from: times[series.store.physical(from)]!,
+      to: times[series.store.physical(to)]!,
+    }
+  }
+
+  /**
    * Show the bars between two times (Unix seconds UTC), e.g. for date-range
    * buttons. History older than the loaded data is fetched from the
    * {@link DataSource} first — at most as many bars as fit on screen at the

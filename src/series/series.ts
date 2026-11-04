@@ -1,7 +1,7 @@
 import type { PlotRect } from '../chart/chart'
 import type { ChartTheme } from '../chart/options'
 import { ColumnStore, type PushResult } from '../data/store'
-import type { Bar } from '../data/types'
+import type { Bar, UTCTimestamp } from '../data/types'
 import type { PriceScale } from '../scales/priceScale'
 import type { TimeScale } from '../scales/timeScale'
 import { drawOhlcBars } from './bar'
@@ -80,6 +80,28 @@ export class Series {
     const result = this.store.push(bar)
     this.onChange?.(result.isNewBar ? 'new-bar' : 'tick')
     return result
+  }
+
+  /**
+   * Copies of the loaded bars with `from <= time <= to`, oldest first; omit
+   * a bound to run to that end of the data. Pair with
+   * `chart.visibleTimeRange()` to read what's on screen.
+   */
+  bars(range: { from?: UTCTimestamp; to?: UTCTimestamp } = {}): Bar[] {
+    const { store } = this
+    if (store.size === 0) return []
+    let from = store.firstIndex
+    if (range.from !== undefined) {
+      const i = store.indexAtOrBefore(range.from)
+      if (i !== -1) {
+        from = store.times[store.physical(i)]! < range.from ? i + 1 : i
+      }
+    }
+    const to =
+      range.to === undefined ? store.lastIndex : store.indexAtOrBefore(range.to)
+    const out: Bar[] = []
+    for (let i = from; i <= to; i++) out.push(store.get(i))
+    return out
   }
 
   /** Backfill older bars at the front (history), e.g. from a {@link DataSource}. */

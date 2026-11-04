@@ -97,6 +97,28 @@ describe('Series change signals', () => {
   })
 })
 
+describe('Series.bars', () => {
+  const times = (bars: Bar[]) => bars.map(b => b.time)
+
+  it('returns every bar with no range', () => {
+    expect(times(series().bars())).toEqual([10, 20, 30, 40])
+  })
+
+  it('includes bars on either bound and skips the ones outside', () => {
+    expect(times(series().bars({ from: 20, to: 30 }))).toEqual([20, 30])
+    expect(times(series().bars({ from: 15, to: 35 }))).toEqual([20, 30])
+    expect(times(series().bars({ from: 25 }))).toEqual([30, 40])
+    expect(times(series().bars({ to: 5 }))).toEqual([])
+    expect(times(series().bars({ from: 0, to: 99 }))).toEqual([10, 20, 30, 40])
+  })
+
+  it('returns copies', () => {
+    const s = series()
+    s.bars()[0]!.close = 999
+    expect(s.store.get(0).close).toBe(7)
+  })
+})
+
 describe('Series.priceRange', () => {
   it('spans min low to max high across the window', () => {
     const s = series()
