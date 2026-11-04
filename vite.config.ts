@@ -30,6 +30,7 @@ export default defineConfig({
         'indicators/volumeMa': resolve(root, 'src/indicators/volumeMa.ts'),
         chrome: resolve(root, 'src/chrome/index.ts'),
         annotations: resolve(root, 'src/annotations/index.ts'),
+        'annotations/schema': resolve(root, 'src/annotations/schema.ts'),
         'price-lines': resolve(root, 'src/priceLines/index.ts'),
       },
       formats: ['es'],

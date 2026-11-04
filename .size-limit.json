@@ -18,6 +18,11 @@
     "limit": "6 kB"
   },
   {
+    "name": "annotations schema (for AI tools)",
+    "path": "dist/annotations/schema.js",
+    "limit": "1.2 kB"
+  },
+  {
     "name": "price lines",
     "path": "dist/price-lines.js",
     "import": "{ addPriceLine }",

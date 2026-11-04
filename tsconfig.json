@@ -21,6 +21,7 @@
       "lightfin-web-chart/indicators/*": ["./src/indicators/*.ts"],
       "lightfin-web-chart/chrome": ["./src/chrome/index.ts"],
       "lightfin-web-chart/annotations": ["./src/annotations/index.ts"],
+      "lightfin-web-chart/annotations/schema": ["./src/annotations/schema.ts"],
       "lightfin-web-chart/price-lines": ["./src/priceLines/index.ts"]
     },
 

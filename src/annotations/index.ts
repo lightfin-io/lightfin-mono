@@ -14,6 +14,17 @@
  * })
  * drawings.setTool('trendline') // or pass `drawings` to createChrome()
  * ```
+ *
+ * A program — say an AI — annotates through the same JSON, as a group it
+ * replaces wholesale; `lightfin-web-chart/annotations/schema` describes the
+ * JSON for a model (PLAN §8.7):
+ *
+ * ```ts
+ * drawings.replace('ai', [
+ *   { type: 'hline', points: [{ time, price: 64_200 }], text: 'Support' },
+ *   { type: 'marker', shape: 'arrowUp', points: [{ time, price: low }] },
+ * ])
+ * ```
  */
 import type { Chart } from '../chart/chart'
 import { Annotations } from './annotations'

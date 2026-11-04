@@ -32,6 +32,10 @@
       "types": "./dist/annotations/index.d.ts",
       "import": "./dist/annotations.js"
     },
+    "./annotations/schema": {
+      "types": "./dist/annotations/schema.d.ts",
+      "import": "./dist/annotations/schema.js"
+    },
     "./price-lines": {
       "types": "./dist/priceLines/index.d.ts",
       "import": "./dist/price-lines.js"

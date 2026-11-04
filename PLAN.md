@@ -321,6 +321,16 @@ annotations)` swaps that group's drawings for a new set in one `change`,
 milliseconds; use Unix seconds`). A batch is all-or-nothing. Hosts can
   pass the message back to the model to retry; `validateAnnotation()` runs
   the same checks without throwing.
+- **Schema:** `/annotations/schema` exports `annotationSchema` (JSON Schema
+  for one annotation, with model-facing descriptions of each type and
+  field) and `annotateChartTool` (`{ name, description, inputSchema }`, MCP's
+  shape; trivially mapped to Anthropic's `input_schema` or OpenAI's
+  `parameters`) whose input is `{ annotations }`, meant for
+  `replace('ai', input.annotations)`. Plain data in its own chunk, so charts
+  without AI never load it; a unit test keeps its enums in step with the
+  validator.
+- The library makes no model calls: which model, prompt, and transport is
+  the host's business, as with data sources (§6).
 
 ## 9. Chart chrome / UI widgets
 
@@ -354,10 +364,11 @@ theme-aware and overlay the canvas stack.
 - **Core export** = chart engine + candlestick/line/area/bar/volume series +
   time/price axes + crosshair + pan/zoom. Everything else is opt-in.
 - **Subpath exports**, each dynamically importable: `/indicators` (and
-  per-indicator), `/annotations`, `/price-lines`, `/chrome`, future `/react`.
+  per-indicator), `/annotations` (and `/annotations/schema`), `/price-lines`,
+  `/chrome`, future `/react`.
 - `package.json` `exports` map + `sideEffects: false` for tree-shaking.
 - Bundle size is budgeted in CI with `size-limit` (`.size-limit.json`, `bun run
-size`): core, chrome, annotations, price lines, one indicator, all
+size`): core, chrome, annotations, the annotations schema, price lines, one indicator, all
   indicators, and everything together, each with ~10% headroom. Raising a budget is a deliberate, reviewed change.
 
 ## 11. Public API sketch
@@ -407,6 +418,10 @@ const drawings = createAnnotations(chart)
 drawings.load(saved)
 drawings.on('change', () => save(drawings.toJSON()))
 drawings.setTool('trendline') // or let the left toolbar do it
+
+// An AI's drawings (§8.7): hand it the bars and annotateChartTool (from
+// 'lightfin-web-chart/annotations/schema'); apply each tool call as a group.
+drawings.replace('ai', toolCall.input.annotations) // throws a retry-able message
 
 // Optional widgets (§9); the host owns intervals and reloads bars on change.
 const chrome = createChrome(chart, {

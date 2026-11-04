@@ -28,6 +28,10 @@ export default defineConfig({
         replacement: resolve(root, 'src/chrome/index.ts'),
       },
       {
+        find: 'lightfin-web-chart/annotations/schema',
+        replacement: resolve(root, 'src/annotations/schema.ts'),
+      },
+      {
         find: 'lightfin-web-chart/annotations',
         replacement: resolve(root, 'src/annotations/index.ts'),
       },
