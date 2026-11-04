@@ -9,18 +9,18 @@
     "name": "chrome",
     "path": "dist/chrome.js",
     "import": "{ createChrome }",
-    "limit": "11.5 kB"
+    "limit": "17 kB"
   },
   {
     "name": "annotations",
     "path": "dist/annotations.js",
     "import": "{ createAnnotations }",
-    "limit": "6 kB"
+    "limit": "11.5 kB"
   },
   {
     "name": "annotations schema (for AI tools)",
     "path": "dist/annotations/schema.js",
-    "limit": "1.2 kB"
+    "limit": "1.7 kB"
   },
   {
     "name": "price lines",
@@ -47,6 +47,6 @@
       "dist/price-lines.js",
       "dist/indicators/*.js"
     ],
-    "limit": "34 kB"
+    "limit": "44 kB"
   }
 ]

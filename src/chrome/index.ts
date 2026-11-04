@@ -2,7 +2,8 @@
  * lightfin-web-chart/chrome — optional DOM widgets around the chart (PLAN §9):
  * the top-left HUD/legend, the top toolbar (interval, chart type, indicators),
  * the bottom toolbar (date ranges, go-to dialog, exchange clock), and — given
- * an annotations instance — the left drawing-tools toolbar.
+ * an annotations instance — the left drawing-tools toolbar and the selected
+ * drawing's style toolbar.
  *
  * Its own subpath export, so headless/embedded charts pay nothing for it and
  * hosts can build their own widgets on the same public chart API instead.
@@ -20,16 +21,15 @@ import type { Annotations } from '../annotations'
 import type { Chart } from '../chart/chart'
 import type { ChartType } from '../series/series'
 import { el } from './dom'
+import { createDrawingToolbar } from './drawingToolbar'
+import type { ToolStyles } from './drawingTools'
+import { createLeftToolbar } from './drawingTools'
 import type { DateRangePreset } from './format'
 import { DATE_RANGE_PRESETS, formatClock } from './format'
 import { Hud } from './hud'
 import { acquireStyles, releaseStyles, themeVars } from './styles'
 import type { IndicatorCatalogEntry, Toolbar } from './toolbars'
-import {
-  createBottomToolbar,
-  createLeftToolbar,
-  createTopToolbar,
-} from './toolbars'
+import { createBottomToolbar, createTopToolbar } from './toolbars'
 
 export type { DateRangePreset } from './format'
 export { DATE_RANGE_PRESETS } from './format'
@@ -79,7 +79,8 @@ export interface ChromeOptions {
   ranges?: readonly DateRangePreset[]
   /**
    * Drawing tools from `lightfin-web-chart/annotations`; shows the left
-   * toolbar. Omit to leave it out (and the annotations code unloaded).
+   * toolbar and, for the selected drawing, a floating style toolbar. Omit
+   * to leave them out (and the annotations code unloaded).
    */
   annotations?: Annotations
 }
@@ -151,9 +152,15 @@ export function createChrome(
           catalog: options.indicators ?? BUILTIN_INDICATORS,
         })
 
-  // The left toolbar sits beside the chart, so the two share a row.
-  const left = options.annotations
-    ? createLeftToolbar(options.annotations)
+  // The left toolbar sits beside the chart, so the two share a row; the
+  // selected drawing's style toolbar floats over the plot.
+  const drawings = options.annotations
+  const toolStyles: ToolStyles = new Map()
+  const left = drawings
+    ? createLeftToolbar(chart, drawings, host, toolStyles)
+    : null
+  const styleBar = drawings
+    ? createDrawingToolbar(chart, drawings, host, toolStyles)
     : null
   const body = left ? el('div', 'lf-body') : null
   if (body) {
@@ -198,6 +205,7 @@ export function createChrome(
       clearTimeout(clockTimer)
       offInstrument()
       hud?.dispose()
+      styleBar?.dispose()
       for (const bar of [top, bottom, left] as (Toolbar | null)[]) {
         bar?.dispose()
       }

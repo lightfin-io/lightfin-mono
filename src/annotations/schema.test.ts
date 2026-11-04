@@ -2,17 +2,25 @@ import { describe, expect, it } from 'vitest'
 
 import { annotateChartTool, annotationSchema } from './schema'
 import { TOOLS } from './tools'
-import { LINE_STYLES, MARKER_SHAPES, validateAnnotation } from './validate'
+import {
+  LINE_ENDS,
+  LINE_STYLES,
+  MARKER_SHAPES,
+  validateAnnotation,
+} from './validate'
 
 // The schema spells out its enums rather than importing them, so its chunk
 // carries no drawing code; these keep the two in step.
 describe('annotationSchema', () => {
   const { properties } = annotationSchema
 
-  it('lists every annotation type, marker shape, and line style', () => {
+  it('lists every annotation type, marker shape, line style, and line end', () => {
     expect([...properties.type.enum].sort()).toEqual(Object.keys(TOOLS).sort())
     expect(properties.shape.enum).toEqual(MARKER_SHAPES)
-    expect(properties.style.properties.lineStyle.enum).toEqual(LINE_STYLES)
+    const style = properties.style.properties
+    expect(style.lineStyle.enum).toEqual(LINE_STYLES)
+    expect(style.extend.enum).toEqual(LINE_ENDS)
+    expect(style.arrow.enum).toEqual(LINE_ENDS)
   })
 
   it('describes only fields the validator accepts', () => {

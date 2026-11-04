@@ -1,11 +1,10 @@
-import type { AnnotationType, Annotations } from '../annotations'
 import type { Chart } from '../chart/chart'
 import type { ChartType } from '../series/series'
-import type { ICONS } from './dom'
-import { button, el } from './dom'
+import { button, el, menuItem } from './dom'
 import type { DateRangePreset } from './format'
 import { dateRangeStart } from './format'
 import { openGoToModal } from './modals'
+import { popover } from './popover'
 
 /** Anything `chart.addIndicator` accepts: a module, definition, or a promise of one. */
 export type IndicatorSource = Parameters<Chart['addIndicator']>[0]
@@ -74,51 +73,18 @@ export function createTopToolbar(
   })
   if (typeButtons.length > 0) groups.push(typeButtons)
 
-  let menu: HTMLElement | null = null
-  const closeMenu = () => {
-    menu?.remove()
-    menu = null
-    indicatorsButton.setAttribute('aria-expanded', 'false')
-    document.removeEventListener('pointerdown', onOutside, true)
-    document.removeEventListener('keydown', onKey, true)
-  }
-  const onOutside = (e: PointerEvent) => {
-    const t = e.target as Node
-    if (!menu?.contains(t) && !indicatorsButton.contains(t)) closeMenu()
-  }
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      closeMenu()
-      indicatorsButton.focus()
-    }
-  }
-  const openMenu = () => {
-    menu = el('div', 'lf-menu')
-    menu.setAttribute('role', 'menu')
-    for (const entry of ctx.catalog) {
-      const item = button({ label: entry.name }, () => {
-        closeMenu()
-        void chart.addIndicator(entry.load(), entry.options)
-      })
-      item.setAttribute('role', 'menuitem')
-      menu.append(item)
-    }
-    const hostRect = ctx.host.getBoundingClientRect()
-    const r = indicatorsButton.getBoundingClientRect()
-    menu.style.left = `${r.left - hostRect.left}px`
-    menu.style.top = `${r.bottom - hostRect.top + 4}px`
-    ctx.host.append(menu)
-    indicatorsButton.setAttribute('aria-expanded', 'true')
-    menu.querySelector('button')?.focus()
-    document.addEventListener('pointerdown', onOutside, true)
-    document.addEventListener('keydown', onKey, true)
-  }
   const indicatorsButton = button(
     { icon: 'indicators', label: 'Indicators', title: 'Indicators' },
-    () => (menu ? closeMenu() : openMenu()),
+    () => menu.toggle(),
   )
-  indicatorsButton.setAttribute('aria-haspopup', 'menu')
-  indicatorsButton.setAttribute('aria-expanded', 'false')
+  const menu = popover(indicatorsButton, ctx.host, close =>
+    ctx.catalog.map(entry =>
+      menuItem({ label: entry.name }, () => {
+        close()
+        void chart.addIndicator(entry.load(), entry.options)
+      }),
+    ),
+  )
   if (ctx.catalog.length > 0) groups.push([indicatorsButton])
 
   groups.forEach((group, i) => {
@@ -148,7 +114,7 @@ export function createTopToolbar(
     el: bar,
     sync,
     dispose: () => {
-      closeMenu()
+      menu.close()
       for (const off of offs) off()
       bar.remove()
     },
@@ -203,65 +169,6 @@ export function createBottomToolbar(
       clock.textContent = formatClock(now)
     },
     dispose: () => bar.remove(),
-  }
-}
-
-const DRAWING_TOOLS: {
-  tool: AnnotationType | null
-  icon: keyof typeof ICONS
-  title: string
-}[] = [
-  { tool: null, icon: 'cursor', title: 'Cursor' },
-  { tool: 'trendline', icon: 'trendline', title: 'Trend line' },
-  { tool: 'hline', icon: 'hline', title: 'Horizontal line' },
-  { tool: 'vline', icon: 'vline', title: 'Vertical line' },
-  { tool: 'rectangle', icon: 'rectangle', title: 'Rectangle' },
-  { tool: 'fib', icon: 'fib', title: 'Fib retracement' },
-  { tool: 'text', icon: 'text', title: 'Text' },
-]
-
-/**
- * Left toolbar (PLAN §9): the drawing tools of an {@link Annotations}
- * instance, plus "remove all drawings". Picking the armed tool again disarms
- * it.
- */
-export function createLeftToolbar(annotations: Annotations): Toolbar {
-  const bar = el('div', 'lf-toolbar lf-toolbar-left')
-  bar.setAttribute('role', 'toolbar')
-  bar.setAttribute('aria-label', 'Drawing tools')
-  bar.setAttribute('aria-orientation', 'vertical')
-
-  const toolButtons = DRAWING_TOOLS.map(({ tool, icon, title }) => {
-    const b = button({ icon, title }, () =>
-      annotations.setTool(tool === annotations.tool ? null : tool),
-    )
-    b.dataset.tool = tool ?? ''
-    return b
-  })
-  bar.append(
-    ...toolButtons,
-    el('div', 'lf-sep'),
-    button({ icon: 'trash', title: 'Remove all drawings' }, () =>
-      annotations.clear(),
-    ),
-  )
-
-  const sync = () => {
-    const current = annotations.tool ?? ''
-    for (const b of toolButtons) {
-      b.setAttribute('aria-pressed', String(b.dataset.tool === current))
-    }
-  }
-  const off = annotations.on('toolChange', sync)
-  sync()
-
-  return {
-    el: bar,
-    sync,
-    dispose: () => {
-      off()
-      bar.remove()
-    },
   }
 }
 

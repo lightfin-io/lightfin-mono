@@ -5,11 +5,14 @@ import type {
   PrimitiveHandle,
   PrimitiveView,
 } from '../chart/primitive'
-import type { Px } from './geometry'
+import type { Fit, Px } from './geometry'
+import { fitCloses } from './geometry'
 import type { DrawEnv, Resolved } from './tools'
 import {
   TOOLS,
   drawAnnotation,
+  effectiveStyle,
+  handlePositions,
   hitAnnotation,
   labelBox,
   resolveStyle,
@@ -18,16 +21,18 @@ import type {
   Annotation,
   AnnotationInput,
   AnnotationPoint,
+  AnnotationStyle,
   AnnotationType,
+  ToolPreset,
 } from './types'
 import { validateAnnotation } from './validate'
 
 /** Payloads of the events {@link Annotations.on} can subscribe to. */
 export interface AnnotationsEventMap {
   /**
-   * A drawing was added, removed, moved, restyled, or edited — the moment to
-   * persist {@link Annotations.toJSON}. Fires once at the end of a drag, and
-   * not for {@link Annotations.load}.
+   * A drawing was added, removed, moved, restyled, or edited, or an undo or
+   * redo ran — the moment to persist {@link Annotations.toJSON}. Fires once
+   * at the end of a drag, and not for {@link Annotations.load}.
    */
   change: void
   /** The active drawing tool changed (null: back to the cursor). */
@@ -36,26 +41,47 @@ export interface AnnotationsEventMap {
   selectionChange: string | null
 }
 
+/** What {@link Annotations.update} can change. */
+export type AnnotationPatch = Partial<
+  Pick<Annotation, 'points' | 'style' | 'text' | 'shape' | 'locked'>
+>
+
 const HANDLE_RADIUS = 5
-// A press that moves less than this (CSS px) is a click: a two-point drawing
-// then waits for a second click instead of finishing.
+// A press that moves less than this (CSS px) is a click: a multi-point
+// drawing then waits for another click instead of placing its next point.
 const CLICK_SLOP = 4
+// A freehand stroke samples the pointer every this many CSS px.
+const FREEHAND_STEP = 3
+const HISTORY_LIMIT = 100
+// A clone lands about this far (CSS px) right of and below its original.
+const CLONE_OFFSET = 16
+const LINE_HEIGHT = 1.3
 
 type Drag = { ann: Annotation; moved: boolean } & (
   | { kind: 'handle'; handle: readonly [number, number] }
   | { kind: 'move'; from: Px; orig: AnnotationPoint[] }
 )
 
+// A drawing being placed: `placed` of its points are down, the rest follow
+// the pointer. A freehand one grows a point per sample while dragging.
+interface Draft {
+  ann: Annotation
+  placed: number
+  down: Px
+  last: Px
+}
+
 let seq = 0
 const nextId = () =>
   `a${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 /**
- * Drawing tools on a chart (PLAN §8.5): trend lines, horizontal/vertical
- * lines, rectangles, fib retracements, text, and markers. Pick a tool with
- * {@link setTool}, then drag (or click twice) on the price pane; select a
- * drawing to drag it or its handles, Delete/Backspace removes it, Escape
- * cancels. Double-click a text label to edit it.
+ * Drawing tools on a chart (PLAN §8.5): lines, channels, Fibonacci tools,
+ * shapes, labels, and measurements (see {@link AnnotationType}). Pick a tool
+ * with {@link setTool}, then drag or click out its points on the price pane;
+ * select a drawing to drag it or its handles. Delete/Backspace removes the
+ * selection, Escape cancels, Ctrl/⌘+Z undoes (Shift, or Ctrl+Y, redoes), and
+ * double-clicking a text or callout edits it.
  *
  * Drawings anchor to time + price, so they hold their place across pan/zoom,
  * history backfill, and interval switches. Committed drawings paint on the
@@ -69,12 +95,23 @@ export class Annotations {
   private items: Annotation[] = []
   private selectedId: string | null = null
   private activeTool: AnnotationType | null = null
-  // A two-point drawing being placed: its first point is down, the second
-  // follows the pointer until a release (after a drag) or a second click.
-  private draft: { ann: Annotation; down: Px } | null = null
+  private preset: ToolPreset | undefined
+  private sticky = false
+  private allLocked = false
+  private shown = true
+  private draft: Draft | null = null
   private drag: Drag | null = null
   private editor: { ann: Annotation; finish(commit: boolean): void } | null =
     null
+  // Undo history: the drawings before each change, and after each undo.
+  private past: Annotation[][] = []
+  private future: Annotation[][] = []
+  private snapshot: Annotation[] = []
+  // Regression fits, recomputed only when their range or the data changes.
+  private readonly fits = new WeakMap<
+    Annotation,
+    { key: string; fit: Fit | null }
+  >()
   private readonly ownsTabIndex: boolean
 
   constructor(chart: Chart) {
@@ -111,16 +148,69 @@ export class Annotations {
     return this.activeTool
   }
 
-  /** Arm a drawing tool (null: back to the cursor). Reverts to null after one drawing. */
-  setTool(tool: AnnotationType | null): void {
+  /** The preset the active tool was armed with, if any. */
+  get toolPreset(): ToolPreset | undefined {
+    return this.preset
+  }
+
+  /**
+   * Arm a drawing tool (null: back to the cursor), optionally with a preset
+   * its drawings start from — `setTool('trendline', { style: { extend:
+   * 'end' } })` draws rays. Reverts to the cursor after one drawing unless
+   * {@link setStickyTool} is on.
+   */
+  setTool(tool: AnnotationType | null, preset?: ToolPreset): void {
     if (this.draft) {
       this.draft = null
       this.handle.redraw('overlay')
     }
-    if (tool === this.activeTool) return
+    const next = tool ? preset : undefined
+    if (tool === this.activeTool && next === this.preset) return
     this.activeTool = tool
-    if (tool) this.select(null)
+    this.preset = next
+    if (tool) {
+      this.select(null)
+      if (!this.shown) this.setVisible(true)
+    }
     this.events.emit('toolChange', tool)
+  }
+
+  /** Whether the tool stays armed after a drawing. */
+  get stickyTool(): boolean {
+    return this.sticky
+  }
+
+  /** Keep the tool armed after each drawing (Escape returns to the cursor). */
+  setStickyTool(on: boolean): void {
+    this.sticky = on
+  }
+
+  /** Whether every drawing is locked against moving, regardless of its own `locked`. */
+  get locked(): boolean {
+    return this.allLocked
+  }
+
+  setLocked(on: boolean): void {
+    this.allLocked = on
+    this.drag = null
+    this.handle.redraw('overlay')
+  }
+
+  /** Whether drawings are shown. */
+  get visible(): boolean {
+    return this.shown
+  }
+
+  /** Show or hide every drawing (hidden ones can't be selected; arming a tool shows them). */
+  setVisible(on: boolean): void {
+    if (on === this.shown) return
+    this.shown = on
+    if (!on) {
+      this.closeEditor()
+      this.select(null)
+      this.setTool(null)
+    }
+    this.handle.redraw()
   }
 
   /** The selected drawing's id, or null. */
@@ -157,6 +247,15 @@ export class Annotations {
   }
 
   /**
+   * The style a drawing paints with, theme defaults filled in — e.g. for a
+   * style editor to show. Null for an unknown id.
+   */
+  effectiveStyle(id: string): AnnotationStyle | null {
+    const ann = this.find(id)
+    return ann ? effectiveStyle(ann, this.chart.getOptions().theme) : null
+  }
+
+  /**
    * Add a drawing; returns its id. Throws, listing every problem (see
    * {@link validateAnnotation}), if it's malformed or its id is taken.
    */
@@ -167,12 +266,20 @@ export class Annotations {
     return ann!.id
   }
 
-  /** Replace all drawings, e.g. with ones restored from storage. Throws if any is malformed. */
+  /**
+   * Replace all drawings, e.g. with ones restored from storage, and start a
+   * fresh undo history. Throws if any is malformed.
+   */
   load(inputs: readonly AnnotationInput[]): void {
     const items = createAll(inputs, [])
     this.closeEditor()
+    this.draft = null
+    this.drag = null
     this.items = items
     this.selectedId = null
+    this.past = []
+    this.future = []
+    this.snapshot = items.map(copy)
     this.handle.redraw()
     this.events.emit('selectionChange', null)
   }
@@ -196,30 +303,31 @@ export class Annotations {
   }
 
   /**
-   * Move, restyle (merged over the current style), relabel, or reshape a
-   * drawing. Throws, changing nothing, if the result is malformed.
+   * Move, restyle (merged over the current style; an `undefined` field
+   * reverts to its default), relabel, reshape, or lock a drawing. Throws,
+   * changing nothing, if the result is malformed.
    */
-  update(
-    id: string,
-    patch: Partial<Pick<Annotation, 'points' | 'style' | 'text' | 'shape'>>,
-  ): void {
-    const ann = this.find(id)
-    if (!ann) return
+  update(id: string, patch: AnnotationPatch): void {
+    if (this.editor?.ann.id === id) this.closeEditor()
+    const current = this.find(id)
+    if (!current) return
     // Patches may come straight from JSON, so they can't retarget the drawing.
     const [next] = createAll(
       [
         {
-          ...ann,
+          ...current,
           ...patch,
-          id: ann.id,
-          type: ann.type,
-          group: ann.group,
-          style: { ...ann.style, ...patch.style },
+          id: current.id,
+          type: current.type,
+          group: current.group,
+          style: { ...current.style, ...patch.style },
         },
       ],
       [],
     )
-    Object.assign(ann, next)
+    const i = this.items.indexOf(current)
+    if (this.drag?.ann === current) this.drag = null
+    this.items[i] = next!
     this.changed()
   }
 
@@ -245,6 +353,74 @@ export class Annotations {
     this.changed()
   }
 
+  /**
+   * Copy a drawing (as the user's, unlocked) a little right of and below
+   * the original, on top, and select it. Returns its id, or null for an
+   * unknown id.
+   */
+  clone(id: string): string | null {
+    const ann = this.find(id)
+    if (!ann) return null
+    const dx = Math.max(CLONE_OFFSET, this.chart.timeScale().barWidth)
+    const twin = build({
+      type: ann.type,
+      points: this.shifted(ann.points, dx, CLONE_OFFSET),
+      style: ann.style,
+      text: ann.text,
+      shape: ann.shape,
+    })
+    this.items.push(twin)
+    this.select(twin.id)
+    this.changed()
+    return twin.id
+  }
+
+  /** Draw a drawing above all others. */
+  bringToFront(id: string): void {
+    this.reorder(id, true)
+  }
+
+  /** Draw a drawing below all others. */
+  sendToBack(id: string): void {
+    this.reorder(id, false)
+  }
+
+  get canUndo(): boolean {
+    return this.past.length > 0
+  }
+
+  get canRedo(): boolean {
+    return this.future.length > 0
+  }
+
+  /** Revert the last change; false when there's nothing to undo. */
+  undo(): boolean {
+    this.closeEditor()
+    const state = this.past.pop()
+    if (!state) return false
+    this.future.push(this.snapshot)
+    this.restore(state)
+    return true
+  }
+
+  /** Reapply the last undone change; false when there's nothing to redo. */
+  redo(): boolean {
+    this.closeEditor()
+    const state = this.future.pop()
+    if (!state) return false
+    this.past.push(this.snapshot)
+    this.restore(state)
+    return true
+  }
+
+  /** Edit a drawing's text (a caption, for types that aren't text) in place. */
+  editText(id: string): void {
+    const ann = this.find(id)
+    if (!ann || !this.shown) return
+    this.select(id)
+    this.openEditor(ann, false)
+  }
+
   /** Detach from the chart and drop all listeners. */
   dispose(): void {
     this.closeEditor()
@@ -264,8 +440,42 @@ export class Annotations {
   }
 
   private changed(): void {
+    this.past.push(this.snapshot)
+    if (this.past.length > HISTORY_LIMIT) this.past.shift()
+    this.future = []
+    this.snapshot = this.items.map(copy)
     this.handle.redraw()
     this.events.emit('change', undefined)
+  }
+
+  private restore(state: Annotation[]): void {
+    this.drag = null
+    this.snapshot = state
+    this.items = state.map(copy)
+    if (this.selectedId !== null && !this.find(this.selectedId)) {
+      this.select(null)
+    }
+    this.handle.redraw()
+    this.events.emit('change', undefined)
+  }
+
+  private reorder(id: string, front: boolean): void {
+    const ann = this.find(id)
+    if (!ann) return
+    const rest = this.items.filter(a => a !== ann)
+    const next = front ? [...rest, ann] : [ann, ...rest]
+    if (next.every((a, i) => a === this.items[i])) return
+    this.items = next
+    this.changed()
+  }
+
+  private isLocked(ann: Annotation): boolean {
+    return this.allLocked || !!ann.locked
+  }
+
+  // A text or callout being edited is the editor; other drawings stay painted under it.
+  private underEditor(ann: Annotation): boolean {
+    return this.editor?.ann === ann && !!TOOLS[ann.type].editsText
   }
 
   // --- Painting ---
@@ -275,6 +485,7 @@ export class Annotations {
       pane: view.pane,
       dpr: view.dpr,
       theme: this.chart.getOptions().theme,
+      barWidth: this.chart.timeScale().barWidth,
       formatPrice: price => this.chart.formatPrice(price),
     }
   }
@@ -287,7 +498,41 @@ export class Annotations {
       if (x === null) return null
       px.push({ x, y: this.chart.priceToCoordinate(p.price) })
     }
-    return { ann, px, style: resolveStyle(ann, this.chart.getOptions().theme) }
+    const r: Resolved = {
+      ann,
+      px,
+      style: resolveStyle(ann, this.chart.getOptions().theme),
+    }
+    if (ann.type === 'regression') r.fit = this.fit(ann)
+    return r
+  }
+
+  /** A regression's fitted line in CSS px. */
+  private fit(ann: Annotation): Resolved['fit'] {
+    const series = this.chart.getSeries()
+    if (!series) return null
+    const { store } = series
+    const [p, q] = ann.points as [AnnotationPoint, AnnotationPoint]
+    const from = Math.min(p.time, q.time)
+    const to = Math.max(p.time, q.time)
+    const last = store.size ? store.closes[store.physical(store.lastIndex)] : 0
+    const key = `${from} ${to} ${store.firstIndex} ${store.size} ${last}`
+    let entry = this.fits.get(ann)
+    if (entry?.key !== key) {
+      entry = { key, fit: fitCloses(series.bars({ from, to })) }
+      this.fits.set(ann, entry)
+    }
+    const { fit } = entry
+    if (!fit) return null
+    const x0 = this.chart.timeToCoordinate(fit.from)
+    const x1 = this.chart.timeToCoordinate(fit.to)
+    if (x0 === null || x1 === null) return null
+    const y0 = this.chart.priceToCoordinate(fit.start)
+    return {
+      a: { x: x0, y: y0 },
+      b: { x: x1, y: this.chart.priceToCoordinate(fit.end) },
+      band: y0 - this.chart.priceToCoordinate(fit.start + 2 * fit.deviation),
+    }
   }
 
   private paint(
@@ -301,11 +546,12 @@ export class Annotations {
   }
 
   private draw(ctx: CanvasRenderingContext2D, view: PrimitiveView): void {
+    if (!this.shown) return
     const env = this.env(view)
     ctx.save()
     clip(ctx, view.pane)
     for (const ann of this.items) {
-      if (ann.id === this.selectedId || ann === this.editor?.ann) continue
+      if (ann.id === this.selectedId || this.underEditor(ann)) continue
       this.paint(ctx, env, ann)
     }
     ctx.restore()
@@ -315,18 +561,19 @@ export class Annotations {
     ctx: CanvasRenderingContext2D,
     view: PrimitiveView,
   ): void {
+    if (!this.shown) return
     const env = this.env(view)
     const selected = this.selectedId ? this.find(this.selectedId) : undefined
     ctx.save()
     clip(ctx, view.pane)
-    if (selected && selected !== this.editor?.ann) {
+    if (selected && !this.underEditor(selected)) {
       const r = this.paint(ctx, env, selected)
       if (r) this.paintSelection(ctx, r, env)
     }
     if (this.draft) this.paint(ctx, env, this.draft.ann)
     ctx.restore()
     for (const ann of this.items) {
-      if (ann.type === 'hline') this.paintPriceBadge(ctx, ann, env)
+      if (TOOLS[ann.type].badge) this.paintPriceBadge(ctx, ann, env)
     }
   }
 
@@ -339,11 +586,13 @@ export class Annotations {
     ctx.lineWidth = 1.5
     ctx.strokeStyle = r.style.color
     ctx.fillStyle = env.theme.background
-    for (const h of this.handlePoints(r, env.pane)) {
-      ctx.beginPath()
-      ctx.arc(h.x, h.y, HANDLE_RADIUS, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.stroke()
+    if (!this.isLocked(r.ann)) {
+      for (const h of this.handlePoints(r, env.pane)) {
+        ctx.beginPath()
+        ctx.arc(h.x, h.y, HANDLE_RADIUS, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+      }
     }
     const box = r.ann.type === 'text' ? labelBox(r.ann) : undefined
     if (box) {
@@ -381,9 +630,9 @@ export class Annotations {
 
   /** Handle positions, kept inside the pane so off-screen anchors stay grabbable. */
   private handlePoints(r: Resolved, pane: PlotRect): Px[] {
-    return TOOLS[r.ann.type].handles.map(([a, b]) => ({
-      x: clamp(r.px[a]!.x, pane.left, pane.left + pane.width),
-      y: clamp(r.px[b]!.y, pane.top, pane.top + pane.height),
+    return handlePositions(r).map(h => ({
+      x: clamp(h.x, pane.left, pane.left + pane.width),
+      y: clamp(h.y, pane.top, pane.top + pane.height),
     }))
   }
 
@@ -393,16 +642,19 @@ export class Annotations {
   private hitTest(
     p: Px,
   ): { ann: Annotation; handle?: readonly [number, number] } | null {
+    if (!this.shown) return null
     const selected = this.selectedId ? this.find(this.selectedId) : undefined
     if (selected) {
       const r = this.resolve(selected)
       if (r) {
-        const handles = this.handlePoints(r, this.chart.paneLayout().main)
-        const i = handles.findIndex(
-          h => Math.hypot(p.x - h.x, p.y - h.y) <= HANDLE_RADIUS + 3,
-        )
-        if (i !== -1) {
-          return { ann: selected, handle: TOOLS[selected.type].handles[i]! }
+        if (!this.isLocked(selected)) {
+          const handles = this.handlePoints(r, this.chart.paneLayout().main)
+          const i = handles.findIndex(
+            h => Math.hypot(p.x - h.x, p.y - h.y) <= HANDLE_RADIUS + 3,
+          )
+          if (i !== -1) {
+            return { ann: selected, handle: TOOLS[selected.type].handles[i]! }
+          }
         }
         if (hitAnnotation(r, p)) return { ann: selected }
       }
@@ -423,36 +675,20 @@ export class Annotations {
     }
     const point = { time: e.time, price: e.price }
 
-    if (this.draft) {
-      this.draft.ann.points[1] = point
-      this.commitDraft()
-      return this.claim(e)
-    }
-
-    const tool = this.activeTool
-    if (tool) {
-      const ann = build({
-        type: tool,
-        points: Array.from({ length: TOOLS[tool].points }, () => ({
-          ...point,
-        })),
-      })
-      if (ann.points.length === 2) {
-        this.draft = { ann, down: e.point }
+    const draft = this.draft
+    if (draft) {
+      const n = draft.ann.points.length
+      for (let i = draft.placed; i < n; i++) draft.ann.points[i] = { ...point }
+      draft.placed++
+      if (draft.placed < n) {
         this.handle.redraw('overlay')
         return this.claim(e)
       }
-      this.items.push(ann)
-      this.setTool(null)
-      this.select(ann.id)
-      if (tool === 'text') {
-        this.openEditor(ann, true)
-        e.source.preventDefault()
-        return true
-      }
-      this.changed()
-      return this.claim(e)
+      this.commitDraft()
+      return this.editor ? this.claimForEditor(e) : this.claim(e)
     }
+
+    if (this.activeTool) return this.startDrawing(this.activeTool, e, point)
 
     const hit = this.hitTest(e.point)
     if (!hit) {
@@ -460,6 +696,7 @@ export class Annotations {
       return false
     }
     this.select(hit.ann.id)
+    if (this.isLocked(hit.ann)) return this.claim(e)
     this.drag = hit.handle
       ? { kind: 'handle', ann: hit.ann, handle: hit.handle, moved: false }
       : {
@@ -472,6 +709,41 @@ export class Annotations {
     return this.claim(e)
   }
 
+  private startDrawing(
+    tool: AnnotationType,
+    e: ChartPointerEvent,
+    point: AnnotationPoint,
+  ): true {
+    const spec = TOOLS[tool]
+    const { style, shape } = this.preset ?? {}
+    const make = (points: AnnotationPoint[]) =>
+      build({ type: tool, points, style, shape })
+
+    if (spec.freehand) {
+      const p = this.freePoint(e.point)
+      if (p) {
+        this.draft = { ann: make([p]), placed: 1, down: e.point, last: e.point }
+      }
+      return this.claim(e)
+    }
+    if (spec.place) {
+      const barWidth = this.chart.timeScale().barWidth
+      const points = spec
+        .place(e.point, { barWidth })
+        .map(px => this.toPoint(px) ?? point)
+      this.finish(make(points))
+      return this.claim(e)
+    }
+    const ann = make(Array.from({ length: spec.points }, () => ({ ...point })))
+    if (spec.points > 1) {
+      this.draft = { ann, placed: 1, down: e.point, last: e.point }
+      this.handle.redraw('overlay')
+      return this.claim(e)
+    }
+    this.finish(ann)
+    return this.editor ? this.claimForEditor(e) : this.claim(e)
+  }
+
   /** Take the press: focus the chart for keys, and keep the browser from selecting text. */
   private claim(e: ChartPointerEvent): true {
     e.source.preventDefault()
@@ -479,10 +751,67 @@ export class Annotations {
     return true
   }
 
+  /** Take the press but leave focus in the text editor it just opened. */
+  private claimForEditor(e: ChartPointerEvent): true {
+    e.source.preventDefault()
+    return true
+  }
+
+  /** The data point at a pixel, unsnapped: between bars and off the magnet. */
+  private freePoint(p: Px): AnnotationPoint | null {
+    const time = this.chart.coordinateToTime(p.x, false)
+    return time === null
+      ? null
+      : { time, price: this.chart.coordinateToPrice(p.y) }
+  }
+
+  /** The data point at a pixel, on the nearest bar's time. */
+  private toPoint(p: Px): AnnotationPoint | null {
+    const time = this.chart.coordinateToTime(p.x)
+    return time === null
+      ? null
+      : { time, price: this.chart.coordinateToPrice(p.y) }
+  }
+
+  /** Points moved by whole bars (nearest to `dx` px) and exactly `dy` px in price. */
+  private shifted(
+    points: readonly AnnotationPoint[],
+    dx: number,
+    dy: number,
+  ): AnnotationPoint[] {
+    const { chart } = this
+    const barWidth = chart.timeScale().barWidth
+    const bars = Math.round(dx / barWidth)
+    const dPrice = chart.coordinateToPrice(dy) - chart.coordinateToPrice(0)
+    return points.map(p => {
+      const x = bars === 0 ? null : chart.timeToCoordinate(p.time)
+      const time =
+        x === null
+          ? p.time
+          : (chart.coordinateToTime(x + bars * barWidth, false) ?? p.time)
+      return { time, price: p.price + dPrice }
+    })
+  }
+
   private pointerMove(e: ChartPointerEvent, dragging: boolean): void {
-    if (this.draft) {
-      if (e.time === null) return
-      this.draft.ann.points[1] = { time: e.time, price: e.price }
+    const draft = this.draft
+    if (draft) {
+      if (TOOLS[draft.ann.type].freehand) {
+        const { last } = draft
+        if (!dragging) return
+        if (Math.hypot(e.point.x - last.x, e.point.y - last.y) < FREEHAND_STEP)
+          return
+        const p = this.freePoint(e.point)
+        if (!p) return
+        draft.ann.points.push(p)
+        draft.last = e.point
+      } else {
+        if (e.time === null) return
+        const { points } = draft.ann
+        for (let i = draft.placed; i < points.length; i++) {
+          points[i] = { time: e.time, price: e.price }
+        }
+      }
       this.handle.redraw('overlay')
       return
     }
@@ -495,33 +824,42 @@ export class Annotations {
       drag.ann.points[b]!.price = e.price
     } else {
       // Whole bars horizontally so points stay on bar times; free in price.
-      const { chart } = this
-      const barWidth = chart.timeScale().barWidth
-      const bars = Math.round((e.point.x - drag.from.x) / barWidth)
-      const dPrice =
-        chart.coordinateToPrice(e.point.y) -
-        chart.coordinateToPrice(drag.from.y)
-      drag.ann.points = drag.orig.map(p => {
-        const x = bars === 0 ? null : chart.timeToCoordinate(p.time)
-        const time =
-          x === null
-            ? p.time
-            : (chart.coordinateToTime(x + bars * barWidth) ?? p.time)
-        return { time, price: p.price + dPrice }
-      })
+      drag.ann.points = this.shifted(
+        drag.orig,
+        e.point.x - drag.from.x,
+        e.point.y - drag.from.y,
+      )
     }
     drag.moved = true
     this.handle.redraw('overlay')
   }
 
   private pointerUp(e: ChartPointerEvent): void {
-    if (this.draft) {
-      const { down } = this.draft
-      if (Math.hypot(e.point.x - down.x, e.point.y - down.y) > CLICK_SLOP) {
-        if (e.time !== null) {
-          this.draft.ann.points[1] = { time: e.time, price: e.price }
+    const draft = this.draft
+    if (draft) {
+      const spec = TOOLS[draft.ann.type]
+      if (spec.freehand) {
+        if (draft.ann.points.length >= spec.points) this.commitDraft()
+        else {
+          this.draft = null
+          this.handle.redraw('overlay')
         }
-        this.commitDraft()
+        return
+      }
+      // A drag from the first press places the second point at its release.
+      const { down } = draft
+      if (
+        draft.placed === 1 &&
+        Math.hypot(e.point.x - down.x, e.point.y - down.y) > CLICK_SLOP
+      ) {
+        if (e.time !== null) {
+          const { points } = draft.ann
+          for (let i = 1; i < points.length; i++) {
+            points[i] = { time: e.time, price: e.price }
+          }
+        }
+        draft.placed = 2
+        if (draft.placed >= spec.points) this.commitDraft()
       }
       return
     }
@@ -533,10 +871,22 @@ export class Annotations {
   private commitDraft(): void {
     const { ann } = this.draft!
     this.draft = null
+    this.finish(ann)
+  }
+
+  /**
+   * Add a just-drawn drawing and select it, then return to the cursor unless
+   * the tool is sticky. A text or callout opens its editor instead of
+   * committing; the edit commits it.
+   */
+  private finish(ann: Annotation): void {
     this.items.push(ann)
-    this.setTool(null)
-    this.select(ann.id)
-    this.changed()
+    if (!this.sticky) {
+      this.setTool(null)
+      this.select(ann.id)
+    }
+    if (TOOLS[ann.type].editsText) this.openEditor(ann, true)
+    else this.changed()
   }
 
   private cursor(e: ChartPointerEvent): string | null {
@@ -547,7 +897,13 @@ export class Annotations {
 
   private onKeyDown = (e: KeyboardEvent): void => {
     if (e.target !== this.chart.element) return
-    if (e.key === 'Escape') {
+    const key = e.key.toLowerCase()
+    if ((e.ctrlKey || e.metaKey) && key === 'z') {
+      if (e.shiftKey) this.redo()
+      else this.undo()
+    } else if (e.ctrlKey && key === 'y') {
+      this.redo()
+    } else if (e.key === 'Escape') {
       if (this.draft || this.activeTool) this.setTool(null)
       else this.select(null)
     } else if (
@@ -567,37 +923,59 @@ export class Annotations {
       x: e.clientX - box.left,
       y: e.clientY - box.top,
     })
-    if (hit?.ann.type === 'text') this.openEditor(hit.ann, false)
+    if (hit && TOOLS[hit.ann.type].editsText) this.openEditor(hit.ann, false)
   }
 
   /**
-   * Edit a text label in place. Enter or clicking away commits; Escape
-   * reverts. A label left empty is removed.
+   * Edit a drawing's text in place, over its label. Enter or clicking away
+   * commits, Shift+Enter starts a new line, Escape reverts. A text or
+   * callout left empty is removed; any other drawing loses its caption.
    */
   private openEditor(ann: Annotation, isNew: boolean): void {
     this.closeEditor()
     const r = this.resolve(ann)
     if (!r) return
     const { theme } = this.chart.getOptions()
-    const size = r.style.fontSize
-    const input = document.createElement('input')
+    const { style } = r
+    const lh = style.fontSize * LINE_HEIGHT
+    const pad = 3
+    const box = labelBox(ann)
+    const last = r.px[r.px.length - 1]!
+    const at = box
+      ? box.a
+      : ann.type === 'text'
+        ? { x: last.x, y: last.y - lh / 2 }
+        : { x: last.x + 8, y: last.y - lh - 8 }
+    const boxed = ann.type === 'callout'
+    const input = document.createElement('textarea')
     input.value = ann.text ?? ''
+    input.rows = 1
     input.setAttribute('aria-label', 'Drawing text')
     Object.assign(input.style, {
       position: 'absolute',
-      zIndex: '2',
-      left: `${r.px[0]!.x - 3}px`,
-      top: `${r.px[0]!.y - size * 0.7 - 3}px`,
-      height: `${size * 1.4}px`,
+      zIndex: '3',
+      left: `${at.x - pad}px`,
+      top: `${at.y - pad}px`,
       minWidth: '10em',
-      padding: '2px',
-      border: `1px solid ${r.style.color}`,
+      margin: '0',
+      padding: `${pad - 1}px`,
+      border: `1px solid ${style.color}`,
       borderRadius: '2px',
       outline: 'none',
-      background: theme.background,
-      color: r.style.color,
-      font: `${size}px ${theme.fontFamily}`,
+      resize: 'none',
+      overflow: 'hidden',
+      whiteSpace: 'pre',
+      background: boxed ? (style.fill ?? style.color) : theme.background,
+      color: style.textColor,
+      font: style.font,
+      lineHeight: `${lh}px`,
     })
+    const fit = () => {
+      input.style.width = '0'
+      input.style.height = '0'
+      input.style.width = `${input.scrollWidth + 2}px`
+      input.style.height = `${Math.max(input.scrollHeight, lh) + 2 * pad}px`
+    }
 
     let done = false
     const finish = (commit: boolean) => {
@@ -616,8 +994,11 @@ export class Annotations {
         this.items = this.items.filter(a => a !== ann)
         this.select(null)
         this.handle.redraw()
-      } else if (commit) {
+      } else if (commit && TOOLS[ann.type].editsText) {
         this.remove(ann.id)
+      } else if (commit && ann.text !== undefined) {
+        delete ann.text
+        this.changed()
       } else {
         this.handle.redraw()
       }
@@ -625,9 +1006,12 @@ export class Annotations {
     }
     input.addEventListener('keydown', e => {
       e.stopPropagation()
-      if (e.key === 'Enter') finish(true)
-      else if (e.key === 'Escape') finish(false)
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        finish(true)
+      } else if (e.key === 'Escape') finish(false)
     })
+    input.addEventListener('input', fit)
     input.addEventListener('blur', () => finish(true))
     // Keep the chart from panning or re-opening the editor under the input.
     input.addEventListener('pointerdown', e => e.stopPropagation())
@@ -636,7 +1020,9 @@ export class Annotations {
     this.editor = { ann, finish }
     this.handle.redraw()
     this.chart.element.append(input)
+    fit()
     input.focus()
+    input.select()
   }
 
   /** Commit any open text edit. */
@@ -684,12 +1070,25 @@ function build(input: AnnotationInput): Annotation {
     id: input.id ?? nextId(),
     type: input.type,
     points: input.points.map(p => ({ time: p.time, price: p.price })),
-    style: { ...input.style },
+    style: stripUndefined(input.style ?? {}),
   }
   if (input.text !== undefined) ann.text = input.text
   if (input.shape !== undefined) ann.shape = input.shape
+  if (input.locked) ann.locked = true
   if (input.group !== undefined) ann.group = input.group
   return ann
+}
+
+/** A copy without its `undefined` fields (objects only; anything else as is). */
+function stripUndefined<T>(value: T): T {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return value
+  }
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(value)) {
+    if (v !== undefined) out[k] = v
+  }
+  return out as T
 }
 
 function copy(ann: Annotation): Annotation {

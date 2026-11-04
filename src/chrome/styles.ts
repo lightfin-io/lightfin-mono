@@ -48,7 +48,49 @@ const CSS = `
   background: var(--lf-panel); border: 1px solid var(--lf-border);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); font: 13px/18px var(--lf-font);
 }
-.lf-menu .lf-btn { display: flex; width: 100%; padding: 6px 10px; }
+.lf-menu .lf-btn { display: flex; width: 100%; padding: 6px 10px; gap: 8px; }
+.lf-menu .lf-btn[aria-checked='true'], .lf-menu .lf-btn[aria-pressed='true'] { color: var(--lf-accent); }
+.lf-menu .lf-btn svg { flex: none; }
+.lf-menu-label { padding: 6px 10px 2px; font-size: 11px; opacity: 0.7; }
+.lf-sizes { display: grid; grid-template-columns: repeat(5, 1fr); }
+.lf-menu .lf-sizes .lf-btn { justify-content: center; padding: 4px 0; }
+
+.lf-tool-group { position: relative; }
+.lf-tool-more {
+  position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px;
+  padding: 0; opacity: 0.5;
+}
+.lf-tool-more svg { width: 12px; height: 12px; }
+.lf-tool-group:hover .lf-tool-more, .lf-tool-more:focus-visible,
+.lf-tool-more[aria-expanded='true'] { opacity: 1; }
+
+.lf-drawing-toolbar {
+  position: absolute; z-index: 4; padding: 2px 4px; overflow: visible;
+  border: 1px solid var(--lf-border); border-radius: 6px;
+  background: var(--lf-panel); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.lf-drawing-toolbar[hidden] { display: none; }
+.lf-grip { cursor: grab; opacity: 0.6; touch-action: none; }
+.lf-grip svg { display: block; width: 12px; height: 18px; }
+.lf-swatch-btn { flex-direction: column; gap: 1px; padding: 3px 4px 2px; }
+.lf-swatch-btn svg { width: 16px; height: 16px; }
+.lf-swatch {
+  display: block; width: 18px; height: 4px; border-radius: 1px;
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.4);
+}
+.lf-btn-sub { margin-left: 2px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.lf-btn-text { min-width: 26px; justify-content: center; font-weight: 600; }
+.lf-btn.lf-italic { font-style: italic; font-family: Georgia, serif; }
+
+.lf-colors { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; padding: 4px; }
+.lf-color {
+  appearance: none; width: 18px; height: 18px; padding: 0; margin: 0; cursor: pointer;
+  border: 1px solid rgba(128, 128, 128, 0.35); border-radius: 3px;
+}
+.lf-color[aria-pressed='true'] { outline: 2px solid var(--lf-accent); outline-offset: 1px; }
+.lf-color-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px 4px; }
+.lf-color-row input[type='range'] { flex: 1; min-width: 0; accent-color: var(--lf-accent); }
+.lf-color-pct { width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
 
 .lf-hud {
   position: absolute; left: 8px; z-index: 1; pointer-events: none;

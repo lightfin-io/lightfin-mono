@@ -48,39 +48,62 @@ export const annotationSchema = {
         'trendline',
         'hline',
         'vline',
-        'rectangle',
+        'hray',
+        'crossline',
+        'channel',
+        'pitchfork',
+        'regression',
         'fib',
+        'fibExtension',
+        'rectangle',
+        'ellipse',
+        'triangle',
+        'brush',
         'text',
+        'callout',
+        'priceLabel',
         'marker',
+        'longPosition',
+        'shortPosition',
+        'measure',
       ],
       description:
-        'trendline: a segment between 2 points (trends, channels). ' +
-        'hline: a horizontal line at 1 point’s price (support, resistance, targets). ' +
-        'vline: a vertical line at 1 point’s time (events, session breaks). ' +
-        'rectangle: a shaded box between 2 opposite corners (ranges, zones). ' +
-        'fib: Fibonacci retracement levels from the 1st point (swing start) to the 2nd (swing end). ' +
-        'text: a free-standing label at 1 point. ' +
-        'marker: an arrow or dot at 1 bar (signals, pattern points).',
+        'Point counts in brackets. ' +
+        'trendline [2]: a segment (trends); style.extend makes it a ray. ' +
+        'hline [1]: a horizontal line at a price (support, resistance). hray [1]: one running right from its point. ' +
+        'vline [1]: a vertical line at a time (events). crossline [1]: both. ' +
+        'channel [3]: a line through points 1–2 and its parallel through point 3. ' +
+        'pitchfork [3]: Andrews’ pitchfork from a pivot (1) and two reactions (2, 3). ' +
+        'regression [2]: a fitted trend of the closes between two times, with ±2σ bands. ' +
+        'fib [2]: retracement levels from swing start (1) to swing end (2). ' +
+        'fibExtension [3]: extension levels of move 1→2 projected from point 3. ' +
+        'rectangle, ellipse [2]: shaded zones between opposite corners. triangle [3]. brush [2+]: a freehand stroke. ' +
+        'text [1]: a label. callout [2]: a labelled box (2) pointing at a bar (1). priceLabel [1]: a bubble with the price. ' +
+        'marker [1]: an arrow, dot, or flag at a bar (signals). ' +
+        'longPosition, shortPosition [3]: entry (1, the box’s left edge), target (2, its right edge), stop (3’s price). ' +
+        'measure [2]: price change, bars, and time between two points.',
     },
     points: {
       type: 'array',
       items: point,
       minItems: 1,
-      maxItems: 2,
-      description:
-        '2 points for trendline, rectangle, and fib; 1 for hline, vline, text, and marker.',
+      description: 'As many as the type takes (see type).',
     },
     text: {
       type: 'string',
       description:
-        'A short caption shown beside the drawing (the label itself for type text). Keep it to a few words.',
+        'A short caption beside the drawing (the label itself for text and callout). Keep it to a few words.',
     },
     shape: {
       type: 'string',
-      enum: ['arrowUp', 'arrowDown', 'circle'],
+      enum: ['arrowUp', 'arrowDown', 'circle', 'flag'],
       description:
         'Markers only. arrowUp draws below its point pointing up (bullish; put the point at the bar’s low). ' +
-        'arrowDown draws above pointing down (bearish; put it at the high). circle sits on the point. Default circle.',
+        'arrowDown draws above pointing down (bearish; put it at the high). circle sits on the point, flag stands on it. Default circle.',
+    },
+    locked: {
+      type: 'boolean',
+      description: 'Keep the user from moving it by accident.',
     },
     id: {
       type: 'string',
@@ -101,9 +124,27 @@ export const annotationSchema = {
         fillColor: {
           type: 'string',
           description:
-            'Rectangle fill, usually translucent, e.g. "rgba(38,166,154,0.15)".',
+            'Shape fill or text background, usually translucent, e.g. "rgba(38,166,154,0.15)".',
         },
         fontSize: { type: 'number', description: 'Text size in px.' },
+        fontFamily: { type: 'string' },
+        bold: { type: 'boolean' },
+        italic: { type: 'boolean' },
+        textColor: {
+          type: 'string',
+          description: 'Caption color, if not the line color.',
+        },
+        extend: {
+          type: 'string',
+          enum: ['none', 'start', 'end', 'both'],
+          description:
+            'trendline/channel: run past the 1st point (start), the 2nd (end), or both.',
+        },
+        arrow: {
+          type: 'string',
+          enum: ['none', 'start', 'end', 'both'],
+          description: 'trendline: arrowheads on those ends.',
+        },
       },
       additionalProperties: false,
     },

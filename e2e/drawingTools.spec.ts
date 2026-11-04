@@ -1,0 +1,134 @@
+import { expect, test } from '@playwright/test'
+
+import { layout, openDemo } from './helpers'
+
+test('a parallel channel is drawn from the toolbar flyout with a drag and a click', async ({
+  page,
+}) => {
+  await openDemo(page)
+  const { origin, main } = await layout(page)
+  const at = (fx: number, fy: number) =>
+    [
+      origin.x + main.left + main.width * fx,
+      origin.y + main.top + main.height * fy,
+    ] as const
+
+  await page.getByRole('button', { name: 'More channels' }).click()
+  await page.getByRole('menuitem', { name: 'Parallel channel' }).click()
+  await page.mouse.move(...at(0.2, 0.6))
+  await page.mouse.down()
+  await page.mouse.move(...at(0.5, 0.4), { steps: 5 })
+  await page.mouse.up()
+  await page.mouse.move(...at(0.4, 0.7), { steps: 3 })
+  await page.mouse.click(...at(0.4, 0.7))
+
+  const drawn = await page.evaluate(() => ({
+    list: window.drawings.list(),
+    selected: window.drawings.selected,
+    tool: window.drawings.tool,
+  }))
+  expect(drawn.list).toHaveLength(1)
+  expect(drawn.list[0]!.type).toBe('channel')
+  expect(drawn.list[0]!.points).toHaveLength(3)
+  expect(drawn.selected).toBe(drawn.list[0]!.id)
+  expect(drawn.tool).toBeNull()
+  await expect(page.getByRole('button', { name: 'Line color' })).toBeVisible()
+})
+
+test('the brush records a freehand stroke', async ({ page }) => {
+  await openDemo(page)
+  const { origin, main } = await layout(page)
+  await page.getByRole('button', { name: 'More shapes' }).click()
+  await page.getByRole('menuitem', { name: 'Brush' }).click()
+
+  const x = origin.x + main.left + main.width * 0.3
+  const y = origin.y + main.top + main.height * 0.5
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  for (let i = 1; i <= 20; i++) {
+    await page.mouse.move(x + i * 8, y + Math.sin(i / 2) * 30)
+  }
+  await page.mouse.up()
+
+  const [stroke] = await page.evaluate(() => window.drawings.list())
+  expect(stroke!.type).toBe('brush')
+  expect(stroke!.points.length).toBeGreaterThan(5)
+})
+
+test("the floating toolbar restyles a text label's font, size, and color", async ({
+  page,
+}) => {
+  await openDemo(page)
+  const id = await page.evaluate(() => {
+    const range = window.chart.visibleTimeRange()!
+    const { main } = window.chart.paneLayout()
+    const price = window.chart.coordinateToPrice(main.top + main.height / 2)!
+    const id = window.drawings.add({
+      type: 'text',
+      points: [{ time: Math.round((range.from + range.to) / 2), price }],
+      text: 'Note',
+    })
+    window.drawings.select(id)
+    return id
+  })
+
+  await page.getByRole('button', { name: 'Font' }).click()
+  await page.getByRole('menuitemradio', { name: '24' }).click()
+  await page.getByRole('button', { name: 'Bold' }).click()
+  await page.getByRole('button', { name: 'Font' }).click()
+  await page.getByRole('menuitemradio', { name: 'Monospace' }).click()
+  await page.getByRole('button', { name: 'Text color' }).click()
+  await page.getByRole('button', { name: '#ff9800' }).click()
+
+  const style = await page.evaluate(id => window.drawings.get(id)!.style, id)
+  expect(style).toMatchObject({ fontSize: 24, bold: true, color: '#ff9800' })
+  expect(style.fontFamily).toContain('monospace')
+  await expect(page.getByRole('button', { name: 'Bold' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+
+  // Styles picked for a tool carry over to its next drawing.
+  await page.getByRole('button', { name: 'Text', exact: true }).click()
+  expect(
+    await page.evaluate(() => window.drawings.toolPreset?.style),
+  ).toMatchObject({ fontSize: 24, bold: true, color: '#ff9800' })
+})
+
+test('clone, undo, and redo from the toolbar and keyboard', async ({
+  page,
+}) => {
+  await openDemo(page)
+  await page.evaluate(() => {
+    const range = window.chart.visibleTimeRange()!
+    const { main } = window.chart.paneLayout()
+    const price = window.chart.coordinateToPrice(main.top + main.height / 2)!
+    const id = window.drawings.add({
+      type: 'rectangle',
+      points: [
+        { time: range.from, price: price * 0.98 },
+        { time: range.to, price: price * 1.02 },
+      ],
+    })
+    window.drawings.select(id)
+  })
+
+  await page.getByRole('button', { name: 'More', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Clone' }).click()
+  const count = () => page.evaluate(() => window.drawings.list().length)
+  expect(await count()).toBe(2)
+
+  await page.locator('.lf-chart').focus()
+  await page.keyboard.press('ControlOrMeta+z')
+  expect(await count()).toBe(1)
+  await page.keyboard.press('ControlOrMeta+Shift+z')
+  expect(await count()).toBe(2)
+
+  // Undoing the clone dropped its selection; the toolbar follows the next one.
+  await expect(page.getByRole('button', { name: 'Delete' })).toBeHidden()
+  await page.evaluate(() =>
+    window.drawings.select(window.drawings.list()[0]!.id),
+  )
+  await page.getByRole('button', { name: 'Delete' }).click()
+  expect(await count()).toBe(1)
+})

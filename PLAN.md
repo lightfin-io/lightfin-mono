@@ -15,15 +15,17 @@ host renders the order form.
 
 ## 2. Current state
 
-Phases 0–9 shipped: cleanup/scaffold, core rendering (candlesticks, index
+Phases 0–11 shipped: cleanup/scaffold, core rendering (candlesticks, index
 time axis, price axis, pan/zoom, resize), crosshair + current-price line, volume
 sub-pane, interval-aware time ticks, live data (update/follow-mode/DataSource +
 history backfill), the indicator framework with SMA, EMA, Bollinger, RSI,
 MACD, Volume MA, candlestick/bar/line/area series switchable in place via
 `setChartType()`, the `/chrome` widgets (instrument metadata + timezone,
 HUD/legend, indicator rows, top/bottom/left toolbars, go-to modal, exchange
-clock), the `/annotations` drawing tools (trendline, h/v line, rectangle, fib,
-text) on a generic primitive hook, the order-intent "+" hook, magnet crosshair
+clock), the `/annotations` drawing tools (21 types — lines, channels,
+pitchfork, regression, fibs, shapes, brush, labels, position and range
+measures — with undo/redo and a per-drawing style toolbar) on a generic
+primitive hook, the order-intent "+" hook, magnet crosshair
 mode, the 500k-candle stress page, a bundle-size budget in CI, a touch
 crosshair, resizable indicator panes, `/price-lines` for orders and
 positions, keyboard control with screen-reader output, and Playwright tests
@@ -254,8 +256,7 @@ src/
 
 ### 8.5 Annotations
 
-- Drawing tools (trendline, h/v line, rectangle, fib retracement, text, marker) in the
-  `/annotations` subpath, independent of indicators. They plug into the core
+- Drawing tools in the `/annotations` subpath, independent of indicators. They plug into the core
   through a generic **primitive** hook (`chart.attachPrimitive()`): draw
   callbacks on the series and overlay layers plus pointer hooks that can claim
   a press (so it doesn't pan). The core carries no annotation code.
@@ -264,20 +265,45 @@ src/
   across backfill, interval switches, and into the right-offset space.
 - Committed drawings paint on the series layer; the selected one and any in
   progress paint on the overlay, so dragging never repaints the rest.
-- Pick a tool, then drag or click twice (one click for h/v line and text).
+- **Types** (point count in brackets), one `ToolSpec` each (points, draw,
+  hit, handles, caption) in a table split by family:
+  - Lines: `trendline` [2], `hline`, `hray`, `vline`, `crossline` [1].
+  - Channels: `channel` [3: base line + a point on the parallel], `pitchfork`
+    [3], `regression` [2: a least-squares fit of the closes between two times,
+    with a ±max-deviation band, recomputed from the bars and cached].
+  - Fibonacci: `fib` retracement [2], `fibExtension` [3: levels projected from
+    the third point].
+  - Shapes: `rectangle`, `ellipse` [2], `triangle` [3], `brush` [≥2, freehand].
+  - Labels: `text` [1], `callout` [2: anchor + box], `priceLabel` [1],
+    `marker` [1: `arrowUp` / `arrowDown` / `circle` / `flag`].
+  - Measure: `longPosition` / `shortPosition` [3: entry, target, stop; zones,
+    prices, percentages, and risk/reward], `measure` [2: Δprice, %, bars,
+    duration].
+- **Variants are presets, not types:** the toolbar's Ray, Extended line, and
+  Arrow are trendlines with `style.extend` / `style.arrow` (none, start, end,
+  or both), the highlighter a wide translucent brush, marker
+  flavors a `shape` — `setTool(type, { style, shape })` seeds the next
+  drawing, so the JSON stays small and every variant stays editable.
+- **Style:** `color`, `lineWidth`, `lineStyle`, `fillColor`, `fontSize`,
+  `fontFamily`, `bold`, `italic`, `textColor`, `extend`, `arrow`; unset keys
+  fall back to per-type defaults (filled shapes at 15% of the line color,
+  white text in boxed labels). `update(id, { style: { key: undefined } })`
+  reverts a key to its default.
+- Pick a tool, then drag or click per point (one click for single-point and
+  position tools, which lay out a default zone); the brush records the drag.
   Points snap to bar times and follow magnet mode. Select to drag the body
   (whole bars, free in price) or a handle; Delete removes, Escape cancels;
-  double-click edits text in place. The tool reverts to the cursor after
-  each drawing.
-- **Markers** (`type: 'marker'`, `shape: 'arrowUp' | 'arrowDown' | 'circle'`)
-  flag a single bar, e.g. a signal: an up arrow sits below its point in the
-  theme's up color, a down arrow above in the down color. No toolbar button —
-  they're meant for programmatic use (§8.7).
+  double-click edits text in place (multi-line: Shift+Enter). The tool
+  reverts to the cursor after each drawing unless `setStickyTool(true)`.
+- **Editing:** undo/redo (Ctrl/⌘+Z, Shift+Ctrl/⌘+Z or Ctrl+Y; `undo()` /
+  `redo()`, 100 steps, `load()` resets), `clone(id)`, `bringToFront` /
+  `sendToBack`, per-drawing `locked` (selectable, not movable) plus
+  `setLocked()` for all, and `setVisible()` to hide all.
 - **Captions:** `text` on any non-text drawing labels it — above an hline's
   right end, at the bottom of a vline, inside a rectangle's top-left, along a
   trendline's midpoint, beside a marker. Clicking a caption selects its drawing.
 - Serializable to plain JSON (`{ id, type, points: [{ time, price }], style,
-text?, shape?, group? }`) via `toJSON()` / `load()`; a `change` event (once per edit, not
+text?, shape?, group?, locked? }`) via `toJSON()` / `load()`; a `change` event (once per edit, not
   mid-drag) tells the host when to persist — persistence itself is the host's job.
 
 ### 8.6 Accessibility
@@ -356,10 +382,22 @@ theme-aware and overlay the canvas stack.
 - **Bottom toolbar:** quick date-range buttons (1D, 5D, 1M, 3M, 6M, YTD, 1Y, 5Y,
   All), a **custom date / range** button opening a date-picker modal, and the
   exchange-local time.
-- **Left annotation toolbar:** vertical strip of drawing tools (cursor, trendline,
-  h/v line, rectangle, fib, text, clear) wired to §8.5; shown only when the host
-  passes an annotations instance (`createChrome(chart, { annotations })`), so
-  chrome never imports annotation code itself.
+- **Left annotation toolbar:** cursor, then one button per tool family (lines,
+  channels, fibonacci, shapes, labels, measure) that arms the family's last
+  used tool, with a corner chevron (or right-click) opening a flyout of the
+  rest; then toggles for magnet, stay-in-drawing-mode, lock all, hide all, and
+  remove all. Wired to §8.5; shown only when the host passes an annotations
+  instance (`createChrome(chart, { annotations })`), so chrome never imports
+  annotation code itself.
+- **Drawing style toolbar:** a floating bar for the selected drawing, top-right
+  of the main pane and draggable by its grip, with only the controls its type
+  uses: color (palette, custom, opacity), width, line style, fill, text color,
+  font family + size, bold/italic, edit text/caption, line ends, lock, a more
+  menu (clone, bring to front, send to back), and delete. Looks picked here
+  are remembered per tool for its next drawing.
+- Popovers (indicators menu, flyouts, style menus) share one helper:
+  `aria-haspopup`/`aria-expanded`, close on outside press or Escape, clamped to
+  the chart. Icons and layout are our own designs.
 
 ## 10. Bundle size & modularity
 
@@ -430,7 +468,7 @@ const chrome = createChrome(chart, {
   intervals: ['1m', '1H', '1D'],
   interval: '1m',
   onIntervalChange,
-  annotations: drawings, // adds the left drawing toolbar
+  annotations: drawings, // adds the drawing and style toolbars
 })
 
 // Custom drawing/interaction on the main pane — what annotations build on.
@@ -477,6 +515,7 @@ Container sizing is implicit — no `width`/`height` option.
 8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation and worker-based calc were measured and not built (§6, §8.4).
 9. **v1 gaps** — touch press-and-hold crosshair, resizable indicator panes, price lines, accessibility + keyboard control, Playwright e2e in CI. ✅
 10. **Chart-driven loading** — count-based `DataSource` paging with cancellation and live merging (§6), demo on live Binance BTC/USDT. ✅
+11. **Drawing-tool depth** — 21 drawing types, presets, undo/redo, clone/z-order/lock/hide, grouped left toolbar with flyouts, floating style toolbar with color/font/line controls (§8.5, §9). ✅ Not built: a full per-drawing settings dialog (exact coordinates, per-level fib toggles), Gann/Elliott/pattern tools, per-drawing visibility, and toolbar undo buttons.
 
 ## 14. Don't pick up yet
 
@@ -485,7 +524,6 @@ Container sizing is implicit — no `width`/`height` option.
 - **Ecosystem** — React wrapper (first), theming system, docs site. Theming
   open question: today the canvas takes a JS `theme` object and chrome mirrors
   it into CSS variables; decide whether CSS variables become the source of truth.
-- Achieve approximate feature parity of annotations with TradingView e.g. more tools, and tools get popover menus with customizations (e.g. text font, style, and color)
 
 ## 15. Open questions
 

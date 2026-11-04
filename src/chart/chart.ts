@@ -330,11 +330,17 @@ export class Chart {
     )
   }
 
-  /** Time of the bar slot nearest x (extrapolated past the data), or null with no data. */
-  coordinateToTime(x: number): UTCTimestamp | null {
+  /**
+   * Time of the bar slot nearest x (extrapolated past the data), or null with
+   * no data. `snap: false` interpolates between bars instead (to the second),
+   * e.g. for freehand drawing.
+   */
+  coordinateToTime(x: number, snap = true): UTCTimestamp | null {
     const store = this.series?.store
     if (!store || store.size === 0) return null
-    const index = this.timeScaleModel.nearestIndex(x)
+    const index = snap
+      ? this.timeScaleModel.nearestIndex(x)
+      : this.timeScaleModel.xToIndex(x)
     return Math.round(indexToTime(store, index, this.barInterval()))
   }
 

@@ -1,5 +1,6 @@
 /**
- * lightfin-web-chart/annotations — opt-in drawing tools (PLAN §8.5).
+ * lightfin-web-chart/annotations — opt-in drawing tools (PLAN §8.5): lines,
+ * channels, Fibonacci tools, shapes, labels, and measurements.
  *
  * Its own subpath export, so the core bundle never includes annotation code
  * unless a consumer imports it. Drawings serialize to plain JSON for the host
@@ -30,8 +31,8 @@ import type { Chart } from '../chart/chart'
 import { Annotations } from './annotations'
 
 export { Annotations } from './annotations'
-export type { AnnotationsEventMap } from './annotations'
-export { FIB_LEVELS } from './tools'
+export type { AnnotationPatch, AnnotationsEventMap } from './annotations'
+export { FIB_EXTENSION_LEVELS, FIB_LEVELS } from './tools'
 export { validateAnnotation } from './validate'
 export type {
   Annotation,
@@ -39,8 +40,10 @@ export type {
   AnnotationPoint,
   AnnotationStyle,
   AnnotationType,
+  LineEnds,
   LineStyle,
   MarkerShape,
+  ToolPreset,
 } from './types'
 
 /** Attach drawing tools to `chart`. */
