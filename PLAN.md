@@ -35,7 +35,7 @@ annotation toolbar) is next. See §13.
 | X-axis model       | **Index-based** (uniform bar spacing); time is a per-index label, not a continuous axis. Skips weekend/overnight gaps for free, integer-friendly panning.                                                                                                                                                                                             |
 | Language           | TypeScript, **zero runtime dependencies**.                                                                                                                                                                                                                                                                                                            |
 | Framework bindings | None in core; thin React/Vue wrappers as separate optional packages later.                                                                                                                                                                                                                                                                            |
-| Scripting          | Build our own small TS/JS indicator API, **not** a Pine Script clone (legal risk, §8.4).                                                                                                                                                                                                                                                              |
+| Scripting          | Indicators are plain TS/JS against a small API; **no** Pine Script clone or custom DSL (§8.4).                                                                                                                                                                                                                                                        |
 
 ## 4. Module layout
 
@@ -202,8 +202,10 @@ src/
   overlay on the hidden volume scale, `scale: 'volume'`).
 - **AI-friendly:** an AI-driven UI can dynamically add existing or author new
   indicators.
-- **No Pine Script clone** (proprietary/trademarked, legal risk). A TS/JS API gets
-  ~90% of the value. An original Pine-inspired DSL is a Phase 9+ stretch.
+- **JS/TS is the indicator language — no custom DSL.** No Pine Script clone
+  (proprietary/trademarked, legal risk) and no Pine-inspired language of our
+  own either: plain TS/JS needs no parser or runtime, gets real tooling and
+  types for free, and is what AI authors write best.
 
 ### 8.5 Annotations
 
@@ -315,7 +317,7 @@ Container sizing is implicit — no `width`/`height` option.
 6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock). ✅ (left annotation toolbar moves to Phase 7)
 7. **Annotations** _(next)_ — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar.
 8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation and worker-based calc were measured and not built (§6, §8.4).
-9. **Ecosystem** — React wrapper (first), theming system, docs site, (stretch) original scripting DSL.
+9. **Ecosystem** — React wrapper (first), theming system, docs site.
 
 ## 14. Extras (don't pick up yet)
 
