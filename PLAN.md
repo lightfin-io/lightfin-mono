@@ -189,7 +189,9 @@ src/
 ### 8.4 Indicators
 
 - Two kinds: **overlay** (main pane, shared scale — MAs, Bollinger) and **pane**
-  (own sub-pane + scale, resizable drag handle — RSI, MACD).
+  (own sub-pane + scale — RSI, MACD). Dragging the divider above a sub-pane
+  resizes it against its upper neighbour; sub-panes keep ≥32px and the main
+  pane ≥20% of the plot.
 - **Incremental calc is a hard requirement:** compute full output once and cache;
   pan/zoom only slices + redraws, never recomputes; live bars do an O(1)/O(window)
   tail update. Contract: `calculateAll(bars)` + `update(bar)`.

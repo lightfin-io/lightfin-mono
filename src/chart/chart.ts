@@ -84,10 +84,17 @@ const MIN_BAR_WIDTH = 0.5
 const MAX_BAR_WIDTH = 200
 const PRICE_LABEL_SPACING = 48
 const TIME_LABEL_SPACING = 90
-// Each indicator sub-pane's share of the plot height, and the cap on how much
-// of it all sub-panes may claim together (so the main price pane stays usable).
+// Each indicator sub-pane's default share of the plot height, and the cap on
+// how much of it all default-sized sub-panes may claim together.
 const INDICATOR_PANE_RATIO = 0.22
 const MAX_PANES_FRACTION = 0.6
+// Dragging pane dividers may give sub-panes up to this much of the plot
+// height, so the main price pane always keeps the rest.
+const MAX_RESIZED_PANES_FRACTION = 0.8
+const MIN_PANE_HEIGHT = 32
+// How close (CSS px) to a pane divider a press grabs it.
+const DIVIDER_SLOP = 4
+const DIVIDER_SLOP_TOUCH = 10
 // Fraction of the volume region the price domain is lifted above. <1 so candles
 // still dip slightly into the (translucent) volume bars, TradingView-style,
 // rather than sitting entirely clear of them.
@@ -123,7 +130,18 @@ export class Chart {
     primitive: ChartPrimitive
     pointerId: number
   } | null = null
-  private primitiveCursor = ''
+  // A pane divider being dragged: the sub-pane below it, and both neighbours'
+  // heights when the press started.
+  private paneDrag: {
+    pane: number
+    pointerId: number
+    startY: number
+    above: number
+    below: number
+  } | null = null
+  // Sub-pane heights the user dragged to, as fractions of the plot height.
+  private readonly paneRatios = new WeakMap<IndicatorHandle, number>()
+  private hoverCursor = ''
   private cursor = ''
 
   private readonly timeScaleModel = new TimeScale()
@@ -267,7 +285,7 @@ export class Chart {
         if (this.activePrimitive?.primitive === primitive) {
           this.activePrimitive = null
         }
-        this.primitiveCursor = ''
+        this.hoverCursor = ''
         this.scheduler.invalidate('series', 'overlay')
       },
     }
@@ -671,40 +689,96 @@ export class Chart {
     }
   }
 
-  /** Height of one indicator sub-pane given `n` of them share the plot. */
-  private paneHeight(full: PlotRect, n: number): number {
-    return Math.min(
-      full.height * INDICATOR_PANE_RATIO,
-      (full.height * MAX_PANES_FRACTION) / n,
-    )
-  }
-
   /** The main (candle) pane rect — the full plot minus any indicator sub-panes. */
   private mainRect(): PlotRect {
     const full = this.plotRect()
-    const n = this.indicatorCtl.paneInstances().length
-    if (n === 0) return full
-    const used = this.paneHeight(full, n) * n
-    return { ...full, height: full.height - used }
+    const first = this.paneSlots()[0]
+    return first ? { ...full, height: first.rect.top - full.top } : full
   }
 
-  /** The indicator sub-panes stacked below the main pane, top to bottom. */
+  /**
+   * The indicator sub-panes stacked below the main pane, top to bottom. Each
+   * takes the height its divider was dragged to, or a default share; if they
+   * add up to more than {@link MAX_RESIZED_PANES_FRACTION} (e.g. a pane was
+   * added after resizing), all shrink proportionally.
+   */
   private paneSlots(): { instance: IndicatorInstance; rect: PlotRect }[] {
     const full = this.plotRect()
     const insts = this.indicatorCtl.paneInstances()
     const n = insts.length
     if (n === 0) return []
-    const each = this.paneHeight(full, n)
-    const mainH = full.height - each * n
-    return insts.map((instance, i) => ({
-      instance,
-      rect: {
-        left: full.left,
-        top: full.top + mainH + i * each,
-        width: full.width,
-        height: each,
-      },
-    }))
+    const auto = Math.min(INDICATOR_PANE_RATIO, MAX_PANES_FRACTION / n)
+    const ratios = insts.map(inst => {
+      const handle = this.handleOf.get(inst)
+      return (handle && this.paneRatios.get(handle)) ?? auto
+    })
+    const total = ratios.reduce((a, b) => a + b, 0)
+    const fit = Math.min(1, MAX_RESIZED_PANES_FRACTION / total)
+    let top = full.top + full.height * (1 - total * fit)
+    return insts.map((instance, i) => {
+      const height = full.height * ratios[i]! * fit
+      const rect = { left: full.left, top, width: full.width, height }
+      top += height
+      return { instance, rect }
+    })
+  }
+
+  /** Index of the sub-pane whose top divider is at `point`, or -1. */
+  private dividerAt(point: { x: number; y: number }, touch: boolean): number {
+    if (point.x < 0 || point.x > this.layers.getSize().width) return -1
+    const slop = touch ? DIVIDER_SLOP_TOUCH : DIVIDER_SLOP
+    return this.paneSlots().findIndex(
+      ({ rect }) => Math.abs(point.y - rect.top) <= slop,
+    )
+  }
+
+  /**
+   * Start dragging the divider above sub-pane `pane`: pin every sub-pane at
+   * its current height so only the two neighbours of the divider change.
+   */
+  private startPaneDrag(pane: number, y: number, pointerId: number): void {
+    const full = this.plotRect()
+    const slots = this.paneSlots()
+    for (const { instance, rect } of slots) {
+      this.paneRatios.set(
+        this.handleOf.get(instance)!,
+        rect.height / full.height,
+      )
+    }
+    const above = pane === 0 ? this.mainRect() : slots[pane - 1]!.rect
+    this.paneDrag = {
+      pane,
+      pointerId,
+      startY: y,
+      above: above.height,
+      below: slots[pane]!.rect.height,
+    }
+    this.layers.root.setPointerCapture(pointerId)
+  }
+
+  private dragPane(y: number): void {
+    const drag = this.paneDrag!
+    const full = this.plotRect()
+    const slots = this.paneSlots()
+    // The pane went away mid-drag (removed from the HUD or by the host).
+    if (!slots[drag.pane]) return
+    const minAbove =
+      drag.pane === 0
+        ? full.height * (1 - MAX_RESIZED_PANES_FRACTION)
+        : MIN_PANE_HEIGHT
+    const span = drag.above + drag.below
+    const below = clamp(
+      drag.below - (y - drag.startY),
+      Math.min(MIN_PANE_HEIGHT, span - minAbove),
+      span - minAbove,
+    )
+    const handleAt = (i: number) => this.handleOf.get(slots[i]!.instance)!
+    this.paneRatios.set(handleAt(drag.pane), below / full.height)
+    if (drag.pane > 0) {
+      this.paneRatios.set(handleAt(drag.pane - 1), (span - below) / full.height)
+    }
+    this.invalidateViewport()
+    this.events.emit('layoutChange', undefined)
   }
 
   /**
@@ -1161,7 +1235,11 @@ export class Chart {
     }
     // Re-checked every paint: the button moves under a still pointer when
     // the view scrolls or the magnet snaps to a different level.
-    const cursor = hover ? 'pointer' : this.primitiveCursor
+    const cursor = hover
+      ? 'pointer'
+      : this.paneDrag
+        ? 'row-resize'
+        : this.hoverCursor
     if (cursor !== this.cursor) {
       this.cursor = cursor
       this.layers.root.style.cursor = cursor
@@ -1292,14 +1370,21 @@ export class Chart {
     point: { x: number; y: number },
     e: PointerEvent,
   ): boolean {
-    // A second finger while a primitive drags is ignored rather than pinching.
-    if (this.activePrimitive) return true
+    // A second finger while a primitive or divider drags is ignored rather
+    // than pinching.
+    if (this.activePrimitive || this.paneDrag) return true
     const button = this.orderButton()
     this.orderPressed = button !== null && hitsButton(button, point)
     if (this.orderPressed) return true
     // A crosshair left up by a touch hold stays until the next tap elsewhere.
     if (e.pointerType === 'touch' && this.crosshairPoint) {
       this.onCrosshairMove(null)
+    }
+    const divider = this.dividerAt(point, e.pointerType === 'touch')
+    if (divider !== -1) {
+      e.preventDefault()
+      this.startPaneDrag(divider, point.y, e.pointerId)
+      return true
     }
     if (this.primitives.length === 0) return false
     const ev = this.pointerEvent(point, e)
@@ -1339,28 +1424,44 @@ export class Chart {
   }
 
   private onPointerMove = (e: PointerEvent): void => {
-    if (this.primitives.length === 0) return
+    const drag = this.paneDrag
+    if (drag) {
+      if (e.pointerId === drag.pointerId) this.dragPane(this.localPoint(e).y)
+      return
+    }
     const active = this.activePrimitive
     if (!active && this.panzoom.busy) return
     if (active && e.pointerId !== active.pointerId) return
-    const ev = this.pointerEvent(this.localPoint(e), e)
+    const point = this.localPoint(e)
     let cursor = ''
     if (active) {
+      const ev = this.pointerEvent(point, e)
       active.primitive.pointerMove?.(ev, true)
       cursor = active.primitive.cursor?.(ev) ?? ''
     } else {
-      for (const p of this.primitives) p.pointerMove?.(ev, false)
-      for (let i = this.primitives.length - 1; i >= 0 && !cursor; i--) {
-        cursor = this.primitives[i]!.cursor?.(ev) ?? ''
+      if (this.dividerAt(point, false) !== -1) cursor = 'row-resize'
+      if (this.primitives.length > 0) {
+        const ev = this.pointerEvent(point, e)
+        for (const p of this.primitives) p.pointerMove?.(ev, false)
+        for (let i = this.primitives.length - 1; i >= 0 && !cursor; i--) {
+          cursor = this.primitives[i]!.cursor?.(ev) ?? ''
+        }
       }
     }
-    if (cursor !== this.primitiveCursor) {
-      this.primitiveCursor = cursor
+    if (cursor !== this.hoverCursor) {
+      this.hoverCursor = cursor
       this.scheduler.invalidate('overlay')
     }
   }
 
   private onPointerUp = (e: PointerEvent): void => {
+    if (this.paneDrag?.pointerId === e.pointerId) {
+      this.paneDrag = null
+      if (this.layers.root.hasPointerCapture(e.pointerId)) {
+        this.layers.root.releasePointerCapture(e.pointerId)
+      }
+      return
+    }
     const active = this.activePrimitive
     if (active && e.pointerId === active.pointerId) {
       this.activePrimitive = null
@@ -1534,6 +1635,7 @@ export class Chart {
     this.orderHandlers.clear()
     this.primitives.length = 0
     this.activePrimitive = null
+    this.paneDrag = null
     this.detachDataSource()
     this.layers.root.removeEventListener('pointermove', this.onPointerMove)
     this.layers.root.removeEventListener('pointerup', this.onPointerUp)
