@@ -632,7 +632,11 @@ export class Chart {
     }))
   }
 
-  /** Fit all data into view, with `rightOffset` bars of empty space at the right. */
+  /**
+   * Fit all data into view, with `rightOffset` bars of empty space at the
+   * right. When there are more bars than fit at the minimum bar width, shows
+   * the newest end.
+   */
   fitContent(): void {
     const store = this.series?.store
     if (!store || store.size === 0) return
@@ -644,8 +648,13 @@ export class Chart {
       MIN_BAR_WIDTH,
       MAX_BAR_WIDTH,
     )
-    // Bar `scrollIndex` has its left edge at x=0; left-align the oldest bar.
-    this.timeScaleModel.scrollIndex = store.firstIndex
+    // Bar `scrollIndex` has its left edge at x=0: left-align the oldest bar,
+    // or right-align the newest when the width clamped at the minimum.
+    this.timeScaleModel.scrollIndex = Math.max(
+      store.firstIndex,
+      this.maxScrollIndex(),
+    )
+    this.syncFollowing()
     this.invalidateViewport()
   }
 

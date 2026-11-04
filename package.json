@@ -1,7 +1,7 @@
 {
   "name": "lightfin-web-chart",
   "version": "0.0.0",
-  "description": "A lightweight, dependency-free financial charting library for the web (Canvas2D).",
+  "description": "A powerful, lightweight, dependency-free financial charting library for the web.",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,
@@ -42,13 +42,16 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "size": "size-limit",
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@size-limit/preset-small-lib": "^14.3.0",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/node": "^26.6.6",
     "jsdom": "^25.0.1",
     "prettier": "^3.9.10",
+    "size-limit": "^14.3.0",
     "typescript": "~7.0.2",
     "vite": "^8.3.5",
     "vitest": "^3.0.0"

@@ -9,7 +9,7 @@ See [PLAN.md](./PLAN.md) for the full design and roadmap.
 
 ## Status
 
-Early development. Phases 0–6 shipped (see [PLAN.md §13](./PLAN.md)).
+Early development. Phases 0–6 and 8 shipped (see [PLAN.md §13](./PLAN.md)).
 
 ## Development
 
@@ -21,11 +21,14 @@ bun run dev        # serve the /demo playground (app-mode Vite)
 bun run build      # build the library (ESM + .d.ts) to dist/
 bun run test       # run unit tests (Vitest)
 bun run typecheck  # tsc --noEmit
+bun run size       # check built bundles against .size-limit.json (run build first)
 bun run format     # prettier --write
 ```
 
 The library lives in [`src/`](./src); [`demo/`](./demo) is a thin playground app
-that imports the library from source via a path alias.
+that imports the library from source via a path alias. With `bun run dev`
+running, `/stress.html` loads 500k candles and benchmarks paint, calc, and
+backfill times.
 
 ## License
 

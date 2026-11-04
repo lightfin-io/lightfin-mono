@@ -1,0 +1,29 @@
+[
+  {
+    "name": "core (createChart)",
+    "path": "dist/index.js",
+    "import": "{ createChart }",
+    "limit": "12 kB"
+  },
+  {
+    "name": "chrome",
+    "path": "dist/chrome.js",
+    "import": "{ createChrome }",
+    "limit": "11 kB"
+  },
+  {
+    "name": "one indicator (SMA)",
+    "path": "dist/indicators/sma.js",
+    "limit": "1 kB"
+  },
+  {
+    "name": "all built-in indicators",
+    "path": "dist/indicators/*.js",
+    "limit": "3.5 kB"
+  },
+  {
+    "name": "everything (core + chrome + indicators)",
+    "path": ["dist/index.js", "dist/chrome.js", "dist/indicators/*.js"],
+    "limit": "23 kB"
+  }
+]

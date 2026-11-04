@@ -15,25 +15,27 @@ host renders the order form.
 
 ## 2. Current state
 
-Phases 0–6 shipped: cleanup/scaffold, core rendering (candlesticks, index time
-axis, price axis, pan/zoom, resize), crosshair + current-price line, volume
+Phases 0–6 and 8 shipped: cleanup/scaffold, core rendering (candlesticks, index
+time axis, price axis, pan/zoom, resize), crosshair + current-price line, volume
 sub-pane, interval-aware time ticks, live data (update/follow-mode/DataSource +
 history backfill), the indicator framework with SMA, EMA, Bollinger, RSI,
 MACD, Volume MA, candlestick/bar/line/area series switchable in place via
-`setChartType()`, and the `/chrome` widgets (instrument metadata + timezone,
-HUD/legend, indicator rows, top/bottom toolbars, go-to modal, exchange clock).
-From Phase 8, the order-intent "+" hook and magnet crosshair mode are in. The
-left annotation toolbar waits on Phase 7. See §13 for what remains.
+`setChartType()`, the `/chrome` widgets (instrument metadata + timezone,
+HUD/legend, indicator rows, top/bottom toolbars, go-to modal, exchange clock),
+the order-intent "+" hook, magnet crosshair mode, the 500k-candle stress page,
+and a bundle-size budget in CI. Decimation and worker-based calc were measured
+and deliberately not built (§6, §8.4). Phase 7 (annotations, plus the left
+annotation toolbar) is next. See §13.
 
 ## 3. Core technical decisions
 
-| Decision | Choice |
-| --- | --- |
-| Rendering | **Canvas2D for everything** (geometry + text), stacked as layered `<canvas>`. Decimation (§6) caps draw count at ~pixel-width, so GPU isn't needed; Canvas2D is synchronous, universal, deterministic in headless CI. Renderer stays behind an interface so WebGL can be added later if a benchmark proves it's the bottleneck. |
-| X-axis model | **Index-based** (uniform bar spacing); time is a per-index label, not a continuous axis. Skips weekend/overnight gaps for free, integer-friendly panning. |
-| Language | TypeScript, **zero runtime dependencies**. |
-| Framework bindings | None in core; thin React/Vue wrappers as separate optional packages later. |
-| Scripting | Build our own small TS/JS indicator API, **not** a Pine Script clone (legal risk, §8.4). |
+| Decision           | Choice                                                                                                                                                                                                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rendering          | **Canvas2D for everything** (geometry + text), stacked as layered `<canvas>`. The 0.5px minimum bar width (§6) caps draw count at ~2 bars per pixel, so GPU isn't needed; Canvas2D is synchronous, universal, deterministic in headless CI. Renderer stays behind an interface so WebGL can be added later if a benchmark proves it's the bottleneck. |
+| X-axis model       | **Index-based** (uniform bar spacing); time is a per-index label, not a continuous axis. Skips weekend/overnight gaps for free, integer-friendly panning.                                                                                                                                                                                             |
+| Language           | TypeScript, **zero runtime dependencies**.                                                                                                                                                                                                                                                                                                            |
+| Framework bindings | None in core; thin React/Vue wrappers as separate optional packages later.                                                                                                                                                                                                                                                                            |
+| Scripting          | Build our own small TS/JS indicator API, **not** a Pine Script clone (legal risk, §8.4).                                                                                                                                                                                                                                                              |
 
 ## 4. Module layout
 
@@ -43,7 +45,7 @@ src/
   render/       Canvas layer manager, draw primitives, devicePixelRatio handling
   scales/       Time scale (index<->pixel, interval/tick selection), price scale(s)
   series/       Candlestick, line, area, bar, histogram (volume) renderers
-  data/         Bar/series store, DataSource adapter interface, decimation/LOD cache
+  data/         Bar/series store, DataSource adapter interface
   interaction/  Pointer handling, pan/zoom/inertia, crosshair, hit-testing
   indicators/   Indicator runtime + built-ins (dynamically importable, §8.4)
   annotations/  Drawing tools (dynamically importable, §8.5)
@@ -73,7 +75,7 @@ src/
 - **Single rAF-batched invalidation scheduler**: dirty layers coalesce into one
   paint per frame.
 
-## 6. Data model & decimation
+## 6. Data model & zoom-out limit
 
 - **Bar shape:** `{ time: UTCTimestamp, open, high, low, close, volume? }` where
   `UTCTimestamp` = **integer Unix seconds UTC**. A `BusinessDay` variant for daily
@@ -88,20 +90,27 @@ src/
   offset** so appends/prepends are O(1) amortized and a logical index stays bound
   to the same bar for its lifetime (backfill decrements `baseIndex` instead of
   renumbering) — keeps index-keyed annotations/indicator caches correct.
-- **Decimation:** above ~1 bar/pixel, aggregate per pixel bucket with a **min/max
-  envelope** (open of first bar, close of last, min(low)/max(high)) — not LTTB, so
-  wicks survive zoom-out. For line/area, emit per-pixel-column min & max y.
-- **Multi-resolution cache:** lazily precompute decimated levels (mipmap-style,
-  keyed by zoom bucket); extend incrementally as bars stream, don't rescan.
+- **No decimation — a 0.5px minimum bar width instead.** The zoom-out floor caps
+  a frame at ~2 bars per pixel (~3k bars on a 1500px plot), so paint cost is
+  bounded by screen width, not data size. Measured on the stress page
+  (1920×1080 @2×, 500k bars, six indicators): ~2ms per full paint at 0.5px.
+  Below the floor, cost grows with visible bars: 8ms at 0.1px, 40ms at 0.02px,
+  300ms with all 500k on screen. Going lower would need per-pixel min/max
+  decimation of every series, volume, and indicator plot, plus a
+  multi-resolution min/max cache so autoscale doesn't scan every visible bar.
+  Not worth it: sub-0.5px candles read as a smeared envelope, and TradingView
+  covers long ranges by switching to a coarser interval, which hosts do here
+  through the interval selector. Revisit only if a host needs a whole-history
+  overview at a fine interval.
 - **Instrument / exchange metadata** travels with the data so the HUD/axes/time can
   display it (§9):
   ```ts
   interface InstrumentInfo {
-    symbol: string          // "BTCUSD"
-    name?: string           // "Bitcoin / US Dollar"
-    marketId?: string       // host's market/instrument identifier
-    exchange?: string       // display name, "BINANCE"
-    timezone?: string       // IANA tz, "America/New_York" — drives exchange-local clock
+    symbol: string // "BTCUSD"
+    name?: string // "Bitcoin / US Dollar"
+    marketId?: string // host's market/instrument identifier
+    exchange?: string // display name, "BINANCE"
+    timezone?: string // IANA tz, "America/New_York" — drives exchange-local clock
     pricePrecision?: number // decimals for price labels/HUD
   }
   ```
@@ -129,6 +138,7 @@ src/
 ## 8. Interaction
 
 ### 8.1 Pan / zoom
+
 - Pointer Events only (`pointerdown/move/up/cancel`) — mouse, touch, pen in one path.
 - Drag = pan; wheel/pinch = zoom, both **anchored on the pointer** (bar under
   cursor/centroid stays fixed).
@@ -136,6 +146,7 @@ src/
   panning; clamped, with configurable right-side empty space.
 
 ### 8.2 Crosshair & order hook
+
 - Pointer move (press-hold on touch) updates only the overlay layer: dotted
   cross-lines through the nearest bar + time/price axis labels.
 - **Magnet mode** (snap to OHLC; close for line/area) — opt-in via
@@ -146,14 +157,21 @@ src/
   crosshair line, and claims its pointerdown so clicking it never pans.
   ```ts
   interface OrderIntentEvent {
-    price: number; time: UTCTimestamp | null; index: number; paneId: string
-    point: { x: number; y: number }; clientPoint: { x: number; y: number }
+    price: number
+    time: UTCTimestamp | null
+    index: number
+    paneId: string
+    point: { x: number; y: number }
+    clientPoint: { x: number; y: number }
   }
-  chart.onOrderIntent(e => { /* host renders its own form */ })
+  chart.onOrderIntent(e => {
+    /* host renders its own form */
+  })
   ```
-  Draggable order/position price-line primitive is a later follow-on (§14).
+  Draggable order/position price-line primitive is a later follow-on (§15).
 
 ### 8.3 Live last candle & current-price line
+
 - `series.update(bar)`: same time → mutate last bar in place, redraw last candle +
   labels; new time → append and shift viewport if pinned to live edge (follow-mode,
   on by default).
@@ -161,11 +179,23 @@ src/
   overlay layer, cheap per tick.
 
 ### 8.4 Indicators
+
 - Two kinds: **overlay** (main pane, shared scale — MAs, Bollinger) and **pane**
   (own sub-pane + scale, resizable drag handle — RSI, MACD).
 - **Incremental calc is a hard requirement:** compute full output once and cache;
   pan/zoom only slices + redraws, never recomputes; live bars do an O(1)/O(window)
   tail update. Contract: `calculateAll(bars)` + `update(bar)`.
+- **Calc stays on the main thread (worker investigated, not built).** On the
+  stress page the six built-ins compute over 500k bars in ~110ms total, once on
+  load; live ticks are O(1). The only recurring cost is backfill, which
+  recomputes over the full history: ~140ms after prepending 50k to 500k, a few
+  ms at typical sizes (≤50k bars). A worker would need indicator code loadable
+  by URL inside it (breaking plain-function and AI-authored indicators),
+  copying the columns across (~24MB at 500k, or `SharedArrayBuffer`, which
+  forces COOP/COEP headers on every host page), and an async cache that is
+  stale between a data change and its result. If backfill hitches show up,
+  cheaper levers come first: rolling-sum SMA/Bollinger/Volume MA (they re-scan
+  their window per bar) and time-sliced recompute.
 - **Extensibility:** plain TS/JS functions against a small runtime API
   (`ta.sma()`, `ta.ema()`, `ta.rsi()`, series accessors), each a dynamically
   importable module. Built-ins: SMA, EMA, RSI, MACD, Bollinger, Volume MA (an
@@ -176,6 +206,7 @@ src/
   ~90% of the value. An original Pine-inspired DSL is a Phase 9+ stretch.
 
 ### 8.5 Annotations
+
 - Drawing tools (trendline, h/v line, rectangle, fib, text) as their own
   interaction + overlay layer, independent of indicators.
 - Hit-testing for select/drag/delete; serializable to JSON
@@ -214,48 +245,64 @@ theme-aware and overlay the canvas stack.
 - **Subpath exports**, each dynamically importable: `/indicators` (maybe
   per-indicator), `/annotations`, `/chrome`, future `/react`.
 - `package.json` `exports` map + `sideEffects: false` for tree-shaking.
-- Track bundle size in CI (`size-limit`) once there's a core to measure.
+- Bundle size is budgeted in CI with `size-limit` (`.size-limit.json`, `bun run
+size`): core, chrome, one indicator, all indicators, and everything together,
+  each with ~10% headroom. Raising a budget is a deliberate, reviewed change.
 
 ## 11. Public API sketch
 
 ```ts
-const chart = createChart(container, { /* theme, rightOffset, ... */ }) // synchronous
+const chart = createChart(container, {/* theme, rightOffset, ... */}) // synchronous
 
 chart.setInstrument({ symbol: 'BTCUSD', exchange: 'BINANCE', timezone: 'UTC' })
 
 const candles = chart.addCandlestickSeries() // or addLineSeries / addAreaSeries / addBarSeries
-candles.setData(bars)   // static
-candles.update(bar)     // live tick / new bar
+candles.setData(bars) // static
+candles.update(bar) // live tick / new bar
 candles.setChartType('line') // switch render type on the same series
 
 const volume = chart.addHistogramSeries({ pane: 'overlay-hidden-scale' })
 volume.setData(volumeBars)
 
-const sma = await chart.addIndicator(import('lightfin-web-chart/indicators/sma'), { period: 20 })
-sma.setOptions({ period: 50 }); sma.setVisible(false); sma.remove()
-chart.indicators()      // handles: name, params, plots, value(key, index)
+const sma = await chart.addIndicator(
+  import('lightfin-web-chart/indicators/sma'),
+  { period: 20 },
+)
+sma.setOptions({ period: 50 })
+sma.setVisible(false)
+sma.remove()
+chart.indicators() // handles: name, params, plots, value(key, index)
 
 chart.fitContent()
 await chart.setVisibleTimeRange({ from, to }) // backfills older history first
 await chart.scrollToTime(time)
-chart.on('crosshairMove', e => {/* e?.index, e?.time */}) // + dataChange, indicatorsChange, layoutChange, …
+chart.on('crosshairMove', e => {
+  /* e?.index, e?.time */
+}) // + dataChange, indicatorsChange, layoutChange, …
 chart.onOrderIntent(e => openMyOrderForm(e.price, e.clientPoint)) // §8.2
 
 // Optional widgets (§9); the host owns intervals and reloads bars on change.
-const chrome = createChrome(chart, { intervals: ['1m', '1H', '1D'], interval: '1m', onIntervalChange })
+const chrome = createChrome(chart, {
+  intervals: ['1m', '1H', '1D'],
+  interval: '1m',
+  onIntervalChange,
+})
 ```
 
 Container sizing is implicit — no `width`/`height` option.
 
 ## 12. Testing
 
-- **Vitest** for pure logic: decimation/bucketing, tick/interval selection, scale
-  math, indicator incremental-vs-batch equivalence.
+- **Vitest** for pure logic: tick/interval selection, scale math, indicator
+  incremental-vs-batch equivalence.
 - **Playwright** against `/demo`: pan, zoom, crosshair, resize, touch gestures,
   screenshot diffing (CPU-rendered Canvas2D → deterministic, no GPU flags; small
   pixel tolerance for font/AA).
 - `/demo` is both manual QA playground and the Playwright target; runs static JSON
   fixtures + a mock live feed.
+- `/demo/stress.html` loads 500k 1m bars (`?bars=N` to change) with the demo's
+  indicators and reports ingest, calc, backfill, and per-frame paint times, with
+  scripted pan / zoom / live-tick / backfill benchmarks.
 
 ## 13. Phased roadmap
 
@@ -267,10 +314,14 @@ Container sizing is implicit — no `width`/`height` option.
 5. **Series types & chart-type switching** — line, area, bar renderers; `setChartType()`; Volume MA. ✅
 6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock). ✅ (left annotation toolbar moves to Phase 7)
 7. **Annotations** _(next)_ — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar.
-8. **Scale-out perf** — decimation + multi-resolution cache, worker-based calc investigation, bundle-size budget in CI, 500k-candle stress page, order-intent hook + magnet mode (✅).
+8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation and worker-based calc were measured and not built (§6, §8.4).
 9. **Ecosystem** — React wrapper (first), theming system, docs site, (stretch) original scripting DSL.
 
-## 14. Open questions
+## 14. Extras (don't pick up yet)
+
+- Tradingview has tags that show events for example has E tags along the bottom of the price chart which when clicked open an earnings modal.
+
+## 15. Open questions
 
 - **Columnar store** — leaning typed/columnar (uPlot's headline win); confirm with a spike.
 - **Tick-interval ladder & locale** — exact ladder + date/number locale handling; decide before chrome/axes work hardens.

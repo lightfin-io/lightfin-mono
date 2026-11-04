@@ -44,5 +44,11 @@ export default defineConfig({
   build: {
     outDir: resolve(root, 'dist-demo'),
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: resolve(root, 'demo/index.html'),
+        stress: resolve(root, 'demo/stress.html'),
+      },
+    },
   },
 })
