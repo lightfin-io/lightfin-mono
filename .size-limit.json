@@ -3,7 +3,7 @@
     "name": "core (createChart)",
     "path": "dist/index.js",
     "import": "{ createChart }",
-    "limit": "13 kB"
+    "limit": "15 kB"
   },
   {
     "name": "chrome",
@@ -42,6 +42,6 @@
       "dist/price-lines.js",
       "dist/indicators/*.js"
     ],
-    "limit": "29 kB"
+    "limit": "32 kB"
   }
 ]

@@ -21,6 +21,8 @@ import { toZoned } from '../scales/timezone'
 import { Series } from '../series/series'
 import type { ChartType, IndexWindow, SeriesChange } from '../series/series'
 import { drawVolume } from '../series/volume'
+import { ChartA11y, describeBar, describeView } from './a11y'
+import type { ViewSummary } from './a11y'
 import { Emitter } from './events'
 import { IndicatorController, IndicatorInstance } from './indicators'
 import type { ChartOptions, ChartOptionsInput, CrosshairMode } from './options'
@@ -95,6 +97,14 @@ const MIN_PANE_HEIGHT = 32
 // How close (CSS px) to a pane divider a press grabs it.
 const DIVIDER_SLOP = 4
 const DIVIDER_SLOP_TOUCH = 10
+// Zoom step for the +/- keys.
+const KEY_ZOOM = 1.25
+const CHART_TYPE_NAMES: Record<ChartType, string> = {
+  candlestick: 'candlestick',
+  bar: 'OHLC bar',
+  line: 'line',
+  area: 'area',
+}
 // Fraction of the volume region the price domain is lifted above. <1 so candles
 // still dip slightly into the (translucent) volume bars, TradingView-style,
 // rather than sitting entirely clear of them.
@@ -118,6 +128,12 @@ export class Chart {
   private crosshairPoint: { x: number; y: number } | null = null
   // Last index emitted as `crosshairMove`, to skip no-op viewport re-emits.
   private crosshairIndex: number | null = null
+  // The bar the keyboard crosshair is on (PLAN §8.6); null when the pointer
+  // drives the crosshair or there is none.
+  private keyboardIndex: number | null = null
+  private readonly a11y: ChartA11y
+  // Keyboard focus is on the chart, so the overlay draws a focus ring.
+  private focusRing = false
   // Order-intent listeners (PLAN §8.2); the "+" button shows only while there
   // is at least one.
   private readonly orderHandlers = new Set<(e: OrderIntentEvent) => void>()
@@ -177,14 +193,24 @@ export class Chart {
       onPan: dx => this.onPan(dx),
       onZoom: (factor, anchorX) => this.onZoom(factor, anchorX),
       claim: (point, e) => this.claimPress(point, e),
-      onHold: point => this.onCrosshairMove(point),
+      onHold: point => this.onPointerCrosshair(point),
     })
     this.crosshair = new CrosshairController(this.layers.root, {
-      onMove: point => this.onCrosshairMove(point),
+      onMove: point => this.onPointerCrosshair(point),
     })
-    this.layers.root.addEventListener('pointermove', this.onPointerMove)
-    this.layers.root.addEventListener('pointerup', this.onPointerUp)
-    this.layers.root.addEventListener('pointercancel', this.onPointerUp)
+    const root = this.layers.root
+    root.addEventListener('pointermove', this.onPointerMove)
+    root.addEventListener('pointerup', this.onPointerUp)
+    root.addEventListener('pointercancel', this.onPointerUp)
+
+    this.a11y = new ChartA11y(root)
+    this.refreshLabel()
+    root.tabIndex = 0
+    // The canvases would cover a CSS outline; the overlay paints the ring.
+    root.style.outline = 'none'
+    root.addEventListener('keydown', this.onKeyDown)
+    root.addEventListener('focus', this.onFocus)
+    root.addEventListener('blur', this.onBlur)
 
     // Observe the chart's own element rather than the container, so chrome
     // can share the container (toolbars above/below) and the canvases still
@@ -231,6 +257,7 @@ export class Chart {
    */
   setInstrument(info: InstrumentInfo | null): void {
     this.instrumentInfo = info ? { ...info } : null
+    this.refreshLabel()
     this.invalidateViewport()
     this.events.emit('instrumentChange', this.instrumentInfo)
   }
@@ -374,6 +401,8 @@ export class Chart {
     series.onChange = change => this.onSeriesChange(change)
     this.series = series
     this.reader = new StoreReader(series.store)
+    this.clearKeyboardCrosshair()
+    this.refreshLabel()
     this.events.emit('seriesChange', series)
     return series
   }
@@ -484,8 +513,10 @@ export class Chart {
       }
     }
 
+    if (change === 'style') this.refreshLabel()
     if (change === 'reset') {
       this.dataEpoch++
+      this.clearKeyboardCrosshair()
       this.following = true
       this.fitContent()
       // Fresh data sits at its left edge; pull history so indicators (and the
@@ -890,8 +921,170 @@ export class Chart {
   /** Mark the viewport-dependent layers dirty (data or pan/zoom changed). */
   private invalidateViewport(): void {
     this.scheduler.invalidate('background', 'series', 'axes', 'overlay')
+    // The keyboard crosshair stays on its bar as the view moves (e.g. a new
+    // bar scrolls a following view).
+    if (this.keyboardIndex !== null && this.crosshairPoint) {
+      this.crosshairPoint = {
+        x: this.timeScaleModel.indexToX(this.keyboardIndex),
+        y: this.crosshairPoint.y,
+      }
+    }
     // A wheel zoom or programmatic scroll moves bars under a still pointer.
     if (this.crosshairPoint) this.emitCrosshair(true)
+  }
+
+  /** The pointer took over the crosshair (or left), from the keyboard. */
+  private onPointerCrosshair(point: { x: number; y: number } | null): void {
+    this.keyboardIndex = null
+    this.onCrosshairMove(point)
+  }
+
+  private clearKeyboardCrosshair(): void {
+    if (this.keyboardIndex === null) return
+    this.keyboardIndex = null
+    this.onCrosshairMove(null)
+  }
+
+  /** "Mock Coin / US Dollar, candlestick chart" — the chart's accessible name. */
+  private refreshLabel(): void {
+    const info = this.instrumentInfo
+    const name = info ? (info.name ?? info.symbol) : ''
+    const type = this.series
+      ? `${CHART_TYPE_NAMES[this.series.chartType]} chart`
+      : 'chart'
+    this.a11y.setLabel(name ? `${name}, ${type}` : `Price ${type}`)
+  }
+
+  private onFocus = (): void => {
+    this.a11y.describe(describeView(this.viewSummary()))
+    this.setFocusRing(this.layers.root.matches(':focus-visible'))
+  }
+
+  private onBlur = (): void => {
+    this.clearKeyboardCrosshair()
+    this.setFocusRing(false)
+  }
+
+  private setFocusRing(on: boolean): void {
+    if (on === this.focusRing) return
+    this.focusRing = on
+    this.scheduler.invalidate('overlay')
+  }
+
+  private viewSummary(): ViewSummary | null {
+    const series = this.series
+    if (!series || series.store.size === 0) return null
+    const store = series.store
+    const window = series.visibleWindow(
+      this.timeScaleModel,
+      this.plotRect().width,
+    )
+    const range = series.priceRange(window)
+    if (!range) return null
+    return {
+      from: this.barTimeText(window.from),
+      to: this.barTimeText(window.to),
+      bars: window.to - window.from + 1,
+      high: this.formatPrice(range.high),
+      low: this.formatPrice(range.low),
+      last: this.formatPrice(store.closes[store.physical(window.to)]!),
+    }
+  }
+
+  /**
+   * Keyboard control (PLAN §8.6) while the chart element has focus: arrows
+   * walk the crosshair bar by bar (Shift: 10), Home/End jump to the ends,
+   * +/- zoom, Escape drops the crosshair.
+   */
+  private onKeyDown = (e: KeyboardEvent): void => {
+    if (e.target !== this.layers.root || e.altKey || e.ctrlKey || e.metaKey)
+      return
+    const store = this.series?.store
+    if (!store || store.size === 0) return
+    const current = this.keyboardIndex
+    const step = e.shiftKey ? 10 : 1
+    let index: number
+    switch (e.key) {
+      case 'ArrowLeft':
+        index = current === null ? store.lastIndex : current - step
+        break
+      case 'ArrowRight':
+        index = current === null ? store.lastIndex : current + step
+        break
+      case 'Home':
+        index = store.firstIndex
+        break
+      case 'End':
+        index = store.lastIndex
+        break
+      case '+':
+      case '=':
+      case '-':
+      case '_': {
+        e.preventDefault()
+        this.setFocusRing(true)
+        const anchor =
+          current === null
+            ? this.plotRect().width
+            : this.timeScaleModel.indexToX(current)
+        this.onZoom(
+          e.key === '+' || e.key === '=' ? KEY_ZOOM : 1 / KEY_ZOOM,
+          anchor,
+        )
+        if (current !== null) this.placeKeyboardCrosshair()
+        return
+      }
+      case 'Escape':
+        this.clearKeyboardCrosshair()
+        return
+      default:
+        return
+    }
+    e.preventDefault()
+    this.setFocusRing(true)
+    this.moveKeyboardCrosshair(clamp(index, store.firstIndex, store.lastIndex))
+  }
+
+  /** Put the keyboard crosshair on bar `index`, scrolling it into view, and announce it. */
+  private moveKeyboardCrosshair(index: number): void {
+    const store = this.series!.store
+    const ts = this.timeScaleModel
+    const viewBars = this.plotRect().width / ts.barWidth
+    if (index < ts.scrollIndex) ts.scrollIndex = index
+    else if (index + 1 > ts.scrollIndex + viewBars) {
+      ts.scrollIndex =
+        index === store.lastIndex ? this.maxScrollIndex() : index + 1 - viewBars
+    }
+    this.keyboardIndex = index
+    this.afterProgrammaticScroll()
+    this.placeKeyboardCrosshair()
+
+    const p = store.physical(index)
+    const volume = store.volumes[p]!
+    this.a11y.announce(
+      describeBar({
+        time: this.barTimeText(index),
+        open: this.formatPrice(store.opens[p]!),
+        high: this.formatPrice(store.highs[p]!),
+        low: this.formatPrice(store.lows[p]!),
+        close: this.formatPrice(store.closes[p]!),
+        volume:
+          store.hasVolumeData && !Number.isNaN(volume)
+            ? volume.toLocaleString()
+            : undefined,
+      }),
+    )
+  }
+
+  /** Crosshair at the keyboard bar's close, on the scale the next paint will use. */
+  private placeKeyboardCrosshair(): void {
+    const store = this.series!.store
+    const index = this.keyboardIndex!
+    this.autoScalePrice()
+    this.onCrosshairMove({
+      x: this.timeScaleModel.indexToX(index),
+      y: this.priceToCoordinate(store.closes[store.physical(index)]!),
+    })
   }
 
   private onCrosshairMove(point: { x: number; y: number } | null): void {
@@ -1233,6 +1426,14 @@ export class Chart {
         hover = this.paintCrosshair(this.crosshairPoint)
       }
     }
+    if (this.focusRing) {
+      const ctx = this.layers.getContext('overlay')
+      const { width, height } = this.layers.getSize()
+      ctx.strokeStyle = this.options.theme.lineColor
+      ctx.lineWidth = 2
+      ctx.setLineDash([])
+      ctx.strokeRect(1, 1, width - 2, height - 2)
+    }
     // Re-checked every paint: the button moves under a still pointer when
     // the view scrolls or the magnet snaps to a different level.
     const cursor = hover
@@ -1378,7 +1579,7 @@ export class Chart {
     if (this.orderPressed) return true
     // A crosshair left up by a touch hold stays until the next tap elsewhere.
     if (e.pointerType === 'touch' && this.crosshairPoint) {
-      this.onCrosshairMove(null)
+      this.onPointerCrosshair(null)
     }
     const divider = this.dividerAt(point, e.pointerType === 'touch')
     if (divider !== -1) {
@@ -1518,7 +1719,6 @@ export class Chart {
    * over that button.
    */
   private paintCrosshair(point: { x: number; y: number }): boolean {
-    const store = this.series!.store
     const { width, height } = this.layers.getSize()
     const { theme } = this.options
     const ts = this.timeScaleModel
@@ -1571,11 +1771,7 @@ export class Chart {
     ctx.fillText(priceText, plot.width + 6, priceBoxY + priceBoxH / 2)
 
     // Time label (bottom gutter), centered on the vertical line.
-    const time = store.times[store.physical(nearest)]!
-    const timeText = formatCrosshairTime(
-      time,
-      this.barInterval() >= 86_400 ? undefined : (this.timeZone() ?? 'UTC'),
-    )
+    const timeText = this.barTimeText(nearest)
     const timeBoxW = ctx.measureText(timeText).width + 12
     const timeBoxX = clamp(lineX - timeBoxW / 2, 0, width - timeBoxW)
     ctx.fillStyle = theme.crosshairColor
@@ -1588,6 +1784,15 @@ export class Chart {
       plot.height + (height - plot.height) / 2,
     )
     return hover
+  }
+
+  /** A stored bar's full time label, as on the crosshair's time-axis box. */
+  private barTimeText(index: number): string {
+    const store = this.series!.store
+    return formatCrosshairTime(
+      store.times[store.physical(index)]!,
+      this.barInterval() >= 86_400 ? undefined : (this.timeZone() ?? 'UTC'),
+    )
   }
 
   /**
@@ -1637,9 +1842,13 @@ export class Chart {
     this.activePrimitive = null
     this.paneDrag = null
     this.detachDataSource()
-    this.layers.root.removeEventListener('pointermove', this.onPointerMove)
-    this.layers.root.removeEventListener('pointerup', this.onPointerUp)
-    this.layers.root.removeEventListener('pointercancel', this.onPointerUp)
+    const root = this.layers.root
+    root.removeEventListener('pointermove', this.onPointerMove)
+    root.removeEventListener('pointerup', this.onPointerUp)
+    root.removeEventListener('pointercancel', this.onPointerUp)
+    root.removeEventListener('keydown', this.onKeyDown)
+    root.removeEventListener('focus', this.onFocus)
+    root.removeEventListener('blur', this.onBlur)
     this.resizeObserver.disconnect()
     this.panzoom.dispose()
     this.crosshair.dispose()

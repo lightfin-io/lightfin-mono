@@ -15,7 +15,7 @@ host renders the order form.
 
 ## 2. Current state
 
-Phases 0–8 shipped: cleanup/scaffold, core rendering (candlesticks, index
+Phases 0–9 shipped: cleanup/scaffold, core rendering (candlesticks, index
 time axis, price axis, pan/zoom, resize), crosshair + current-price line, volume
 sub-pane, interval-aware time ticks, live data (update/follow-mode/DataSource +
 history backfill), the indicator framework with SMA, EMA, Bollinger, RSI,
@@ -24,8 +24,11 @@ MACD, Volume MA, candlestick/bar/line/area series switchable in place via
 HUD/legend, indicator rows, top/bottom/left toolbars, go-to modal, exchange
 clock), the `/annotations` drawing tools (trendline, h/v line, rectangle, fib,
 text) on a generic primitive hook, the order-intent "+" hook, magnet crosshair
-mode, the 500k-candle stress page, and a bundle-size budget in CI. Decimation
-and worker-based calc were measured and deliberately not built (§6, §8.4).
+mode, the 500k-candle stress page, a bundle-size budget in CI, a touch
+crosshair, resizable indicator panes, `/price-lines` for orders and
+positions, keyboard control with screen-reader output, and Playwright tests
+in CI. Decimation and worker-based calc were measured and deliberately not
+built (§6, §8.4).
 See §13; ecosystem work (React wrapper, theming, docs) is parked in §14.
 
 ## 3. Core technical decisions
@@ -244,6 +247,23 @@ src/
 text? }`) via `toJSON()` / `load()`; a `change` event (once per edit, not
   mid-drag) tells the host when to persist — persistence itself is the host's job.
 
+### 8.6 Accessibility
+
+- The canvases are invisible to assistive tech, so the chart element is a
+  focusable `role="group"` with `aria-roledescription="chart"`, labelled
+  "<instrument>, <chart type> chart". On focus its description summarizes
+  the view: time range, bar count, high/low, last close, and the keys.
+- **Keyboard** (while the chart has focus): ←/→ walk the crosshair bar by bar
+  (Shift: 10), Home/End jump to the oldest/newest loaded bar, +/− zoom,
+  Escape drops the crosshair. The view scrolls to keep the bar on screen, the
+  crosshair sits on its close (so the HUD shows it), and a polite live region
+  announces its OHLCV. The pointer takes the crosshair back on move.
+- Keyboard focus draws a ring on the overlay canvas in the theme's line color
+  (a CSS outline would sit under the canvases); a mouse click focuses the
+  chart without it.
+- No hidden data table: walking bars with announcements reads the same data,
+  and a table of every loaded bar (up to 500k) would be a heavy DOM.
+
 ## 9. Chart chrome / UI widgets
 
 Optional DOM widgets rendered inside the chart container, driven by chart state +
@@ -354,7 +374,7 @@ Container sizing is implicit — no `width`/`height` option.
 - **Vitest** for pure logic: tick/interval selection, scale math, indicator
   incremental-vs-batch equivalence.
 - **Playwright** (`e2e/`, `bun run test:e2e`, in CI) against `/demo?live=0`:
-  real pointer input, asserting through the public API
+  real pointer and keyboard input, asserting through the public API
   (`paneLayout()`, `timeScale()`, events) rather than pixels. Screenshot
   diffing is left out: baselines differ between macOS dev machines and Linux
   CI in font rendering, so they'd need generating in a Linux container.
@@ -376,6 +396,7 @@ Container sizing is implicit — no `width`/`height` option.
 6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock). ✅ (left annotation toolbar moves to Phase 7)
 7. **Annotations** — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar. ✅
 8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation and worker-based calc were measured and not built (§6, §8.4).
+9. **v1 gaps** — touch press-and-hold crosshair, resizable indicator panes, price lines, accessibility + keyboard control, Playwright e2e in CI. ✅
 
 ## 14. Don't pick up yet
 
@@ -393,6 +414,4 @@ Container sizing is implicit — no `width`/`height` option.
   24h `en-GB`; numbers go through `priceFormatter`. A `locale` option would
   route dates through `Intl.DateTimeFormat` too.
 - **Left price scale** — a second scale per pane (e.g. comparing two symbols).
-- **Accessibility** — canvas is invisible to AT. Baseline: `aria-label`/described
-  container + optional hidden data-table; keyboard pan/zoom/crosshair nice-to-have.
-  Decide before calling v1 "done".- **WebGL backend** — only if a real benchmark hits a wall (many panes/series at high DPR is the likely trigger, not raw candle count). WebGL, not WebGPU.
+- **WebGL backend** — only if a real benchmark hits a wall (many panes/series at high DPR is the likely trigger, not raw candle count). WebGL, not WebGPU.
