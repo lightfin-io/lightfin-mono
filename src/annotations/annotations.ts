@@ -7,7 +7,13 @@ import type {
 } from '../chart/primitive'
 import type { Px } from './geometry'
 import type { DrawEnv, Resolved } from './tools'
-import { TOOLS, resolveStyle, textBox } from './tools'
+import {
+  TOOLS,
+  drawAnnotation,
+  hitAnnotation,
+  labelBox,
+  resolveStyle,
+} from './tools'
 import type {
   Annotation,
   AnnotationInput,
@@ -45,7 +51,7 @@ const nextId = () =>
 
 /**
  * Drawing tools on a chart (PLAN §8.5): trend lines, horizontal/vertical
- * lines, rectangles, fib retracements, and text. Pick a tool with
+ * lines, rectangles, fib retracements, text, and markers. Pick a tool with
  * {@link setTool}, then drag (or click twice) on the price pane; select a
  * drawing to drag it or its handles, Delete/Backspace removes it, Escape
  * cancels. Double-click a text label to edit it.
@@ -159,10 +165,10 @@ export class Annotations {
     this.events.emit('selectionChange', null)
   }
 
-  /** Move, restyle (merged over the current style), or relabel a drawing. */
+  /** Move, restyle (merged over the current style), relabel, or reshape a drawing. */
   update(
     id: string,
-    patch: Partial<Pick<Annotation, 'points' | 'style' | 'text'>>,
+    patch: Partial<Pick<Annotation, 'points' | 'style' | 'text' | 'shape'>>,
   ): void {
     const ann = this.find(id)
     if (!ann) return
@@ -171,6 +177,7 @@ export class Annotations {
     }
     if (patch.style) ann.style = { ...ann.style, ...patch.style }
     if (patch.text !== undefined) ann.text = patch.text
+    if (patch.shape !== undefined) ann.shape = patch.shape
     this.changed()
   }
 
@@ -242,7 +249,7 @@ export class Annotations {
     ann: Annotation,
   ): Resolved | null {
     const r = this.resolve(ann)
-    if (r) TOOLS[ann.type].draw(ctx, r, env)
+    if (r) drawAnnotation(ctx, r, env)
     return r
   }
 
@@ -291,7 +298,7 @@ export class Annotations {
       ctx.fill()
       ctx.stroke()
     }
-    const box = r.ann.type === 'text' ? textBox(r.ann) : undefined
+    const box = r.ann.type === 'text' ? labelBox(r.ann) : undefined
     if (box) {
       ctx.lineWidth = 1
       ctx.setLineDash([3, 3])
@@ -350,13 +357,13 @@ export class Annotations {
         if (i !== -1) {
           return { ann: selected, handle: TOOLS[selected.type].handles[i]! }
         }
-        if (TOOLS[selected.type].hit(r, p)) return { ann: selected }
+        if (hitAnnotation(r, p)) return { ann: selected }
       }
     }
     for (let i = this.items.length - 1; i >= 0; i--) {
       const ann = this.items[i]!
       const r = this.resolve(ann)
-      if (r && TOOLS[ann.type].hit(r, p)) return { ann }
+      if (r && hitAnnotation(r, p)) return { ann }
     }
     return null
   }
@@ -607,6 +614,7 @@ function create(input: AnnotationInput): Annotation {
     style: { ...input.style },
   }
   if (input.text !== undefined) ann.text = input.text
+  if (input.shape !== undefined) ann.shape = input.shape
   return ann
 }
 

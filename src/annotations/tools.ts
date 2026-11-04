@@ -7,6 +7,15 @@ import type { Annotation, AnnotationType, LineStyle } from './types'
 /** How far (CSS px) from a drawing a press still grabs it. */
 export const HIT_SLOP = 6
 
+// Marker geometry, CSS px: an arrow's tip sits GAP off its point, then a
+// HEAD-tall head and a SHAFT-long stem.
+const MARKER_GAP = 4
+const MARKER_HEAD = 8
+const MARKER_HALF = 6
+const MARKER_SHAFT = 8
+const MARKER_STEM = 2
+const MARKER_RADIUS = 5
+
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const
 const FIB_COLORS = [
   '#787b86',
@@ -39,6 +48,14 @@ export interface Resolved {
   style: ResolvedStyle
 }
 
+/** Where a label is drawn: its anchor and how the text sits around it. */
+interface LabelAnchor {
+  x: number
+  y: number
+  align: 'left' | 'center' | 'right'
+  baseline: 'top' | 'middle' | 'bottom'
+}
+
 interface ToolSpec {
   /** Points the user places: one click, or two (a drag, or two clicks). */
   points: 1 | 2
@@ -49,10 +66,12 @@ interface ToolSpec {
   handles: readonly (readonly [number, number])[]
   draw(ctx: CanvasRenderingContext2D, r: Resolved, env: DrawEnv): void
   hit(r: Resolved, p: Px): boolean
+  /** Where the drawing's `text` goes as a caption (types that draw it themselves omit this). */
+  caption?(r: Resolved, env: DrawEnv): LabelAnchor
 }
 
-// Text extents from the last paint, for hit-testing without a canvas.
-const textBoxes = new WeakMap<Annotation, { a: Px; b: Px }>()
+// Label extents from the last paint, for hit-testing without a canvas.
+const labelBoxes = new WeakMap<Annotation, { a: Px; b: Px }>()
 
 export const TOOLS: Record<AnnotationType, ToolSpec> = {
   trendline: {
@@ -69,6 +88,12 @@ export const TOOLS: Record<AnnotationType, ToolSpec> = {
       ctx.stroke()
     },
     hit: ({ px: [a, b] }, p) => distToSegment(p, a!, b!) <= HIT_SLOP,
+    caption: ({ px: [a, b], style }) => ({
+      x: (a!.x + b!.x) / 2,
+      y: (a!.y + b!.y) / 2 - style.lineWidth - 3,
+      align: 'center',
+      baseline: 'bottom',
+    }),
   },
 
   hline: {
@@ -83,6 +108,12 @@ export const TOOLS: Record<AnnotationType, ToolSpec> = {
       ctx.stroke()
     },
     hit: ({ px: [a] }, p) => Math.abs(p.y - a!.y) <= HIT_SLOP,
+    caption: ({ px: [a], style }, { pane }) => ({
+      x: pane.left + pane.width - 4,
+      y: a!.y - style.lineWidth - 2,
+      align: 'right',
+      baseline: 'bottom',
+    }),
   },
 
   vline: {
@@ -97,6 +128,13 @@ export const TOOLS: Record<AnnotationType, ToolSpec> = {
       ctx.stroke()
     },
     hit: ({ px: [a] }, p) => Math.abs(p.x - a!.x) <= HIT_SLOP,
+    // At the bottom, clear of the legend in the top-left.
+    caption: ({ px: [a], style }, { pane }) => ({
+      x: a!.x + style.lineWidth + 3,
+      y: pane.top + pane.height - 4,
+      align: 'left',
+      baseline: 'bottom',
+    }),
   },
 
   rectangle: {
@@ -125,6 +163,12 @@ export const TOOLS: Record<AnnotationType, ToolSpec> = {
       ctx.strokeRect(x0, y0, x1 - x0, y1 - y0)
     },
     hit: ({ px: [a, b] }, p) => inBox(p, a!, b!, HIT_SLOP),
+    caption: ({ px: [a, b] }) => ({
+      x: Math.min(a!.x, b!.x) + 4,
+      y: Math.min(a!.y, b!.y) + 4,
+      align: 'left',
+      baseline: 'top',
+    }),
   },
 
   fib: {
@@ -180,35 +224,142 @@ export const TOOLS: Record<AnnotationType, ToolSpec> = {
         level => Math.abs(p.y - fibY(a!, b!, level)) <= HIT_SLOP,
       )
     },
+    caption: ({ px: [a, b] }) => ({
+      x: Math.max(a!.x, b!.x) - 4,
+      y: Math.min(a!.y, b!.y) - 3,
+      align: 'right',
+      baseline: 'bottom',
+    }),
   },
 
   text: {
     points: 1,
     handles: [],
-    draw(ctx, { ann, px: [a], style }, { theme }) {
-      if (!ann.text) return
-      const size = style.fontSize
-      ctx.font = `${size}px ${theme.fontFamily}`
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = style.color
-      ctx.fillText(ann.text, a!.x, a!.y)
-      const w = ctx.measureText(ann.text).width
-      textBoxes.set(ann, {
-        a: { x: a!.x, y: a!.y - size * 0.7 },
-        b: { x: a!.x + w, y: a!.y + size * 0.7 },
-      })
+    draw(ctx, r, { theme }) {
+      if (!r.ann.text) return
+      const [a] = r.px
+      fillLabel(
+        ctx,
+        r,
+        r.ann.text,
+        { ...a!, align: 'left', baseline: 'middle' },
+        theme,
+      )
     },
-    hit({ ann }, p) {
-      const box = textBoxes.get(ann)
-      return !!box && inBox(p, box.a, box.b, 2)
+    hit: () => false,
+  },
+
+  marker: {
+    points: 1,
+    handles: [[0, 0]],
+    draw(ctx, { ann, px: [a], style }) {
+      const { x, y } = a!
+      ctx.fillStyle = style.color
+      ctx.beginPath()
+      if (!ann.shape || ann.shape === 'circle') {
+        ctx.arc(x, y, MARKER_RADIUS, 0, Math.PI * 2)
+      } else {
+        // +1: below the point, pointing up at it; -1: above, pointing down.
+        const dir = ann.shape === 'arrowUp' ? 1 : -1
+        const tip = y + dir * MARKER_GAP
+        const base = tip + dir * MARKER_HEAD
+        const end = base + dir * MARKER_SHAFT
+        ctx.moveTo(x, tip)
+        ctx.lineTo(x + MARKER_HALF, base)
+        ctx.lineTo(x + MARKER_STEM, base)
+        ctx.lineTo(x + MARKER_STEM, end)
+        ctx.lineTo(x - MARKER_STEM, end)
+        ctx.lineTo(x - MARKER_STEM, base)
+        ctx.lineTo(x - MARKER_HALF, base)
+        ctx.closePath()
+      }
+      ctx.fill()
+    },
+    hit(r, p) {
+      const box = markerBox(r)
+      return inBox(p, box.a, box.b, HIT_SLOP / 2)
+    },
+    caption(r) {
+      const box = markerBox(r)
+      const x = r.px[0]!.x
+      return r.ann.shape === 'arrowUp'
+        ? { x, y: box.b.y + 3, align: 'center', baseline: 'top' }
+        : { x, y: box.a.y - 3, align: 'center', baseline: 'bottom' }
     },
   },
 }
 
-/** The last-painted box around a text annotation, if any. */
-export function textBox(ann: Annotation): { a: Px; b: Px } | undefined {
-  return textBoxes.get(ann)
+/** A marker's shape extent. */
+function markerBox({ ann, px: [a] }: Resolved): { a: Px; b: Px } {
+  const { x, y } = a!
+  if (!ann.shape || ann.shape === 'circle') {
+    const r = MARKER_RADIUS
+    return { a: { x: x - r, y: y - r }, b: { x: x + r, y: y + r } }
+  }
+  const dir = ann.shape === 'arrowUp' ? 1 : -1
+  const near = y + dir * MARKER_GAP
+  const far = near + dir * (MARKER_HEAD + MARKER_SHAFT)
+  return {
+    a: { x: x - MARKER_HALF, y: Math.min(near, far) },
+    b: { x: x + MARKER_HALF, y: Math.max(near, far) },
+  }
+}
+
+/** Paint a drawing and its caption. */
+export function drawAnnotation(
+  ctx: CanvasRenderingContext2D,
+  r: Resolved,
+  env: DrawEnv,
+): void {
+  const spec = TOOLS[r.ann.type]
+  labelBoxes.delete(r.ann)
+  spec.draw(ctx, r, env)
+  if (r.ann.text && spec.caption) {
+    fillLabel(ctx, r, r.ann.text, spec.caption(r, env), env.theme)
+  }
+}
+
+/** Whether `p` grabs a drawing: its shape, or its label as last painted. */
+export function hitAnnotation(r: Resolved, p: Px): boolean {
+  if (TOOLS[r.ann.type].hit(r, p)) return true
+  const box = labelBoxes.get(r.ann)
+  return !!box && inBox(p, box.a, box.b, 2)
+}
+
+/** The last-painted box around a drawing's label, if any. */
+export function labelBox(ann: Annotation): { a: Px; b: Px } | undefined {
+  return labelBoxes.get(ann)
+}
+
+/** Fill a line of text in the drawing's color and size, recording its box for hit-testing. */
+function fillLabel(
+  ctx: CanvasRenderingContext2D,
+  { ann, style }: Resolved,
+  text: string,
+  at: LabelAnchor,
+  theme: ChartTheme,
+): void {
+  const size = style.fontSize
+  ctx.setLineDash([])
+  ctx.font = `${size}px ${theme.fontFamily}`
+  ctx.textAlign = at.align
+  ctx.textBaseline = at.baseline
+  ctx.fillStyle = style.color
+  ctx.fillText(text, at.x, at.y)
+  const w = ctx.measureText(text).width
+  const h = size * 1.4
+  const left =
+    at.align === 'left' ? at.x : at.align === 'center' ? at.x - w / 2 : at.x - w
+  const top =
+    at.baseline === 'top'
+      ? at.y
+      : at.baseline === 'middle'
+        ? at.y - h / 2
+        : at.y - h
+  labelBoxes.set(ann, {
+    a: { x: left, y: top },
+    b: { x: left + w, y: top + h },
+  })
 }
 
 /**
@@ -225,13 +376,19 @@ export function resolveStyle(
 ): ResolvedStyle {
   const { style, type } = ann
   return {
-    color:
-      style.color ?? (type === 'text' ? theme.axisTextColor : theme.lineColor),
+    color: style.color ?? defaultColor(ann, theme),
     lineWidth:
       style.lineWidth ?? (type === 'rectangle' || type === 'fib' ? 1 : 2),
     lineStyle: style.lineStyle ?? 'solid',
-    fontSize: style.fontSize ?? 14,
+    fontSize: style.fontSize ?? (type === 'text' ? 14 : theme.fontSize),
   }
+}
+
+function defaultColor(ann: Annotation, theme: ChartTheme): string {
+  if (ann.type === 'text') return theme.axisTextColor
+  if (ann.shape === 'arrowUp') return theme.upColor
+  if (ann.shape === 'arrowDown') return theme.downColor
+  return theme.lineColor
 }
 
 function stroke(ctx: CanvasRenderingContext2D, style: ResolvedStyle): void {

@@ -254,7 +254,7 @@ src/
 
 ### 8.5 Annotations
 
-- Drawing tools (trendline, h/v line, rectangle, fib retracement, text) in the
+- Drawing tools (trendline, h/v line, rectangle, fib retracement, text, marker) in the
   `/annotations` subpath, independent of indicators. They plug into the core
   through a generic **primitive** hook (`chart.attachPrimitive()`): draw
   callbacks on the series and overlay layers plus pointer hooks that can claim
@@ -269,8 +269,15 @@ src/
   (whole bars, free in price) or a handle; Delete removes, Escape cancels;
   double-click edits text in place. The tool reverts to the cursor after
   each drawing.
+- **Markers** (`type: 'marker'`, `shape: 'arrowUp' | 'arrowDown' | 'circle'`)
+  flag a single bar, e.g. a signal: an up arrow sits below its point in the
+  theme's up color, a down arrow above in the down color. No toolbar button —
+  they're meant for programmatic use.
+- **Captions:** `text` on any non-text drawing labels it — above an hline's
+  right end, at the bottom of a vline, inside a rectangle's top-left, along a
+  trendline's midpoint, beside a marker. Clicking a caption selects its drawing.
 - Serializable to plain JSON (`{ id, type, points: [{ time, price }], style,
-text? }`) via `toJSON()` / `load()`; a `change` event (once per edit, not
+text?, shape? }`) via `toJSON()` / `load()`; a `change` event (once per edit, not
   mid-drag) tells the host when to persist — persistence itself is the host's job.
 
 ### 8.6 Accessibility

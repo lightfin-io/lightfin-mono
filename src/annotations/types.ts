@@ -7,9 +7,16 @@ import type { UTCTimestamp } from '../data/types'
  *   - `rectangle` — a filled box between two corners.
  *   - `fib` — Fibonacci retracement levels between two points.
  *   - `text` — a single-line label.
+ *   - `marker` — an arrow or dot at one bar, e.g. a signal.
  */
 export type AnnotationType =
-  'trendline' | 'hline' | 'vline' | 'rectangle' | 'fib' | 'text'
+  'trendline' | 'hline' | 'vline' | 'rectangle' | 'fib' | 'text' | 'marker'
+
+/**
+ * A marker's shape. `arrowUp` sits below its point pointing up at it,
+ * `arrowDown` above pointing down, `circle` on it.
+ */
+export type MarkerShape = 'arrowUp' | 'arrowDown' | 'circle'
 
 /**
  * An anchor in data space, so drawings stay put across pan/zoom, history
@@ -23,14 +30,17 @@ export interface AnnotationPoint {
 export type LineStyle = 'solid' | 'dashed' | 'dotted'
 
 export interface AnnotationStyle {
-  /** Line/text color. Default: the theme's line color (text: axis text color). */
+  /**
+   * Line/text color. Default: the theme's line color (text: axis text color;
+   * arrows: the theme's up/down color).
+   */
   color?: string
   /** Default 2 for lines, 1 for rectangles and fib levels. */
   lineWidth?: number
   lineStyle?: LineStyle
   /** Rectangle fill. Default: the line color, translucent. */
   fillColor?: string
-  /** Text size in px. Default 14. */
+  /** Text size in px. Default 14 for `text`, the theme's font size for captions. */
   fontSize?: number
 }
 
@@ -43,8 +53,10 @@ export interface Annotation {
   type: AnnotationType
   points: AnnotationPoint[]
   style: AnnotationStyle
-  /** The label of a `text` annotation. */
+  /** A `text` annotation's label; on any other type, a caption beside it. */
   text?: string
+  /** A `marker`'s shape. Default `circle`. */
+  shape?: MarkerShape
 }
 
 /** What `add()`/`load()` accept: an annotation whose id and style are optional. */

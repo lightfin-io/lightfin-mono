@@ -6,7 +6,7 @@ import { DEFAULT_THEME } from '../chart/options'
 import type { ChartPointerEvent, ChartPrimitive } from '../chart/primitive'
 import { Annotations } from './annotations'
 import { distToSegment } from './geometry'
-import { TOOLS, resolveStyle } from './tools'
+import { TOOLS, drawAnnotation, hitAnnotation, resolveStyle } from './tools'
 import type { Annotation } from './types'
 
 /**
@@ -263,6 +263,67 @@ describe('tool hit-testing', () => {
     ])
     expect(TOOLS.rectangle.hit(r, { x: 50, y: 25 })).toBe(true)
     expect(TOOLS.rectangle.hit(r, { x: 150, y: 25 })).toBe(false)
+  })
+
+  it('grabs a marker by its shape: an up arrow below its point, a down arrow above', () => {
+    const at = [{ x: 100, y: 100 }]
+    const up = resolved('marker', at)
+    up.ann.shape = 'arrowUp'
+    expect(TOOLS.marker.hit(up, { x: 100, y: 112 })).toBe(true)
+    expect(TOOLS.marker.hit(up, { x: 100, y: 88 })).toBe(false)
+    const down = resolved('marker', at)
+    down.ann.shape = 'arrowDown'
+    expect(TOOLS.marker.hit(down, { x: 100, y: 88 })).toBe(true)
+    expect(TOOLS.marker.hit(down, { x: 100, y: 112 })).toBe(false)
+  })
+
+  it('colors arrows with the theme up/down colors unless styled', () => {
+    const ann = (shape: Annotation['shape'], color?: string): Annotation => ({
+      id: 'x',
+      type: 'marker',
+      points: [{ time: 0, price: 0 }],
+      style: color ? { color } : {},
+      shape,
+    })
+    expect(resolveStyle(ann('arrowUp'), DEFAULT_THEME).color).toBe(
+      DEFAULT_THEME.upColor,
+    )
+    expect(resolveStyle(ann('arrowDown'), DEFAULT_THEME).color).toBe(
+      DEFAULT_THEME.downColor,
+    )
+    expect(resolveStyle(ann('arrowDown', 'gold'), DEFAULT_THEME).color).toBe(
+      'gold',
+    )
+  })
+
+  it('grabs a drawing by its caption, where it was last painted', () => {
+    // 6px per character; any other canvas call is a no-op.
+    const ctx = new Proxy(
+      {
+        measureText: (s: string) => ({ width: s.length * 6 }),
+      } as unknown as CanvasRenderingContext2D,
+      {
+        get: (target, key) =>
+          key in target ? target[key as keyof typeof target] : () => {},
+        set: () => true,
+      },
+    )
+    const env = {
+      pane: { left: 0, top: 0, width: 500, height: 300 },
+      dpr: 1,
+      theme: DEFAULT_THEME,
+      formatPrice: String,
+    }
+    const r = resolved('hline', [{ x: 50, y: 100 }])
+    r.ann.text = 'Support'
+    drawAnnotation(ctx, r, env)
+    // Right-aligned at the pane's right edge, just above the line.
+    expect(hitAnnotation(r, { x: 480, y: 90 })).toBe(true)
+    expect(hitAnnotation(r, { x: 300, y: 80 })).toBe(false)
+
+    r.ann.text = ''
+    drawAnnotation(ctx, r, env)
+    expect(hitAnnotation(r, { x: 480, y: 90 })).toBe(false)
   })
 
   it('grabs fib levels within their span, not between them', () => {

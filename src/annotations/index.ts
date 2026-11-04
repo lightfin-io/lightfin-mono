@@ -28,6 +28,7 @@ export type {
   AnnotationStyle,
   AnnotationType,
   LineStyle,
+  MarkerShape,
 } from './types'
 
 /** Attach drawing tools to `chart`. */
