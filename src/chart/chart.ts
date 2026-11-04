@@ -7,6 +7,8 @@ import type {
   IndicatorModule,
 } from '../indicators/types'
 import { CrosshairController } from '../interaction/crosshair'
+import type { ButtonRect, OrderIntentEvent } from '../interaction/orderIntent'
+import { hitsButton, orderButtonRect } from '../interaction/orderIntent'
 import { PanZoomController } from '../interaction/panzoom'
 import { LayerManager } from '../render/layers'
 import { FrameScheduler } from '../render/scheduler'
@@ -20,7 +22,7 @@ import type { ChartType, IndexWindow, SeriesChange } from '../series/series'
 import { drawVolume } from '../series/volume'
 import { Emitter } from './events'
 import { IndicatorController, IndicatorInstance } from './indicators'
-import type { ChartOptions, ChartOptionsInput } from './options'
+import type { ChartOptions, ChartOptionsInput, CrosshairMode } from './options'
 import { resolveOptions } from './options'
 
 /**
@@ -103,6 +105,12 @@ export class Chart {
   private crosshairPoint: { x: number; y: number } | null = null
   // Last index emitted as `crosshairMove`, to skip no-op viewport re-emits.
   private crosshairIndex: number | null = null
+  // Order-intent listeners (PLAN §8.2); the "+" button shows only while there
+  // is at least one.
+  private readonly orderHandlers = new Set<(e: OrderIntentEvent) => void>()
+  private orderHover = false
+  // A pointerdown landed on the button; it fires on a pointerup there too.
+  private orderPressed = false
 
   private readonly timeScaleModel = new TimeScale()
   private readonly priceScale = new PriceScale()
@@ -136,10 +144,12 @@ export class Chart {
     this.panzoom = new PanZoomController(this.layers.root, {
       onPan: dx => this.onPan(dx),
       onZoom: (factor, anchorX) => this.onZoom(factor, anchorX),
+      claim: point => this.claimOrderPress(point),
     })
     this.crosshair = new CrosshairController(this.layers.root, {
       onMove: point => this.onCrosshairMove(point),
     })
+    this.layers.root.addEventListener('pointerup', this.onPointerUp)
 
     // Observe the chart's own element rather than the container, so chrome
     // can share the container (toolbars above/below) and the canvases still
@@ -192,6 +202,32 @@ export class Chart {
 
   instrument(): InstrumentInfo | null {
     return this.instrumentInfo
+  }
+
+  /**
+   * Opt in to the order-intent hook (PLAN §8.2): while any handler is
+   * registered, a "+" button rides the crosshair line at the price-axis edge of
+   * the price pane, and clicking it calls `handler` with the price and
+   * position. The chart owns only the button — the host renders its own order
+   * form. Returns an unsubscribe function.
+   */
+  onOrderIntent(handler: (e: OrderIntentEvent) => void): () => void {
+    this.orderHandlers.add(handler)
+    this.scheduler.invalidate('overlay')
+    return () => {
+      if (this.orderHandlers.delete(handler))
+        this.scheduler.invalidate('overlay')
+    }
+  }
+
+  crosshairMode(): CrosshairMode {
+    return this.options.crosshairMode
+  }
+
+  /** Switch between a free and a magnet (OHLC-snapping) crosshair. */
+  setCrosshairMode(mode: CrosshairMode): void {
+    this.options.crosshairMode = mode
+    this.scheduler.invalidate('overlay')
   }
 
   /**
@@ -702,6 +738,7 @@ export class Chart {
 
   private onCrosshairMove(point: { x: number; y: number } | null): void {
     this.crosshairPoint = point
+    if (!point) this.orderPressed = false
     this.scheduler.invalidate('overlay')
     this.emitCrosshair(false)
   }
@@ -1018,11 +1055,20 @@ export class Chart {
   private paintOverlay(): void {
     this.layers.clear('overlay')
     const store = this.series?.store
-    if (!store || store.size === 0) return
-
-    const main = this.mainRect()
-    if (this.options.priceLineVisible) this.paintPriceLine(main)
-    if (this.crosshairPoint) this.paintCrosshair(this.crosshairPoint)
+    let hover = false
+    if (store && store.size > 0) {
+      const main = this.mainRect()
+      if (this.options.priceLineVisible) this.paintPriceLine(main)
+      if (this.crosshairPoint) {
+        hover = this.paintCrosshair(this.crosshairPoint)
+      }
+    }
+    // Re-checked every paint: the button moves under a still pointer when
+    // the view scrolls or the magnet snaps to a different level.
+    if (hover !== this.orderHover) {
+      this.orderHover = hover
+      this.layers.root.style.cursor = hover ? 'pointer' : ''
+    }
   }
 
   /** The pane containing CSS-pixel y, with its scale — main pane or a sub-pane. */
@@ -1088,8 +1134,116 @@ export class Chart {
     ctx.fillText(text, main.width + 6, boxY + boxH / 2)
   }
 
-  /** Dotted crosshair lines + axis value labels, following the pointer (PLAN §8.2). */
-  private paintCrosshair(point: { x: number; y: number }): void {
+  /**
+   * Where the crosshair sits for a pointer position: the nearest bar, and the
+   * horizontal line in whichever pane the pointer is in, with the value read on
+   * that pane's own scale. In magnet mode the price-pane line snaps to the
+   * hovered bar's nearest OHLC price — only with a bar actually under the
+   * pointer, and not in the order button's column, so the button can still
+   * reach any price.
+   */
+  private crosshairLine(point: { x: number; y: number }): {
+    index: number
+    y: number
+    value: number
+    pane: { rect: PlotRect; scale: PriceScale; isMain: boolean }
+  } {
+    const store = this.series!.store
+    const hovered = this.timeScaleModel.nearestIndex(point.x)
+    const index = clamp(hovered, store.firstIndex, store.lastIndex)
+    const pane = this.paneAt(point.y)
+    const { top, height } = pane.rect
+    let y = clamp(point.y, top, top + height)
+    let value = pane.scale.yToPrice(y - top, height)
+    const magnet =
+      pane.isMain &&
+      this.options.crosshairMode === 'magnet' &&
+      store.has(hovered) &&
+      (this.orderHandlers.size === 0 ||
+        point.x < pane.rect.width - this.orderButtonSize())
+    if (magnet) {
+      value = this.series!.snapPrice(index, value)
+      y = clamp(top + pane.scale.priceToY(value, height), top, top + height)
+    }
+    return { index, y, value, pane }
+  }
+
+  /** The "+" order button for the current crosshair, or null when not shown. */
+  private orderButton(): ButtonRect | null {
+    const point = this.crosshairPoint
+    if (this.orderHandlers.size === 0 || !point) return null
+    if (!this.series || this.series.store.size === 0) return null
+    const { y, pane } = this.crosshairLine(point)
+    if (!pane.isMain) return null
+    const { rect } = pane
+    return orderButtonRect(
+      rect.width,
+      y,
+      this.orderButtonSize(),
+      rect.top,
+      rect.top + rect.height,
+    )
+  }
+
+  /** Matches the height of the crosshair's price label beside it. */
+  private orderButtonSize(): number {
+    return this.options.theme.fontSize + 8
+  }
+
+  private claimOrderPress(point: { x: number; y: number }): boolean {
+    const button = this.orderButton()
+    this.orderPressed = button !== null && hitsButton(button, point)
+    return this.orderPressed
+  }
+
+  private onPointerUp = (e: PointerEvent): void => {
+    if (!this.orderPressed) return
+    this.orderPressed = false
+    const box = this.layers.root.getBoundingClientRect()
+    const point = { x: e.clientX - box.left, y: e.clientY - box.top }
+    const button = this.orderButton()
+    if (!button || !hitsButton(button, point)) return
+
+    const store = this.series!.store
+    const index = this.timeScaleModel.nearestIndex(point.x)
+    const event: OrderIntentEvent = {
+      price: this.crosshairLine(this.crosshairPoint!).value,
+      time: store.has(index) ? store.times[store.physical(index)]! : null,
+      index,
+      paneId: 'main',
+      point,
+      clientPoint: { x: e.clientX, y: e.clientY },
+    }
+    for (const handler of [...this.orderHandlers]) handler(event)
+  }
+
+  private paintOrderButton(
+    ctx: CanvasRenderingContext2D,
+    button: ButtonRect,
+    hover: boolean,
+  ): void {
+    const { theme } = this.options
+    const dpr = this.layers.getDpr()
+    const { left, top, size } = button
+    ctx.fillStyle = hover ? theme.lineColor : theme.crosshairColor
+    ctx.fillRect(left, top, size, size)
+
+    // The "+" glyph as two device-pixel-snapped bars, so it stays crisp.
+    const t = Math.max(1, Math.round(1.5 * dpr)) / dpr
+    const arm = Math.round(size * 0.3)
+    const cx = Math.round((left + size / 2 - t / 2) * dpr) / dpr
+    const cy = Math.round((top + size / 2 - t / 2) * dpr) / dpr
+    ctx.fillStyle = theme.background
+    ctx.fillRect(cx + t / 2 - arm, cy, arm * 2, t)
+    ctx.fillRect(cx, cy + t / 2 - arm, t, arm * 2)
+  }
+
+  /**
+   * Dotted crosshair lines + axis value labels, following the pointer (PLAN
+   * §8.2), plus the order button when enabled. Returns whether the pointer is
+   * over that button.
+   */
+  private paintCrosshair(point: { x: number; y: number }): boolean {
     const store = this.series!.store
     const { width, height } = this.layers.getSize()
     const { theme } = this.options
@@ -1097,20 +1251,13 @@ export class Chart {
     const dpr = this.layers.getDpr()
     const plot = this.plotRect()
 
-    const nearest = clamp(
-      ts.nearestIndex(point.x),
-      store.firstIndex,
-      store.lastIndex,
-    )
+    const {
+      index: nearest,
+      y: clampedY,
+      value,
+      pane,
+    } = this.crosshairLine(point)
     const lineX = snap(ts.indexToX(nearest), dpr)
-    // The horizontal line + price label belong to whichever pane the pointer is
-    // in, read on that pane's own scale.
-    const pane = this.paneAt(point.y)
-    const clampedY = clamp(
-      point.y,
-      pane.rect.top,
-      pane.rect.top + pane.rect.height,
-    )
     const lineY = snap(clampedY, dpr)
 
     const ctx = this.layers.getContext('overlay')
@@ -1126,16 +1273,16 @@ export class Chart {
     ctx.stroke()
     ctx.restore()
 
+    const button = this.orderButton()
+    const hover = button !== null && hitsButton(button, point)
+    if (button) this.paintOrderButton(ctx, button, hover)
+
     ctx.font = `${theme.fontSize}px ${theme.fontFamily}`
     ctx.textBaseline = 'middle'
     ctx.fillStyle = theme.crosshairColor
 
-    // Price label (right gutter), centered on the horizontal line, read on the
-    // pointer's pane scale (price for the main pane, plain value for sub-panes).
-    const value = pane.scale.yToPrice(
-      clampedY - pane.rect.top,
-      pane.rect.height,
-    )
+    // Price label (right gutter), centered on the horizontal line, in the
+    // pointer's pane (price for the main pane, plain value for sub-panes).
     const priceText = pane.isMain
       ? this.axisPrice(value, this.visiblePriceTicks(pane.rect.height))
       : formatAxisNumber(
@@ -1166,6 +1313,7 @@ export class Chart {
       timeBoxX + timeBoxW / 2,
       plot.height + (height - plot.height) / 2,
     )
+    return hover
   }
 
   /**
@@ -1210,7 +1358,9 @@ export class Chart {
   /** Tear down observers, listeners, canvases, and any pending frame. */
   remove(): void {
     this.events.clear()
+    this.orderHandlers.clear()
     this.detachDataSource()
+    this.layers.root.removeEventListener('pointerup', this.onPointerUp)
     this.resizeObserver.disconnect()
     this.panzoom.dispose()
     this.crosshair.dispose()

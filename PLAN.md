@@ -22,7 +22,8 @@ history backfill), the indicator framework with SMA, EMA, Bollinger, RSI,
 MACD, Volume MA, candlestick/bar/line/area series switchable in place via
 `setChartType()`, and the `/chrome` widgets (instrument metadata + timezone,
 HUD/legend, indicator rows, top/bottom toolbars, go-to modal, exchange clock).
-The left annotation toolbar waits on Phase 7. See §13 for what remains.
+From Phase 8, the order-intent "+" hook and magnet crosshair mode are in. The
+left annotation toolbar waits on Phase 7. See §13 for what remains.
 
 ## 3. Core technical decisions
 
@@ -137,9 +138,12 @@ src/
 ### 8.2 Crosshair & order hook
 - Pointer move (press-hold on touch) updates only the overlay layer: dotted
   cross-lines through the nearest bar + time/price axis labels.
-- **Magnet mode** (snap to OHLC) — opt-in, not v1-blocking.
+- **Magnet mode** (snap to OHLC; close for line/area) — opt-in via
+  `crosshairMode: 'magnet'` / `chart.setCrosshairMode()`.
 - **Order-intent hook** (opt-in, off by default): a "+" button at the price-axis
   gutter fires a callback; we own only the button, host renders any order form.
+  The button shows only while a handler is registered, rides the price-pane
+  crosshair line, and claims its pointerdown so clicking it never pans.
   ```ts
   interface OrderIntentEvent {
     price: number; time: UTCTimestamp | null; index: number; paneId: string
@@ -263,7 +267,7 @@ Container sizing is implicit — no `width`/`height` option.
 5. **Series types & chart-type switching** — line, area, bar renderers; `setChartType()`; Volume MA. ✅
 6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock). ✅ (left annotation toolbar moves to Phase 7)
 7. **Annotations** _(next)_ — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar.
-8. **Scale-out perf** — decimation + multi-resolution cache, worker-based calc investigation, bundle-size budget in CI, 500k-candle stress page, order-intent hook + magnet mode.
+8. **Scale-out perf** — decimation + multi-resolution cache, worker-based calc investigation, bundle-size budget in CI, 500k-candle stress page, order-intent hook + magnet mode (✅).
 9. **Ecosystem** — React wrapper (first), theming system, docs site, (stretch) original scripting DSL.
 
 ## 14. Open questions

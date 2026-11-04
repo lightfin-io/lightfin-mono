@@ -20,8 +20,17 @@ export interface ChartTheme {
   fontSize: number
 }
 
+/**
+ * How the crosshair's horizontal line tracks the pointer in the price pane:
+ * `normal` follows it freely; `magnet` snaps to the nearest open/high/low/close
+ * of the hovered bar (its close, for line/area charts).
+ */
+export type CrosshairMode = 'normal' | 'magnet'
+
 export interface ChartOptions {
   theme: ChartTheme
+  /** See {@link CrosshairMode}; switch later with `chart.setCrosshairMode()`. */
+  crosshairMode: CrosshairMode
   /** Width in px reserved for the price axis strip on the right. */
   priceAxisWidth: number
   /** Height in px reserved for the time axis strip at the bottom. */
@@ -82,6 +91,7 @@ export const DEFAULT_THEME: ChartTheme = {
 
 export const DEFAULT_OPTIONS: ChartOptions = {
   theme: DEFAULT_THEME,
+  crosshairMode: 'normal',
   priceAxisWidth: 64,
   timeAxisHeight: 24,
   rightOffset: 6,

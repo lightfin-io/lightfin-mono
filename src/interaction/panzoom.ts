@@ -14,6 +14,11 @@ export interface PanZoomHandlers {
   onPan(dx: number): void
   /** Multiplicative zoom; `anchorX` is the CSS-px x to keep pinned. */
   onZoom(factor: number, anchorX: number): void
+  /**
+   * Return true to claim a pointerdown at this CSS-px point (e.g. it landed on
+   * a button), so it doesn't start a pan.
+   */
+  claim?(point: { x: number; y: number }): boolean
 }
 
 /** How much one wheel notch zooms. */
@@ -57,11 +62,10 @@ export class PanZoomController {
 
   private onPointerDown = (e: PointerEvent): void => {
     this.refreshRect()
+    const point = { x: this.localX(e.clientX), y: e.clientY - this.rect.top }
+    if (this.pointers.size === 0 && this.handlers.claim?.(point)) return
     this.el.setPointerCapture(e.pointerId)
-    this.pointers.set(e.pointerId, {
-      x: this.localX(e.clientX),
-      y: e.clientY - this.rect.top,
-    })
+    this.pointers.set(e.pointerId, point)
 
     if (this.pointers.size === 1) {
       this.lastPanX = this.localX(e.clientX)

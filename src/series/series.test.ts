@@ -156,6 +156,27 @@ describe('Series.setChartType', () => {
   })
 })
 
+describe('Series.snapPrice', () => {
+  // Bar 3: open 10, high 12, low 3, close 4.
+  it('snaps to the nearest of open/high/low/close', () => {
+    const s = series()
+    expect(s.snapPrice(3, 11.5)).toBe(12)
+    expect(s.snapPrice(3, 9)).toBe(10)
+    expect(s.snapPrice(3, 4.2)).toBe(4)
+    expect(s.snapPrice(3, -50)).toBe(3)
+  })
+
+  it.each(['line', 'area'] as const)('snaps to the close for %s', type => {
+    const s = series()
+    s.setChartType(type)
+    expect(s.snapPrice(3, 11.5)).toBe(4)
+  })
+
+  it('leaves the price alone outside the data', () => {
+    expect(series().snapPrice(9, 7.5)).toBe(7.5)
+  })
+})
+
 describe('Series.volumeMax', () => {
   function volSeries(): Series {
     const s = new Series()

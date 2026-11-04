@@ -73,6 +73,31 @@ const volumeMa = await chart.addIndicator(
   import('lightfin-web-chart/indicators/volumeMa'),
 )
 
+// The chart only draws the "+" button on the crosshair line; the order form is
+// ours to render (PLAN §8.2). This stand-in just shows the clicked price.
+const orderPopup = document.createElement('div')
+orderPopup.className = 'order-popup'
+orderPopup.hidden = true
+document.body.append(orderPopup)
+chart.onOrderIntent(e => {
+  orderPopup.textContent = `Limit order @ ${chart.formatPrice(e.price)}`
+  orderPopup.style.left = `${e.clientPoint.x - 8}px`
+  orderPopup.style.top = `${e.clientPoint.y + 14}px`
+  orderPopup.style.transform = 'translateX(-100%)'
+  orderPopup.hidden = false
+})
+document.addEventListener('pointerdown', e => {
+  if (e.target !== orderPopup) orderPopup.hidden = true
+})
+
+// "M" toggles the magnet crosshair (snaps to the hovered bar's OHLC).
+document.addEventListener('keydown', e => {
+  if (e.key !== 'm' || e.target instanceof HTMLInputElement) return
+  chart.setCrosshairMode(
+    chart.crosshairMode() === 'magnet' ? 'normal' : 'magnet',
+  )
+})
+
 // Expose for manual poking in the console.
 Object.assign(window as unknown as Record<string, unknown>, {
   chart,

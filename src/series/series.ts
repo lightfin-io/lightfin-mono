@@ -130,6 +130,23 @@ export class Series {
   }
 
   /**
+   * The price of bar `index` nearest to `price` — the closest of its
+   * open/high/low/close, or its close for line/area — for the crosshair's
+   * magnet mode (PLAN §8.2).
+   */
+  snapPrice(index: number, price: number): number {
+    const { store } = this
+    if (!store.has(index)) return price
+    const p = store.physical(index)
+    if (this.closeOnly) return store.closes[p]!
+    let best = store.opens[p]!
+    for (const v of [store.highs[p]!, store.lows[p]!, store.closes[p]!]) {
+      if (Math.abs(v - price) < Math.abs(best - price)) best = v
+    }
+    return best
+  }
+
+  /**
    * Max volume across an inclusive index window, for the hidden volume scale
    * (PLAN §7). Returns 0 when the window is empty or no bar carries volume.
    */
