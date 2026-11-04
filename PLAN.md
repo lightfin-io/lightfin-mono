@@ -40,28 +40,41 @@ See §13; ecosystem work (React wrapper, theming, docs) is parked in §14.
 | Rendering          | **Canvas2D for everything** (geometry + text), stacked as layered `<canvas>`. The 0.5px minimum bar width (§6) caps draw count at ~2 bars per pixel, so GPU isn't needed; Canvas2D is synchronous, universal, deterministic in headless CI. Renderer stays behind an interface so WebGL can be added later if a benchmark proves it's the bottleneck. |
 | X-axis model       | **Index-based** (uniform bar spacing); time is a per-index label, not a continuous axis. Skips weekend/overnight gaps for free, integer-friendly panning.                                                                                                                                                                                             |
 | Language           | TypeScript, **zero runtime dependencies**.                                                                                                                                                                                                                                                                                                            |
-| Framework bindings | None in core; thin React/Vue wrappers as separate optional packages later.                                                                                                                                                                                                                                                                            |
+| Framework bindings | None in core; thin framework wrappers ship as sibling packages in the monorepo (§4). `lightfin-web-chart-react` ships (§8.8); a Vue wrapper can follow the same shape.                                                                                                                                                                                 |
 | Scripting          | Indicators are plain TS/JS against a small API; **no** Pine Script clone or custom DSL (§8.4).                                                                                                                                                                                                                                                        |
 
 ## 4. Module layout
 
+A Bun-workspace monorepo. The root is just the toolchain + orchestration
+(`bun run build/test/typecheck/size` fan out to the packages); each package
+builds and versions on its own.
+
 ```
-src/
-  chart/        Chart class, container sizing/resize-observer, pane layout, theming
-  render/       Canvas layer manager, draw primitives, devicePixelRatio handling
-  scales/       Time scale (index<->pixel, interval/tick selection), price scale(s)
-  series/       Candlestick, line, area, bar, histogram (volume) renderers
-  data/         Bar/series store, DataSource adapter interface
-  interaction/  Pointer handling, pan/zoom/inertia, crosshair, hit-testing
-  indicators/   Indicator runtime + built-ins (dynamically importable, §8.4)
-  annotations/  Drawing tools (dynamically importable, §8.5)
-  priceLines/   Host-managed order/position lines (§8.2)
-  chrome/       Optional DOM widgets: HUD/legend, toolbars, date modal (§9)
-  api/          Public entry assembling the above into createChart()
-  index.ts      Package entry — re-exports the minimal "core" surface only
+packages/
+  core/         The chart library, published as `lightfin-web-chart`.
+    src/
+      chart/        Chart class, container sizing/resize-observer, pane layout, theming
+      render/       Canvas layer manager, draw primitives, devicePixelRatio handling
+      scales/       Time scale (index<->pixel, interval/tick selection), price scale(s)
+      series/       Candlestick, line, area, bar, histogram (volume) renderers
+      data/         Bar/series store, DataSource adapter interface
+      interaction/  Pointer handling, pan/zoom/inertia, crosshair, hit-testing
+      indicators/   Indicator runtime + built-ins (dynamically importable, §8.4)
+      annotations/  Drawing tools (dynamically importable, §8.5)
+      priceLines/   Host-managed order/position lines (§8.2)
+      chrome/       Optional DOM widgets: HUD/legend, toolbars, date modal (§9)
+      api/          Public entry assembling the above into createChart()
+      index.ts      Package entry — re-exports the minimal "core" surface only
+    demo/         Playground + Playwright target (§12)
+    e2e/          Playwright tests
+  react/        React bindings, published as `lightfin-web-chart-react` (§8.8).
+    src/          <LightfinChart> + hooks; both react and the core are peers.
 ```
 
-`indicators/`, `annotations/`, `priceLines/`, `chrome/` are subpath exports (§10).
+Within core, `indicators/`, `annotations/`, `priceLines/`, `chrome/` are
+subpath exports (§10). The React wrapper is a separate package (so the core
+pulls in no React and stays framework-agnostic), consuming only the core's
+public entry.
 
 ## 5. Rendering engine
 
@@ -360,6 +373,31 @@ milliseconds; use Unix seconds`). A batch is all-or-nothing. Hosts can
   button runs an offline stand-in analyst (swings, regression trend, fib)
   through the same tool-call path, and the e2e tests drive it.
 
+### 8.8 React wrapper
+
+A thin React binding in its own package, `lightfin-web-chart-react` (§4), with
+both `react` and `lightfin-web-chart` as peer dependencies — so the core pulls
+in no React and the dependency-free promise holds for everyone else. It only
+glues the imperative chart to React's lifecycle — no feature is re-expressed as
+a component tree, so there's nothing to keep in step as the core grows.
+
+- **`<LightfinChart>`** owns one chart: creates it in a layout effect on mount,
+  `remove()`s it on unmount. `options` apply once at construction (the engine
+  has no live option setter — §5); a new `key` recreates it. Event-handler
+  props (`onCrosshairMove`, `onDataChange`, `onOrderIntent`, …) are
+  **ref-latched** — subscribed once per instance, always calling the latest
+  prop, so passing inline handlers never churns subscriptions. `instrument`
+  syncs on change (`undefined` leaves it alone); the instance is exposed through
+  a forwarded `ref` and `onCreate`.
+- **`useChartEffect(fn, deps)`** is the escape hatch: it runs `fn(chart)` once
+  the instance exists and cleans up on unmount, so wiring series, indicators,
+  `createChrome`, `createAnnotations`, or `addPriceLine` is a few lines in a
+  child component rather than a wrapper per feature. `useChart()` reads the
+  instance from context for the imperative cases.
+- Unit-tested under jsdom with the chart mocked (lifecycle, event latching,
+  context), matching how the annotations tests mock the chart (§12); the real
+  engine is exercised by the Playwright suite.
+
 ## 9. Chart chrome / UI widgets
 
 Optional DOM widgets rendered inside the chart container, driven by chart state +
@@ -405,11 +443,14 @@ theme-aware and overlay the canvas stack.
   time/price axes + crosshair + pan/zoom. Everything else is opt-in.
 - **Subpath exports**, each dynamically importable: `/indicators` (and
   per-indicator), `/annotations` (and `/annotations/schema`), `/price-lines`,
-  `/chrome`, future `/react`.
+  `/chrome`. The React binding is a separate package, not a subpath (§8.8), so
+  the core gains no React dependency.
 - `package.json` `exports` map + `sideEffects: false` for tree-shaking.
-- Bundle size is budgeted in CI with `size-limit` (`.size-limit.json`, `bun run
-size`): core, chrome, annotations, the annotations schema, price lines, one indicator, all
-  indicators, and everything together, each with ~10% headroom. Raising a budget is a deliberate, reviewed change.
+- Bundle size is budgeted in CI with `size-limit` (per-package `.size-limit.json`,
+  `bun run size` fans out): the core package budgets core, chrome, annotations,
+  the annotations schema, price lines, one indicator, all indicators, and
+  everything together; the React package budgets its glue alone (both react and
+  the core are external). Each has ~10% headroom. Raising a budget is a deliberate, reviewed change.
 
 ## 11. Public API sketch
 
@@ -517,13 +558,16 @@ Container sizing is implicit — no `width`/`height` option.
 10. **Chart-driven loading** — count-based `DataSource` paging with cancellation and live merging (§6), demo on live Binance BTC/USDT. ✅
 11. **Drawing-tool depth** — 21 drawing types, presets, undo/redo, clone/z-order/lock/hide, grouped left toolbar with flyouts, floating style toolbar with color/font/line controls (§8.5, §9). ✅ Not built: a full per-drawing settings dialog (exact coordinates, per-level fib toggles), Gann/Elliott/pattern tools, per-drawing visibility, and toolbar undo buttons.
 
-## 14. Don't pick up yet
+## 14. Misc
 
-- Tradingview has tags that show events for example has E tags along the bottom of the price chart which when clicked open an earnings modal.
+- Tradingview has tags that show events for example has E tags (earnings) and D tags (dividends) along the bottom of the price chart which when clicked open an earnings modal centered above them.
 - Settings modal, saving annotations, reset to defaults etc
-- **Ecosystem** — React wrapper (first), theming system, docs site. Theming
-  open question: today the canvas takes a JS `theme` object and chrome mirrors
-  it into CSS variables; decide whether CSS variables become the source of truth.
+- **Ecosystem** — React wrapper ✅ (shipped as `lightfin-web-chart-react`, §8.8,
+  which also moved the repo to a Bun-workspace monorepo, §4); still to do: a
+  theming system and a docs site. Theming open question: today the canvas takes
+  a JS `theme` object and chrome mirrors it into CSS variables; decide whether
+  CSS variables become the source of truth.
+- Add more indicators
 
 ## 15. Open questions
 

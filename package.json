@@ -1,57 +1,19 @@
 {
-  "name": "lightfin-web-chart",
+  "name": "lightfin-web-chart-monorepo",
   "version": "0.0.0",
-  "description": "A powerful, lightweight, dependency-free financial charting library for the web.",
+  "private": true,
   "type": "module",
   "license": "MIT",
-  "sideEffects": false,
-  "files": [
-    "dist"
+  "workspaces": [
+    "packages/*"
   ],
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./indicators": {
-      "types": "./dist/indicators/index.d.ts",
-      "import": "./dist/indicators.js"
-    },
-    "./indicators/*": {
-      "types": "./dist/indicators/*.d.ts",
-      "import": "./dist/indicators/*.js"
-    },
-    "./chrome": {
-      "types": "./dist/chrome/index.d.ts",
-      "import": "./dist/chrome.js"
-    },
-    "./annotations": {
-      "types": "./dist/annotations/index.d.ts",
-      "import": "./dist/annotations.js"
-    },
-    "./annotations/schema": {
-      "types": "./dist/annotations/schema.d.ts",
-      "import": "./dist/annotations/schema.js"
-    },
-    "./price-lines": {
-      "types": "./dist/priceLines/index.d.ts",
-      "import": "./dist/price-lines.js"
-    },
-    "./package.json": "./package.json"
-  },
   "scripts": {
-    "dev": "vite --config vite.demo.config.ts",
-    "build": "rm -rf dist && vite build && tsc -p tsconfig.build.json",
-    "build:demo": "vite build --config vite.demo.config.ts",
-    "preview": "vite preview --config vite.demo.config.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "size": "size-limit",
+    "dev": "bun run --filter lightfin-web-chart dev",
+    "build": "bun run --filter lightfin-web-chart build && bun run --filter lightfin-web-chart-react build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --filter '*' test",
+    "test:e2e": "bun run --filter lightfin-web-chart test:e2e",
+    "size": "bun run --filter '*' size",
     "format": "prettier --write ."
   },
   "devDependencies": {

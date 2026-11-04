@@ -1,0 +1,9 @@
+[
+  {
+    "name": "react wrapper (glue only; react + core external)",
+    "path": "dist/index.js",
+    "import": "{ LightfinChart, useChartEffect }",
+    "ignore": ["react", "react-dom", "react/jsx-runtime", "lightfin-web-chart"],
+    "limit": "2 kB"
+  }
+]

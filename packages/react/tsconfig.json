@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "node"],
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Typecheck and tests resolve the core from its source, so neither needs a
+       prior `core` build. The declaration build (tsconfig.build.json) drops
+       this alias and resolves the core's published .d.ts instead. */
+    "paths": {
+      "lightfin-web-chart": ["../core/src/index.ts"]
+    },
+
+    /* Strictness — mirrors the core package. */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+}
