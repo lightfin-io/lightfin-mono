@@ -6,6 +6,12 @@ import type { TimeScale } from '../scales/timeScale'
 import type { IndexWindow } from './series'
 
 const LINE_WIDTH = 2
+/**
+ * Fraction of the plot height, up from the bottom, where the area fill has
+ * faded out. About the default volume histogram (`volumeHeightRatio` is 0.18)
+ * so that band stays clear. Fixed — not tied to the live volume scale.
+ */
+const AREA_FADE_CLEARANCE = 0.18
 
 /**
  * Line renderer: one polyline through the closes of the visible window, a
@@ -24,10 +30,11 @@ export function drawLine(
 }
 
 /**
- * Area renderer: the close line over a vertical gradient that runs from the
- * top of the pane down to its bottom edge. The fill is the line's polyline
- * closed along the pane bottom, so the whole series is one `fill()` plus one
- * `stroke()`. The caller clips to `plot`.
+ * Area renderer: the close line over a vertical gradient. The fill is the
+ * line's polyline closed along the pane bottom — one `fill()` plus one
+ * `stroke()` — and the gradient reaches {@link ChartTheme.areaBottomColor}
+ * (transparent by default) `AREA_FADE_CLEARANCE` up from that edge, then holds,
+ * so the lower band where volume sits is clear. The caller clips to `plot`.
  */
 export function drawArea(
   ctx: CanvasRenderingContext2D,
@@ -48,7 +55,8 @@ export function drawArea(
   area.lineTo(firstX, bottom)
   area.closePath()
 
-  const gradient = ctx.createLinearGradient(0, plot.top, 0, bottom)
+  const clearY = bottom - plot.height * AREA_FADE_CLEARANCE
+  const gradient = ctx.createLinearGradient(0, plot.top, 0, clearY)
   gradient.addColorStop(0, theme.areaTopColor)
   gradient.addColorStop(1, theme.areaBottomColor)
   ctx.fillStyle = gradient

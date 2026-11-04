@@ -20,7 +20,7 @@ export interface IndexWindow {
  *   - `candlestick` — filled bodies + wicks (default).
  *   - `bar`         — OHLC bars: high–low stem, open tick left, close tick right.
  *   - `line`        — a polyline through the closes.
- *   - `area`        — the close line with a gradient fill down to the pane bottom.
+ *   - `area`        — the close line with a gradient fill that fades out above the volume band.
  */
 export type ChartType = 'candlestick' | 'bar' | 'line' | 'area'
 

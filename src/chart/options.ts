@@ -12,7 +12,11 @@ export interface ChartTheme {
   volumeDownColor: string
   /** Stroke for the line and area chart types (and their current-price line). */
   lineColor: string
-  /** Area chart gradient fill, from the top of the pane down to its bottom. */
+  /**
+   * Area chart gradient fill. `areaTopColor` is at the top of the pane;
+   * `areaBottomColor` is reached about a volume-bar's height above the bottom
+   * and held to the edge (default fully transparent).
+   */
   areaTopColor: string
   areaBottomColor: string
   crosshairColor: string
@@ -82,7 +86,7 @@ export const DEFAULT_THEME: ChartTheme = {
   volumeDownColor: 'rgba(239, 83, 80, 0.5)',
   lineColor: '#2962ff',
   areaTopColor: 'rgba(41, 98, 255, 0.28)',
-  areaBottomColor: 'rgba(41, 98, 255, 0.02)',
+  areaBottomColor: 'rgba(41, 98, 255, 0)',
   crosshairColor: '#758696',
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
