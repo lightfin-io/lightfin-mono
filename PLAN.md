@@ -15,12 +15,14 @@ host renders the order form.
 
 ## 2. Current state
 
-Phases 0–5 shipped: cleanup/scaffold, core rendering (candlesticks, index time
+Phases 0–6 shipped: cleanup/scaffold, core rendering (candlesticks, index time
 axis, price axis, pan/zoom, resize), crosshair + current-price line, volume
 sub-pane, interval-aware time ticks, live data (update/follow-mode/DataSource +
 history backfill), the indicator framework with SMA, EMA, Bollinger, RSI,
-MACD, Volume MA, and candlestick/bar/line/area series switchable in place via
-`setChartType()`. See §13 for what remains.
+MACD, Volume MA, candlestick/bar/line/area series switchable in place via
+`setChartType()`, and the `/chrome` widgets (instrument metadata + timezone,
+HUD/legend, indicator rows, top/bottom toolbars, go-to modal, exchange clock).
+The left annotation toolbar waits on Phase 7. See §13 for what remains.
 
 ## 3. Core technical decisions
 
@@ -226,10 +228,17 @@ const volume = chart.addHistogramSeries({ pane: 'overlay-hidden-scale' })
 volume.setData(volumeBars)
 
 const sma = await chart.addIndicator(import('lightfin-web-chart/indicators/sma'), { period: 20 })
+sma.setOptions({ period: 50 }); sma.setVisible(false); sma.remove()
+chart.indicators()      // handles: name, params, plots, value(key, index)
 
-chart.timeScale().fitContent()
-chart.timeScale().setVisibleRange({ from, to })
+chart.fitContent()
+await chart.setVisibleTimeRange({ from, to }) // backfills older history first
+await chart.scrollToTime(time)
+chart.on('crosshairMove', e => {/* e?.index, e?.time */}) // + dataChange, indicatorsChange, layoutChange, …
 chart.onOrderIntent(e => openMyOrderForm(e.price, e.clientPoint)) // §8.2
+
+// Optional widgets (§9); the host owns intervals and reloads bars on change.
+const chrome = createChrome(chart, { intervals: ['1m', '1H', '1D'], interval: '1m', onIntervalChange })
 ```
 
 Container sizing is implicit — no `width`/`height` option.
@@ -252,8 +261,8 @@ Container sizing is implicit — no `width`/`height` option.
 3. **Live data** — update/follow-mode, DataSource, mock feed, backfill. ✅
 4. **Indicators framework** — overlay + pane, incremental calc, 5 built-ins. ✅
 5. **Series types & chart-type switching** — line, area, bar renderers; `setChartType()`; Volume MA. ✅
-6. **Chart chrome** _(next)_ — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock), left annotation toolbar.
-7. **Annotations** — drawing tools, hit-testing, selection/drag, JSON serialization.
+6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock). ✅ (left annotation toolbar moves to Phase 7)
+7. **Annotations** _(next)_ — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar.
 8. **Scale-out perf** — decimation + multi-resolution cache, worker-based calc investigation, bundle-size budget in CI, 500k-candle stress page, order-intent hook + magnet mode.
 9. **Ecosystem** — React wrapper (first), theming system, docs site, (stretch) original scripting DSL.
 

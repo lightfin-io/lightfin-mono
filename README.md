@@ -9,7 +9,7 @@ See [PLAN.md](./PLAN.md) for the full design and roadmap.
 
 ## Status
 
-Early development. Phases 0–5 shipped (see [PLAN.md §13](./PLAN.md)).
+Early development. Phases 0–6 shipped (see [PLAN.md §13](./PLAN.md)).
 
 ## Development
 

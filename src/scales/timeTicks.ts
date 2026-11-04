@@ -4,15 +4,18 @@
  * The X axis is index-based (uniform bar spacing), so this never sees a
  * continuous time domain — only the (index, time) pairs actually in view. From
  * the dominant bar interval and the current `barWidth` it picks a "nice" step
- * off a standard ladder (1s/5s/15s/30s · 1m/5m/15m/30m · 1H/2H/4H · 1D/1W · 1M ·
+ * off a standard ladder (1s/5s/15s/30s · 1m/5m/15m/30m · 1H/2H/4H · 1D/1W · 1M/3M/6M ·
  * 1Y), then labels the first visible bar that enters each round wall-clock
  * bucket — so labels land on round boundaries and skip gaps (weekends/overnight)
  * for free. Label text adapts to the step: time-of-day within a day, the date at
  * day boundaries, month at month boundaries, year at year boundaries.
  *
- * All formatting is UTC so headless rendering is deterministic for tests and
- * screenshot diffing (PLAN §12).
+ * Formatting is UTC unless a `timeZone` is given (the instrument's, PLAN §7),
+ * so headless rendering stays deterministic for tests and screenshot diffing
+ * (PLAN §12). Daily-and-coarser bars ignore the timezone: their timestamps
+ * name calendar days, which shifting would push onto the previous evening.
  */
+import { toZoned } from './timezone'
 
 export interface TimeAxisLabel {
   /** Logical bar index the label sits on. */
@@ -64,6 +67,16 @@ const TIME_STEPS: readonly TimeStep[] = [
   { sec: 86400, gran: 'day', bucket: bucketBySec(86400) },
   { sec: 604800, gran: 'day', bucket: weekBucket },
   { sec: SECONDS_PER_MONTH, gran: 'month', bucket: monthBucket },
+  {
+    sec: 3 * SECONDS_PER_MONTH,
+    gran: 'month',
+    bucket: t => Math.floor(monthBucket(t) / 3),
+  },
+  {
+    sec: 6 * SECONDS_PER_MONTH,
+    gran: 'month',
+    bucket: t => Math.floor(monthBucket(t) / 6),
+  },
   { sec: SECONDS_PER_YEAR, gran: 'year', bucket: yearBucket },
 ]
 
@@ -84,13 +97,15 @@ const MONTHS = [
 
 /**
  * Pick time-axis labels for the visible bars so they sit ~`targetPx` apart at
- * the current `barWidth`, aligned to round wall-clock boundaries. `bars` must be
- * ascending by index/time. Returns a labeled subset, ascending.
+ * the current `barWidth`, aligned to round wall-clock boundaries in `timeZone`
+ * (UTC when omitted). `bars` must be ascending by index/time. Returns a
+ * labeled subset, ascending.
  */
 export function timeAxisLabels(
   bars: readonly { index: number; time: number }[],
   barWidth: number,
   targetPx: number,
+  timeZone?: string,
 ): TimeAxisLabel[] {
   if (bars.length === 0) return []
 
@@ -98,15 +113,17 @@ export function timeAxisLabels(
   // Never label more often than once per bar; otherwise aim for `targetPx`.
   const minGap = Math.max(interval, (targetPx / barWidth) * interval)
   const step = chooseTimeStep(minGap)
+  const zone = interval < 86_400 ? timeZone : undefined
 
   const out: TimeAxisLabel[] = []
   let prevBucket: number | null = null
   let prevDate: Date | null = null
   for (const { index, time } of bars) {
-    const bucket = step.bucket(time)
+    const wall = toZoned(time, zone)
+    const bucket = step.bucket(wall)
     if (bucket === prevBucket) continue // same bucket → one label per boundary
     prevBucket = bucket
-    const d = new Date(time * 1000)
+    const d = new Date(wall * 1000)
     out.push({ index, time, text: formatTick(step.gran, d, prevDate) })
     prevDate = d
   }

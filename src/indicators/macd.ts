@@ -102,6 +102,7 @@ const definition: IndicatorDefinition<MacdOptions> = {
     histDownColor: 'rgba(239, 83, 80, 0.5)',
     lineWidth: 1.5,
   },
+  params: o => [o.fastPeriod, o.slowPeriod, o.signalPeriod],
   plots: o => [
     {
       key: HIST,

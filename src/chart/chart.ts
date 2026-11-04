@@ -1,5 +1,6 @@
 import { StoreReader } from '../data/barReader'
 import type { DataSource } from '../data/dataSource'
+import type { InstrumentInfo, UTCTimestamp } from '../data/types'
 import type {
   IndicatorDefinition,
   IndicatorHandle,
@@ -13,9 +14,11 @@ import { PriceScale } from '../scales/priceScale'
 import { priceTicks, stepDecimals } from '../scales/ticks'
 import { TimeScale } from '../scales/timeScale'
 import { timeAxisLabels } from '../scales/timeTicks'
+import { toZoned } from '../scales/timezone'
 import { Series } from '../series/series'
 import type { ChartType, IndexWindow, SeriesChange } from '../series/series'
 import { drawVolume } from '../series/volume'
+import { Emitter } from './events'
 import { IndicatorController, IndicatorInstance } from './indicators'
 import type { ChartOptions, ChartOptionsInput } from './options'
 import { resolveOptions } from './options'
@@ -37,6 +40,36 @@ export interface PlotRect {
   top: number
   width: number
   height: number
+}
+
+/** The bar under the crosshair, emitted as `crosshairMove` (null when it leaves). */
+export interface CrosshairMoveEvent {
+  /** Logical index of the hovered bar, clamped to the data. */
+  index: number
+  time: UTCTimestamp
+  /** Pointer position in CSS px relative to the chart element. */
+  point: { x: number; y: number }
+}
+
+/** Where each pane sits, in CSS px relative to the chart element. */
+export interface PaneLayout {
+  main: PlotRect
+  /** Indicator sub-panes, top to bottom. */
+  panes: { indicator: IndicatorHandle; rect: PlotRect }[]
+}
+
+/** Payloads of the events {@link Chart.on} can subscribe to. */
+export interface ChartEventMap {
+  crosshairMove: CrosshairMoveEvent | null
+  /** The price series' data or chart type changed (see {@link SeriesChange}). */
+  dataChange: SeriesChange
+  /** A new price series replaced the previous one. */
+  seriesChange: Series
+  /** An indicator was added, removed, shown/hidden, or reconfigured. */
+  indicatorsChange: void
+  /** The chart resized or its panes changed, so {@link Chart.paneLayout} moved. */
+  layoutChange: void
+  instrumentChange: InstrumentInfo | null
 }
 
 const MIN_BAR_WIDTH = 0.5
@@ -61,7 +94,6 @@ const VOLUME_PRICE_MARGIN = 0.6
  * data/follow-mode, plus overlay and own-pane indicators (PLAN §8.4).
  */
 export class Chart {
-  private readonly container: HTMLElement
   private readonly options: ChartOptions
   private readonly layers: LayerManager
   private readonly scheduler: FrameScheduler
@@ -69,12 +101,19 @@ export class Chart {
   private readonly panzoom: PanZoomController
   private readonly crosshair: CrosshairController
   private crosshairPoint: { x: number; y: number } | null = null
+  // Last index emitted as `crosshairMove`, to skip no-op viewport re-emits.
+  private crosshairIndex: number | null = null
 
   private readonly timeScaleModel = new TimeScale()
   private readonly priceScale = new PriceScale()
   private series: Series | null = null
   private reader: StoreReader | null = null
-  private readonly indicators = new IndicatorController()
+  private readonly indicatorCtl = new IndicatorController()
+  // Public handles, keyed by the instance currently backing each (setOptions
+  // swaps the instance but keeps the handle).
+  private readonly handleOf = new Map<IndicatorInstance, IndicatorHandle>()
+  private readonly events = new Emitter<ChartEventMap>()
+  private instrumentInfo: InstrumentInfo | null = null
   // Whether the viewport is pinned to the live edge, so new bars scroll it
   // along (PLAN §8.3 follow-mode). On by default; turns off when the user pans
   // away from the right edge and back on when they return to it.
@@ -83,11 +122,13 @@ export class Chart {
   // Optional pull-based adapter (PLAN §6): live subscription + history backfill.
   private dataSource: DataSource | null = null
   private unsubscribeLive: (() => void) | null = null
-  // Guards against firing overlapping backfill requests for the same gap.
-  private backfilling = false
+  // The in-flight history fetch; only one runs at a time.
+  private historyRequest: Promise<void> | null = null
+  // Bumped on every `reset`, so a fetch started against replaced data (e.g.
+  // before an interval switch) is dropped instead of prepended.
+  private dataEpoch = 0
 
   constructor(container: HTMLElement, options: ChartOptionsInput = {}) {
-    this.container = container
     this.options = resolveOptions(options)
     this.layers = new LayerManager(container)
     this.scheduler = new FrameScheduler(dirty => this.paint(dirty))
@@ -100,9 +141,77 @@ export class Chart {
       onMove: point => this.onCrosshairMove(point),
     })
 
+    // Observe the chart's own element rather than the container, so chrome
+    // can share the container (toolbars above/below) and the canvases still
+    // track exactly the space left for them.
     this.resizeObserver = new ResizeObserver(() => this.syncSize())
-    this.resizeObserver.observe(container)
+    this.resizeObserver.observe(this.layers.root)
     this.syncSize()
+  }
+
+  /**
+   * The chart's root element inside the container: the canvas stack and the
+   * coordinate space of {@link plotRect}/{@link paneLayout}. Chrome widgets
+   * overlay it.
+   */
+  get element(): HTMLElement {
+    return this.layers.root
+  }
+
+  /** The resolved options, e.g. for chrome to match the theme. */
+  getOptions(): Readonly<ChartOptions> {
+    return this.options
+  }
+
+  /**
+   * Subscribe to a chart event (see {@link ChartEventMap}). Returns an
+   * unsubscribe function; everything is also dropped by {@link remove}.
+   */
+  on<K extends keyof ChartEventMap>(
+    type: K,
+    handler: (payload: ChartEventMap[K]) => void,
+  ): () => void {
+    return this.events.on(type, handler)
+  }
+
+  /** The current price series, or null before one is added. */
+  getSeries(): Series | null {
+    return this.series
+  }
+
+  /**
+   * Describe the instrument on screen (PLAN §6): drives the HUD, renders
+   * intraday axis/crosshair times in `timezone`, and sets price label
+   * precision from `pricePrecision`. Pass null to clear.
+   */
+  setInstrument(info: InstrumentInfo | null): void {
+    this.instrumentInfo = info ? { ...info } : null
+    this.invalidateViewport()
+    this.events.emit('instrumentChange', this.instrumentInfo)
+  }
+
+  instrument(): InstrumentInfo | null {
+    return this.instrumentInfo
+  }
+
+  /**
+   * Format a price at the instrument's precision (falling back to
+   * `priceDecimals`), through `priceFormatter` when set — the HUD's format.
+   */
+  formatPrice(price: number): string {
+    const decimals = this.minPriceDecimals()
+    return this.options.priceFormatter
+      ? this.options.priceFormatter(price, decimals)
+      : price.toFixed(decimals)
+  }
+
+  private minPriceDecimals(): number {
+    return this.instrumentInfo?.pricePrecision ?? this.options.priceDecimals
+  }
+
+  /** The instrument's IANA timezone, or undefined for UTC. */
+  private timeZone(): string | undefined {
+    return this.instrumentInfo?.timezone
   }
 
   /** Add the chart's price series, drawn as candlesticks. */
@@ -136,6 +245,7 @@ export class Chart {
     series.onChange = change => this.onSeriesChange(change)
     this.series = series
     this.reader = new StoreReader(series.store)
+    this.events.emit('seriesChange', series)
     return series
   }
 
@@ -152,7 +262,8 @@ export class Chart {
    *
    * A resolved module or bare definition is accepted too. The indicator is
    * computed once against the current data and thereafter updated incrementally;
-   * pan/zoom only re-slices its cache. Returns a handle for removal.
+   * pan/zoom only re-slices its cache. Returns a handle for legends,
+   * show/hide, reconfiguration, and removal.
    */
   async addIndicator(
     source: AnyIndicatorSource | Promise<AnyIndicatorSource>,
@@ -164,14 +275,71 @@ export class Chart {
       throw new Error('lightfin: addIndicator requires a series; add one first')
     }
     const instance = new IndicatorInstance(def, options)
-    this.indicators.add(instance, this.reader)
-    this.invalidateViewport()
+    this.indicatorCtl.add(instance, this.reader)
+    const handle = this.createHandle(instance)
+    this.handleOf.set(instance, handle)
+    this.onIndicatorsChanged(!instance.overlay)
+    return handle
+  }
+
+  /** Every indicator on the chart, in the order added. */
+  indicators(): IndicatorHandle[] {
+    return this.indicatorCtl.all().map(inst => this.handleOf.get(inst)!)
+  }
+
+  private createHandle(initial: IndicatorInstance): IndicatorHandle {
+    let inst = initial
     return {
+      get name() {
+        return inst.def.name
+      },
+      get params() {
+        return inst.params
+      },
+      get placement() {
+        if (!inst.overlay) return 'pane'
+        return inst.onVolumeScale ? 'volume' : 'price'
+      },
+      get options() {
+        return inst.options
+      },
+      get plots() {
+        return inst.plots
+      },
+      get visible() {
+        return inst.visible
+      },
+      value: (plotKey, index) => inst.value(plotKey, index),
+      setVisible: visible => {
+        if (!this.handleOf.has(inst) || inst.visible === visible) return
+        inst.visible = visible
+        this.onIndicatorsChanged(false)
+      },
+      setOptions: options => {
+        const handle = this.handleOf.get(inst)
+        if (!handle || !this.reader) return
+        const next = new IndicatorInstance(inst.def, {
+          ...inst.options,
+          ...options,
+        })
+        this.indicatorCtl.replace(inst, next, this.reader)
+        this.handleOf.delete(inst)
+        this.handleOf.set(next, handle)
+        inst = next
+        this.onIndicatorsChanged(false)
+      },
       remove: () => {
-        this.indicators.remove(instance)
-        this.invalidateViewport()
+        if (!this.handleOf.delete(inst)) return
+        this.indicatorCtl.remove(inst)
+        this.onIndicatorsChanged(!inst.overlay)
       },
     }
+  }
+
+  private onIndicatorsChanged(layoutChanged: boolean): void {
+    this.invalidateViewport()
+    this.events.emit('indicatorsChange', undefined)
+    if (layoutChanged) this.events.emit('layoutChange', undefined)
   }
 
   private onSeriesChange(change: SeriesChange): void {
@@ -179,34 +347,38 @@ export class Chart {
     // backfill shifts the index space, so recompute from scratch; a live tick or
     // new bar only needs the tail recomputed. Pan/zoom and a chart-type switch
     // never land here.
-    if (this.reader && !this.indicators.isEmpty) {
+    if (this.reader && !this.indicatorCtl.isEmpty) {
       if (change === 'reset' || change === 'prepend') {
-        this.indicators.recomputeAll(this.reader)
+        this.indicatorCtl.recomputeAll(this.reader)
       } else if (change === 'tick' || change === 'new-bar') {
-        this.indicators.updateLast(this.reader)
+        this.indicatorCtl.updateLast(this.reader)
       }
     }
 
     if (change === 'reset') {
+      this.dataEpoch++
       this.following = true
       this.fitContent()
       // Fresh data sits at its left edge; pull history so indicators (and the
       // left of the view) have lookback without needing a pan first.
       this.maybeBackfill()
-      return
+    } else {
+      // A new bar extends the right edge; follow it if we're pinned there,
+      // otherwise just keep the existing view in bounds. An in-place tick
+      // changes neither the bar count nor the scroll bounds, so only a
+      // repaint is needed.
+      if (change === 'new-bar') {
+        if (this.following)
+          this.timeScaleModel.scrollIndex = this.maxScrollIndex()
+        else this.clampScroll()
+      }
+      // A `prepend` leaves logical indices (and thus the scroll position)
+      // bound to the same bars, so the view holds still — just repaint the
+      // wider data. A `style` change likewise keeps the view; the repaint
+      // re-autoscales it.
+      this.invalidateViewport()
     }
-    // A new bar extends the right edge; follow it if we're pinned there,
-    // otherwise just keep the existing view in bounds. An in-place tick changes
-    // neither the bar count nor the scroll bounds, so only a repaint is needed.
-    if (change === 'new-bar') {
-      if (this.following)
-        this.timeScaleModel.scrollIndex = this.maxScrollIndex()
-      else this.clampScroll()
-    }
-    // A `prepend` leaves logical indices (and thus the scroll position) bound to
-    // the same bars, so the view holds still — just repaint the wider data. A
-    // `style` change likewise keeps the view; the repaint re-autoscales it.
-    this.invalidateViewport()
+    this.events.emit('dataChange', change)
   }
 
   /**
@@ -242,6 +414,137 @@ export class Chart {
   }
 
   /**
+   * Show the bars between two times (Unix seconds UTC), e.g. for date-range
+   * buttons. History older than the loaded data is fetched from the
+   * {@link DataSource} first — at most as many bars as fit on screen at the
+   * minimum bar width; a range wider than that shows its newest end. A range
+   * ending at the newest bar keeps `rightOffset` and re-arms follow-mode.
+   */
+  async setVisibleTimeRange(range: {
+    from: UTCTimestamp
+    to: UTCTimestamp
+  }): Promise<void> {
+    await this.ensureHistory(range.from)
+    const store = this.series?.store
+    const plot = this.plotRect()
+    if (!store || store.size === 0 || plot.width <= 0) return
+
+    let fromIdx = store.indexAtOrBefore(range.from)
+    if (fromIdx === -1) fromIdx = store.firstIndex
+    else if (store.times[store.physical(fromIdx)]! < range.from) fromIdx++
+    fromIdx = Math.min(fromIdx, store.lastIndex)
+    const toIdx = Math.max(fromIdx, store.indexAtOrBefore(range.to))
+
+    const pad = toIdx === store.lastIndex ? this.options.rightOffset : 0
+    const ts = this.timeScaleModel
+    ts.barWidth = clamp(
+      plot.width / (toIdx - fromIdx + 1 + pad),
+      MIN_BAR_WIDTH,
+      MAX_BAR_WIDTH,
+    )
+    // Right-align `toIdx` (+ padding): equals left-aligning `fromIdx` unless
+    // the bar width clamped.
+    ts.scrollIndex = toIdx + 1 + pad - plot.width / ts.barWidth
+    this.afterProgrammaticScroll()
+  }
+
+  /**
+   * Center the view on the bar at or before `time` (Unix seconds UTC) at the
+   * current zoom, fetching older history first if needed.
+   */
+  async scrollToTime(time: UTCTimestamp): Promise<void> {
+    const halfScreen = this.plotRect().width / this.timeScaleModel.barWidth / 2
+    await this.ensureHistory(time - Math.ceil(halfScreen) * this.barInterval())
+    const store = this.series?.store
+    const plot = this.plotRect()
+    if (!store || store.size === 0 || plot.width <= 0) return
+    const index = Math.max(store.firstIndex, store.indexAtOrBefore(time))
+    const viewBars = plot.width / this.timeScaleModel.barWidth
+    this.timeScaleModel.scrollIndex = index + 0.5 - viewBars / 2
+    this.afterProgrammaticScroll()
+  }
+
+  private afterProgrammaticScroll(): void {
+    this.clampScroll()
+    this.syncFollowing()
+    this.maybeBackfill()
+    this.invalidateViewport()
+  }
+
+  /**
+   * Fetch history back to `from` when it predates the loaded data, capped at
+   * one screen of bars at the minimum bar width (any more could never show).
+   */
+  private async ensureHistory(from: number): Promise<void> {
+    if (this.historyRequest) await this.historyRequest
+    const store = this.series?.store
+    if (!this.dataSource || !store || store.size < 2) return
+    const oldest = store.times[store.physical(store.firstIndex)]!
+    if (from >= oldest) return
+    const interval = this.barInterval()
+    const maxBars = Math.ceil(this.plotRect().width / MIN_BAR_WIDTH)
+    await this.loadHistory(
+      Math.max(from, oldest - maxBars * interval),
+      oldest - interval,
+    )
+  }
+
+  /**
+   * Fetch `[from, to]` from the data source and prepend whatever predates the
+   * current data. Dropped if the data was replaced meanwhile.
+   */
+  private loadHistory(from: number, to: number): Promise<void> {
+    const source = this.dataSource!
+    const epoch = this.dataEpoch
+    const request = Promise.resolve(source.getBars({ from, to }))
+      .then(bars => {
+        const store = this.series?.store
+        if (epoch !== this.dataEpoch || !store || store.size === 0) return
+        const oldest = store.times[store.physical(store.firstIndex)]!
+        const older = bars
+          .filter(b => b.time < oldest)
+          .sort((a, b) => a.time - b.time)
+        if (older.length > 0) this.series!.prepend(older)
+      })
+      .catch(() => {
+        /* host-side failure; a later pan will retry */
+      })
+      .finally(() => {
+        if (this.historyRequest === request) this.historyRequest = null
+      })
+    this.historyRequest = request
+    return request
+  }
+
+  /**
+   * Seconds per bar: the smallest positive gap among the newest bars, so
+   * weekend/overnight gaps don't inflate it. 1 with fewer than two bars.
+   */
+  private barInterval(): number {
+    const store = this.series?.store
+    if (!store || store.size < 2) return 1
+    let min = Infinity
+    const first = Math.max(store.firstIndex + 1, store.lastIndex - 16)
+    for (let i = first; i <= store.lastIndex; i++) {
+      const d =
+        store.times[store.physical(i)]! - store.times[store.physical(i - 1)]!
+      if (d > 0 && d < min) min = d
+    }
+    return Number.isFinite(min) ? min : 1
+  }
+
+  /** Where the main pane and each indicator sub-pane sit (for chrome overlays). */
+  paneLayout(): PaneLayout {
+    return {
+      main: this.mainRect(),
+      panes: this.paneSlots().map(({ instance, rect }) => ({
+        indicator: this.handleOf.get(instance)!,
+        rect,
+      })),
+    }
+  }
+
+  /**
    * Full plot rect (all panes) in CSS px, excluding the axis strips. Shared x
    * extent for every pane; the vertical space is split between the main price
    * pane and the indicator sub-panes (see {@link mainRect}/{@link paneSlots}).
@@ -268,7 +571,7 @@ export class Chart {
   /** The main (candle) pane rect — the full plot minus any indicator sub-panes. */
   private mainRect(): PlotRect {
     const full = this.plotRect()
-    const n = this.indicators.paneInstances().length
+    const n = this.indicatorCtl.paneInstances().length
     if (n === 0) return full
     const used = this.paneHeight(full, n) * n
     return { ...full, height: full.height - used }
@@ -277,7 +580,7 @@ export class Chart {
   /** The indicator sub-panes stacked below the main pane, top to bottom. */
   private paneSlots(): { instance: IndicatorInstance; rect: PlotRect }[] {
     const full = this.plotRect()
-    const insts = this.indicators.paneInstances()
+    const insts = this.indicatorCtl.paneInstances()
     const n = insts.length
     if (n === 0) return []
     const each = this.paneHeight(full, n)
@@ -335,11 +638,12 @@ export class Chart {
    * only after a pan. One request in flight at a time; a subsequent pan
    * re-triggers if still near the edge. The fetch is a single chunk (not a
    * chain), so we don't eagerly load/compute far more history than the warmup
-   * needs. The bar interval is inferred from the oldest bars' spacing.
+   * needs.
    */
   private maybeBackfill(): void {
     const store = this.series?.store
-    if (!this.dataSource || this.backfilling || !store || store.size < 2) return
+    if (!this.dataSource || this.historyRequest || !store || store.size < 2)
+      return
 
     const plot = this.plotRect()
     const viewBars = plot.width / this.timeScaleModel.barWidth
@@ -348,24 +652,9 @@ export class Chart {
     if (from > store.firstIndex + viewBars) return
 
     const oldestTime = store.times[store.physical(store.firstIndex)]!
-    const nextTime = store.times[store.physical(store.firstIndex + 1)]!
-    const interval = Math.max(1, nextTime - oldestTime)
+    const interval = this.barInterval()
     const span = Math.max(Math.ceil(viewBars), 1) * interval
-    const range = { from: oldestTime - span, to: oldestTime - interval }
-
-    this.backfilling = true
-    Promise.resolve(this.dataSource.getBars(range))
-      .then(bars => {
-        // Keep only bars strictly older than our current oldest.
-        const older = bars.filter(b => b.time < oldestTime)
-        if (older.length > 0) this.series?.prepend(older)
-      })
-      .catch(() => {
-        /* host-side failure; a later pan will retry */
-      })
-      .finally(() => {
-        this.backfilling = false
-      })
+    void this.loadHistory(oldestTime - span, oldestTime - interval)
   }
 
   /**
@@ -407,23 +696,49 @@ export class Chart {
   /** Mark the viewport-dependent layers dirty (data or pan/zoom changed). */
   private invalidateViewport(): void {
     this.scheduler.invalidate('background', 'series', 'axes', 'overlay')
+    // A wheel zoom or programmatic scroll moves bars under a still pointer.
+    if (this.crosshairPoint) this.emitCrosshair(true)
   }
 
   private onCrosshairMove(point: { x: number; y: number } | null): void {
     this.crosshairPoint = point
     this.scheduler.invalidate('overlay')
+    this.emitCrosshair(false)
   }
 
-  /** Match the container size and device pixel ratio, repainting if changed. */
+  private emitCrosshair(onlyIfMoved: boolean): void {
+    const point = this.crosshairPoint
+    const store = this.series?.store
+    if (!point || !store || store.size === 0) {
+      this.crosshairIndex = null
+      this.events.emit('crosshairMove', null)
+      return
+    }
+    const index = clamp(
+      this.timeScaleModel.nearestIndex(point.x),
+      store.firstIndex,
+      store.lastIndex,
+    )
+    if (onlyIfMoved && index === this.crosshairIndex) return
+    this.crosshairIndex = index
+    this.events.emit('crosshairMove', {
+      index,
+      time: store.times[store.physical(index)]!,
+      point,
+    })
+  }
+
+  /** Match the root element's size and device pixel ratio, repainting if changed. */
   private syncSize(): void {
-    const width = this.container.clientWidth
-    const height = this.container.clientHeight
+    const width = this.layers.root.clientWidth
+    const height = this.layers.root.clientHeight
     const dpr = window.devicePixelRatio || 1
     if (this.layers.resize({ width, height }, dpr)) {
       this.panzoom.refreshRect()
       this.crosshair.refreshRect()
       this.clampScroll()
       this.scheduler.invalidate('background', 'series', 'overlay', 'axes')
+      this.events.emit('layoutChange', undefined)
     }
   }
 
@@ -453,7 +768,7 @@ export class Chart {
     if (!range) return
     // Widen the domain to contain overlay indicator lines (EMA, Bollinger) so
     // they aren't clipped at the edges of the candle-only range.
-    const { low, high } = this.indicators.extendOverlayRange(
+    const { low, high } = this.indicatorCtl.extendOverlayRange(
       window,
       range.low,
       range.high,
@@ -464,7 +779,7 @@ export class Chart {
   /** Autoscale each indicator sub-pane's own scale to its visible plot values. */
   private autoScalePanes(): void {
     if (!this.series) return
-    const panes = this.indicators.paneInstances()
+    const panes = this.indicatorCtl.paneInstances()
     if (panes.length === 0) return
     const window = this.series.visibleWindow(
       this.timeScaleModel,
@@ -538,16 +853,16 @@ export class Chart {
       dpr,
     )
 
-    if (this.indicators.isEmpty || window.from > window.to) return
+    if (this.indicatorCtl.isEmpty || window.from > window.to) return
 
     // Overlay indicators draw on top of the candles, sharing the main price
     // scale, clipped to the main pane so lines don't bleed into other regions.
-    if (this.indicators.hasOverlays) {
+    if (this.indicatorCtl.hasOverlays) {
       ctx.save()
       ctx.beginPath()
       ctx.rect(main.left, main.top, main.width, main.height)
       ctx.clip()
-      this.indicators.drawOverlays(
+      this.indicatorCtl.drawOverlays(
         ctx,
         window,
         this.timeScaleModel,
@@ -563,7 +878,7 @@ export class Chart {
       ctx.beginPath()
       ctx.rect(rect.left, rect.top, rect.width, rect.height)
       ctx.clip()
-      this.indicators.drawPane(
+      this.indicatorCtl.drawPane(
         ctx,
         instance,
         window,
@@ -587,7 +902,7 @@ export class Chart {
   ): void {
     const series = this.series!
     const { theme, volumeHeightRatio } = this.options
-    const max = this.indicators.extendVolumeMax(
+    const max = this.indicatorCtl.extendVolumeMax(
       window,
       series.volumeMax(window),
     )
@@ -606,7 +921,7 @@ export class Chart {
       dpr,
     )
 
-    if (!this.indicators.hasVolumeOverlays || max <= 0) return
+    if (!this.indicatorCtl.hasVolumeOverlays || max <= 0) return
     const regionH = main.height * volumeHeightRatio
     const region: PlotRect = {
       ...main,
@@ -617,7 +932,7 @@ export class Chart {
     ctx.beginPath()
     ctx.rect(main.left, main.top, main.width, main.height)
     ctx.clip()
-    this.indicators.drawOverlays(
+    this.indicatorCtl.drawOverlays(
       ctx,
       window,
       this.timeScaleModel,
@@ -656,11 +971,12 @@ export class Chart {
     for (const price of ticks) {
       const y = this.priceScale.priceToY(price, main.height)
       if (y < 0 || y > main.height) continue
-      ctx.fillText(formatPrice(price, ticks, this.options), plot.width + 6, y)
+      ctx.fillText(this.axisPrice(price, ticks), plot.width + 6, y)
     }
 
     // Indicator sub-pane price labels (fewer, on each pane's own scale).
     for (const { instance, rect } of this.paneSlots()) {
+      if (!instance.visible) continue
       const scale = instance.scale!
       const paneTicks = scaleTicks(
         scale,
@@ -760,11 +1076,7 @@ export class Chart {
     ctx.stroke()
     ctx.restore()
 
-    const text = formatPrice(
-      close,
-      this.visiblePriceTicks(main.height),
-      this.options,
-    )
+    const text = this.axisPrice(close, this.visiblePriceTicks(main.height))
     const boxH = theme.fontSize + 8
     const boxY = clamp(y - boxH / 2, 0, height - boxH)
     ctx.font = `${theme.fontSize}px ${theme.fontFamily}`
@@ -825,11 +1137,7 @@ export class Chart {
       pane.rect.height,
     )
     const priceText = pane.isMain
-      ? formatPrice(
-          value,
-          this.visiblePriceTicks(pane.rect.height),
-          this.options,
-        )
+      ? this.axisPrice(value, this.visiblePriceTicks(pane.rect.height))
       : formatAxisNumber(
           value,
           scaleTicks(pane.scale, pane.rect.height, PRICE_LABEL_SPACING * 1.5),
@@ -843,7 +1151,10 @@ export class Chart {
 
     // Time label (bottom gutter), centered on the vertical line.
     const time = store.times[store.physical(nearest)]!
-    const timeText = formatCrosshairTime(time)
+    const timeText = formatCrosshairTime(
+      time,
+      this.barInterval() >= 86_400 ? undefined : (this.timeZone() ?? 'UTC'),
+    )
     const timeBoxW = ctx.measureText(timeText).width + 12
     const timeBoxX = clamp(lineX - timeBoxW / 2, 0, width - timeBoxW)
     ctx.fillStyle = theme.crosshairColor
@@ -874,14 +1185,31 @@ export class Chart {
     for (let i = from; i <= to; i++) {
       bars.push({ index: i, time: store.times[store.physical(i)]! })
     }
-    return timeAxisLabels(bars, ts.barWidth, TIME_LABEL_SPACING).map(l => ({
+    return timeAxisLabels(
+      bars,
+      ts.barWidth,
+      TIME_LABEL_SPACING,
+      this.timeZone(),
+    ).map(l => ({
       x: ts.indexToX(l.index),
       text: l.text,
     }))
   }
 
+  /**
+   * A price for axis/crosshair labels: at least the instrument precision (or
+   * `priceDecimals`), more when the tick step is finer, via `priceFormatter`.
+   */
+  private axisPrice(price: number, ticks: readonly number[]): string {
+    const decimals = Math.max(this.minPriceDecimals(), priceTickDecimals(ticks))
+    return this.options.priceFormatter
+      ? this.options.priceFormatter(price, decimals)
+      : price.toFixed(decimals)
+  }
+
   /** Tear down observers, listeners, canvases, and any pending frame. */
   remove(): void {
+    this.events.clear()
     this.detachDataSource()
     this.resizeObserver.disconnect()
     this.panzoom.dispose()
@@ -920,27 +1248,19 @@ function formatAxisNumber(value: number, ticks: readonly number[]): string {
   return value.toFixed(priceTickDecimals(ticks))
 }
 
-/** Formats a price for axis/crosshair labels, honoring `priceDecimals`/`priceFormatter`. */
-function formatPrice(
-  price: number,
-  ticks: readonly number[],
-  options: ChartOptions,
-): string {
-  const decimals = Math.max(options.priceDecimals, priceTickDecimals(ticks))
-  return options.priceFormatter
-    ? options.priceFormatter(price, decimals)
-    : price.toFixed(decimals)
-}
-
 /**
- * Full date + time label for the crosshair's time-axis box — unlike
- * {@link formatTimeLabel}, always shows both since it has no previous label
- * to diff against.
+ * Full label for the crosshair's time-axis box — unlike the axis ticks, always
+ * complete since it has no previous label to diff against. Intraday bars
+ * (`timeZone` given, possibly UTC) show date + time in that zone; daily and
+ * coarser bars (`timeZone` undefined) show the calendar date only.
  */
-function formatCrosshairTime(timeSec: number): string {
-  const d = new Date(timeSec * 1000)
+function formatCrosshairTime(timeSec: number, timeZone?: string): string {
+  const intraday = timeZone !== undefined
+  const d = new Date(toZoned(timeSec, timeZone) * 1000)
   const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+  const date = `${month} ${d.getUTCDate()}`
+  if (!intraday) return `${date} ${d.getUTCFullYear()}`
   const hh = String(d.getUTCHours()).padStart(2, '0')
   const mm = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${month} ${d.getUTCDate()} ${hh}:${mm}`
+  return `${date} ${hh}:${mm}`
 }

@@ -83,6 +83,7 @@ const definition: IndicatorDefinition<RsiOptions> = {
     oversold: 30,
     levelColor: 'rgba(120, 134, 150, 0.6)',
   },
+  params: o => [o.period],
   plots: o => [{ key: RSI, color: o.color, lineWidth: o.lineWidth }],
   fixedRange: () => ({ min: 0, max: 100 }),
   levels: o => [

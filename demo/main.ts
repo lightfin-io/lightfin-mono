@@ -1,5 +1,5 @@
 import { createChart } from 'lightfin-web-chart'
-import type { ChartType } from 'lightfin-web-chart'
+import { createChrome } from 'lightfin-web-chart/chrome'
 
 import { createMockFeed } from './mockFeed.ts'
 
@@ -8,19 +8,47 @@ import './style.css'
 const container = document.querySelector<HTMLDivElement>('#chart')!
 
 const chart = createChart(container, { volumeVisible: true })
+chart.setInstrument({
+  symbol: 'MOCKUSD',
+  name: 'Mock Coin / US Dollar',
+  exchange: 'DEMO',
+  timezone: 'America/New_York',
+  pricePrecision: 2,
+})
 const candles = chart.addCandlestickSeries()
 
-// Seed with recent history, then attach the live/backfill data source (PLAN §6).
-const feed = createMockFeed({
-  intervalSec: 60,
-  initialCount: 200,
-  tickMs: 1000,
+// The chart has no notion of interval: the chrome's selector asks us to load
+// the matching bars, here by swapping in a mock feed at that bar period.
+const INTERVALS: Record<string, number> = {
+  '1m': 60,
+  '5m': 300,
+  '15m': 900,
+  '1H': 3600,
+  '4H': 14_400,
+  '1D': 86_400,
+}
+let detach = () => {}
+function loadInterval(interval: string): void {
+  detach()
+  const feed = createMockFeed({
+    intervalSec: INTERVALS[interval]!,
+    initialCount: 200,
+    tickMs: 1000,
+  })
+  candles.setData(feed.initial())
+  detach = chart.setDataSource(feed.source)
+}
+loadInterval('1m')
+
+const chrome = createChrome(chart, {
+  intervals: Object.keys(INTERVALS),
+  interval: '1m',
+  onIntervalChange: loadInterval,
 })
-candles.setData(feed.initial())
-const detach = chart.setDataSource(feed.source)
 
 // Indicators load on demand from their own chunks (PLAN §8.4/§10) — the core
-// bundle never includes them until used here.
+// bundle never includes them until used here. More can be added from the
+// toolbar's indicators menu.
 const sma = await chart.addIndicator(
   import('lightfin-web-chart/indicators/sma'),
   { period: 20, color: '#2962ff' },
@@ -45,26 +73,11 @@ const volumeMa = await chart.addIndicator(
   import('lightfin-web-chart/indicators/volumeMa'),
 )
 
-// Chart-type switcher: re-renders the same data, no reload.
-const buttons = document.querySelectorAll<HTMLButtonElement>('#toolbar button')
-const syncButtons = () => {
-  for (const b of buttons) {
-    b.setAttribute('aria-pressed', String(b.dataset.type === candles.chartType))
-  }
-}
-for (const b of buttons) {
-  b.addEventListener('click', () => {
-    candles.setChartType(b.dataset.type as ChartType)
-    syncButtons()
-  })
-}
-syncButtons()
-
 // Expose for manual poking in the console.
 Object.assign(window as unknown as Record<string, unknown>, {
   chart,
+  chrome,
   candles,
-  detach,
   sma,
   ema,
   bb,

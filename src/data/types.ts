@@ -19,3 +19,25 @@ export interface Bar {
   close: number
   volume?: number
 }
+
+/**
+ * What the chart is showing (PLAN §6), for the HUD, axes, and clock. Set via
+ * `chart.setInstrument(info)`.
+ */
+export interface InstrumentInfo {
+  /** Ticker, e.g. "BTCUSD". */
+  symbol: string
+  /** Display name, e.g. "Bitcoin / US Dollar". Falls back to `symbol`. */
+  name?: string
+  /** The host's own market/instrument identifier, passed through untouched. */
+  marketId?: string
+  /** Exchange display name, e.g. "BINANCE". */
+  exchange?: string
+  /**
+   * IANA timezone, e.g. "America/New_York". Intraday axis/crosshair labels and
+   * the exchange clock render in it. Defaults to UTC.
+   */
+  timezone?: string
+  /** Decimals for price labels and the HUD; overrides `priceDecimals`. */
+  pricePrecision?: number
+}

@@ -42,6 +42,7 @@ const definition: IndicatorDefinition<EmaOptions> = {
   name: 'EMA',
   overlay: true,
   defaultOptions: { period: 20, color: '#ff6d00', lineWidth: 1.5 },
+  params: o => [o.period],
   plots: o => [{ key: KEY, color: o.color, lineWidth: o.lineWidth }],
   create: o => new EmaCalc(o.period),
 }

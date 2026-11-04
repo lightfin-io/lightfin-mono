@@ -54,6 +54,7 @@ const definition: IndicatorDefinition<BollingerOptions> = {
     fillColor: 'rgba(38, 166, 154, 0.08)',
     lineWidth: 1,
   },
+  params: o => [o.period, o.mult],
   plots: o => [
     { key: UPPER, color: o.color, lineWidth: o.lineWidth },
     { key: MIDDLE, color: o.color, lineWidth: o.lineWidth },

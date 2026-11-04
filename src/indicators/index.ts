@@ -18,5 +18,6 @@ export type {
   IndicatorDefinition,
   IndicatorHandle,
   IndicatorModule,
+  IndicatorPlacement,
   PlotStyle,
 } from './types'

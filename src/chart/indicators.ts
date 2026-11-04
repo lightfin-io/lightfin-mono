@@ -18,6 +18,13 @@ interface IndexWindow {
 
 /** A live indicator added to the chart: its definition, resolved options, plots, and calc. */
 export class IndicatorInstance {
+  // The core doesn't model each indicator's option shape — it just merges
+  // caller options over the definition's defaults and passes them through, so
+  // the Options generic is erased to `any` at this boundary.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly def: IndicatorDefinition<any>
+  readonly options: Readonly<Record<string, unknown>>
+  readonly params: (string | number)[]
   readonly overlay: boolean
   /** Overlays only: draws on the hidden volume scale rather than the price scale. */
   readonly onVolumeScale: boolean
@@ -26,15 +33,17 @@ export class IndicatorInstance {
   readonly levels: ReferenceLevel[]
   /** Pane indicators only: the pane's own price scale (null for overlays). */
   readonly scale: PriceScale | null
+  /** Hidden instances keep their cache (and pane slot) but don't draw or autoscale. */
+  visible = true
   private readonly fixedRange: { min: number; max: number } | null
   private readonly calc: IndicatorCalc
 
-  // The core doesn't model each indicator's option shape — it just merges
-  // caller options over the definition's defaults and passes them through, so
-  // the Options generic is erased to `any` at this boundary.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(def: IndicatorDefinition<any>, options: Record<string, unknown>) {
     const resolved = { ...def.defaultOptions, ...options }
+    this.def = def
+    this.options = resolved
+    this.params = def.params?.(resolved) ?? []
     this.overlay = def.overlay
     this.onVolumeScale = def.overlay && def.scale === 'volume'
     this.plots = def.plots(resolved)
@@ -63,7 +72,7 @@ export class IndicatorInstance {
    * has a histogram so the baseline is on screen). No-op for overlays.
    */
   autoScalePane(window: IndexWindow): void {
-    if (!this.scale) return
+    if (!this.scale || !this.visible) return
     if (this.fixedRange) {
       this.scale.min = this.fixedRange.min
       this.scale.max = this.fixedRange.max
@@ -111,18 +120,36 @@ export class IndicatorController {
     if (i !== -1) this.instances.splice(i, 1)
   }
 
+  /** Swap `prev` for `next` in place (keeping draw/pane order), computing `next`. */
+  replace(
+    prev: IndicatorInstance,
+    next: IndicatorInstance,
+    reader: StoreReader,
+  ): void {
+    const i = this.instances.indexOf(prev)
+    if (i === -1) return
+    next.visible = prev.visible
+    next.recompute(reader)
+    this.instances[i] = next
+  }
+
+  /** Every instance, in the order added. */
+  all(): readonly IndicatorInstance[] {
+    return this.instances
+  }
+
   get isEmpty(): boolean {
     return this.instances.length === 0
   }
 
-  /** Whether any overlay draws on the main price scale. */
+  /** Whether any visible overlay draws on the main price scale. */
   get hasOverlays(): boolean {
-    return this.instances.some(i => i.overlay && !i.onVolumeScale)
+    return this.instances.some(i => i.visible && i.overlay && !i.onVolumeScale)
   }
 
-  /** Whether any overlay draws on the hidden volume scale (e.g. Volume MA). */
+  /** Whether any visible overlay draws on the hidden volume scale (e.g. Volume MA). */
   get hasVolumeOverlays(): boolean {
-    return this.instances.some(i => i.onVolumeScale)
+    return this.instances.some(i => i.visible && i.onVolumeScale)
   }
 
   /** Pane indicators (own sub-pane), in the order they were added. */
@@ -149,7 +176,7 @@ export class IndicatorController {
     high: number,
   ): { low: number; high: number } {
     for (const inst of this.instances) {
-      if (!inst.overlay || inst.onVolumeScale) continue
+      if (!inst.visible || !inst.overlay || inst.onVolumeScale) continue
       for (const plot of inst.plots) {
         for (let i = window.from; i <= window.to; i++) {
           const v = inst.value(plot.key, i)
@@ -169,7 +196,7 @@ export class IndicatorController {
    */
   extendVolumeMax(window: IndexWindow, max: number): number {
     for (const inst of this.instances) {
-      if (!inst.onVolumeScale) continue
+      if (!inst.visible || !inst.onVolumeScale) continue
       for (const plot of inst.plots) {
         for (let i = window.from; i <= window.to; i++) {
           const v = inst.value(plot.key, i)
@@ -194,7 +221,8 @@ export class IndicatorController {
     volumeScale = false,
   ): void {
     for (const inst of this.instances) {
-      if (!inst.overlay || inst.onVolumeScale !== volumeScale) continue
+      if (!inst.visible || !inst.overlay || inst.onVolumeScale !== volumeScale)
+        continue
       // Bands first, so the lines read on top of their own shaded fill.
       for (const fill of inst.fills) {
         drawBandFill(ctx, inst, fill, window, timeScale, priceScale, plot)
@@ -219,7 +247,7 @@ export class IndicatorController {
     dpr: number,
   ): void {
     const scale = inst.scale
-    if (!scale) return
+    if (!scale || !inst.visible) return
 
     for (const level of inst.levels) {
       const y = rect.top + scale.priceToY(level.value, rect.height)

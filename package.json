@@ -24,6 +24,10 @@
       "types": "./dist/indicators/*.d.ts",
       "import": "./dist/indicators/*.js"
     },
+    "./chrome": {
+      "types": "./dist/chrome/index.d.ts",
+      "import": "./dist/chrome.js"
+    },
     "./annotations": {
       "types": "./dist/annotations/index.d.ts",
       "import": "./dist/annotations.js"

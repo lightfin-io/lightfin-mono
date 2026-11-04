@@ -24,6 +24,10 @@ export default defineConfig({
         replacement: resolve(root, 'src/indicators/index.ts'),
       },
       {
+        find: 'lightfin-web-chart/chrome',
+        replacement: resolve(root, 'src/chrome/index.ts'),
+      },
+      {
         find: 'lightfin-web-chart/annotations',
         replacement: resolve(root, 'src/annotations/index.ts'),
       },

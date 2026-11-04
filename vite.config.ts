@@ -28,6 +28,7 @@ export default defineConfig({
         'indicators/rsi': resolve(root, 'src/indicators/rsi.ts'),
         'indicators/macd': resolve(root, 'src/indicators/macd.ts'),
         'indicators/volumeMa': resolve(root, 'src/indicators/volumeMa.ts'),
+        chrome: resolve(root, 'src/chrome/index.ts'),
         annotations: resolve(root, 'src/annotations/index.ts'),
       },
       formats: ['es'],

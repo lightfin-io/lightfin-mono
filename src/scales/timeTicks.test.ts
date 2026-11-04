@@ -67,4 +67,36 @@ describe('timeAxisLabels', () => {
     // The post-gap bar lands on a new day → shows its date.
     expect(labels.find(l => l.index === 3)?.text).toBe('Jan 3')
   })
+
+  it('steps quarterly between the month and year rungs', () => {
+    // 2px daily bars, 90px target → ~45 days apart → the 3M rung.
+    const labels = timeAxisLabels(bars(400, 86400), 2, 90)
+    expect(labels.map(l => l.text)).toEqual([
+      '2024',
+      'Apr',
+      'Jul',
+      'Oct',
+      '2025',
+    ])
+  })
+
+  it('labels intraday bars on the wall clock of a timezone', () => {
+    // JAN1 00:00 UTC is Dec 31 19:00 in New York (UTC-5).
+    const labels = timeAxisLabels(bars(6, HOUR), 90, 90, 'America/New_York')
+    expect(labels.map(l => l.text)).toEqual([
+      'Dec 31', // first label always carries the date
+      '20:00',
+      '21:00',
+      '22:00',
+      '23:00',
+      'Jan 1', // local midnight, at 05:00 UTC
+    ])
+    expect(labels[5]!.time).toBe(JAN1 + 5 * HOUR)
+  })
+
+  it('ignores the timezone for daily bars (they name calendar days)', () => {
+    const utc = timeAxisLabels(bars(10, 86400), 90, 90)
+    const ny = timeAxisLabels(bars(10, 86400), 90, 90, 'America/New_York')
+    expect(ny).toEqual(utc)
+  })
 })

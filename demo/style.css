@@ -15,33 +15,9 @@ body {
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-#toolbar {
-  position: absolute;
-  top: 12px;
-  left: 16px;
-  display: flex;
-  gap: 4px;
-}
-
-#toolbar button {
-  padding: 4px 10px;
-  border: 1px solid #2a2e39;
-  border-radius: 4px;
-  background: #131722;
-  color: #9db2bd;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-#toolbar button[aria-pressed='true'] {
-  border-color: #2962ff;
-  color: #fff;
-}
-
 #chart {
   position: absolute;
-  inset: 48px 16px 16px;
+  inset: 16px;
   border: 1px solid #2a2e39;
   border-radius: 6px;
   overflow: hidden;

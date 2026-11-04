@@ -31,6 +31,7 @@ const definition: IndicatorDefinition<SmaOptions> = {
   name: 'SMA',
   overlay: true,
   defaultOptions: { period: 20, color: '#2962ff', lineWidth: 1.5 },
+  params: o => [o.period],
   plots: o => [{ key: KEY, color: o.color, lineWidth: o.lineWidth }],
   create: o => new SmaCalc(o.period),
 }
