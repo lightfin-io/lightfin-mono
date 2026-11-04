@@ -1,11 +1,13 @@
 import type { Page } from '@playwright/test'
 
 import type { Chart, PlotRect } from '../src'
+import type { Annotations } from '../src/annotations'
 import type { PriceLine } from '../src/priceLines'
 
 declare global {
   interface Window {
     chart: Chart
+    drawings: Annotations
     /** Limit-order lines placed through the demo's "+" popup. */
     orders: PriceLine[]
   }

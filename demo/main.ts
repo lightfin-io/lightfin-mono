@@ -1,10 +1,12 @@
 import { createChart } from 'lightfin-web-chart'
 import { createAnnotations } from 'lightfin-web-chart/annotations'
+import type { AnnotationInput } from 'lightfin-web-chart/annotations'
 import { createChrome } from 'lightfin-web-chart/chrome'
 import { addPriceLine } from 'lightfin-web-chart/price-lines'
 import type { PriceLine } from 'lightfin-web-chart/price-lines'
 
 import { createBinanceFeed } from './binanceFeed.ts'
+import { mockAnalyst } from './mockAnalyst.ts'
 import { createMockFeed } from './mockFeed.ts'
 
 import './style.css'
@@ -146,6 +148,37 @@ placeButton.addEventListener('click', () => {
 document.addEventListener('pointerdown', e => {
   if (!orderPopup.contains(e.target as Node)) orderPopup.hidden = true
 })
+
+// AI annotations (PLAN §8.7): a model reads the bars on screen and answers
+// with the `annotate_chart` tool; its drawings form the 'ai' group, which
+// each answer replaces without touching the user's drawings. The mock
+// analyst stands in for the model.
+function applyToolCall(input: { annotations: AnnotationInput[] }): string {
+  try {
+    drawings.replace('ai', input.annotations)
+    return 'ok'
+  } catch (e) {
+    // A real host returns this to the model as the tool result to retry.
+    return (e as Error).message
+  }
+}
+const aiButton = document.createElement('button')
+aiButton.className = 'ai-button'
+const syncAiButton = () => {
+  aiButton.textContent =
+    drawings.list('ai').length > 0 ? 'Clear AI drawings' : 'AI annotate'
+}
+aiButton.addEventListener('click', () => {
+  if (drawings.list('ai').length > 0) {
+    drawings.clear('ai')
+    return
+  }
+  const range = chart.visibleTimeRange()
+  if (range) applyToolCall(mockAnalyst(candles.bars(range)))
+})
+drawings.on('change', syncAiButton)
+syncAiButton()
+document.body.append(aiButton)
 
 // "M" toggles the magnet crosshair (snaps to the hovered bar's OHLC).
 document.addEventListener('keydown', e => {

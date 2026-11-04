@@ -330,7 +330,9 @@ milliseconds; use Unix seconds`). A batch is all-or-nothing. Hosts can
   without AI never load it; a unit test keeps its enums in step with the
   validator.
 - The library makes no model calls: which model, prompt, and transport is
-  the host's business, as with data sources (§6).
+  the host's business, as with data sources (§6). The demo's "AI annotate"
+  button runs an offline stand-in analyst (swings, regression trend, fib)
+  through the same tool-call path, and the e2e tests drive it.
 
 ## 9. Chart chrome / UI widgets
 

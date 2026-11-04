@@ -43,6 +43,21 @@ body {
   cursor: pointer;
 }
 
+.ai-button {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 5;
+  padding: 4px 10px;
+  border: 1px solid #2a2e39;
+  border-radius: 4px;
+  background: #1e222d;
+  color: #d1d4dc;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 #chart {
   position: absolute;
   inset: 16px;
