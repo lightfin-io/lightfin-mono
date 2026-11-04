@@ -1,5 +1,5 @@
 /**
- * lightfin-web-chart/chrome — optional DOM widgets around the chart (PLAN §9):
+ * @lightfin/core/chrome — optional DOM widgets around the chart (PLAN §9):
  * the top-left HUD/legend, the top toolbar (interval, chart type, indicators),
  * the bottom toolbar (date ranges, go-to dialog, exchange clock), and — given
  * an annotations instance — the left drawing-tools toolbar and the selected
@@ -9,7 +9,7 @@
  * hosts can build their own widgets on the same public chart API instead.
  *
  * ```ts
- * import { createChrome } from 'lightfin-web-chart/chrome'
+ * import { createChrome } from '@lightfin/core/chrome'
  * const chrome = createChrome(chart, {
  *   intervals: ['1m', '5m', '1H', '1D'],
  *   interval: '1m',
@@ -78,7 +78,7 @@ export interface ChromeOptions {
   /** Quick ranges in the bottom toolbar. Default {@link DATE_RANGE_PRESETS}. */
   ranges?: readonly DateRangePreset[]
   /**
-   * Drawing tools from `lightfin-web-chart/annotations`; shows the left
+   * Drawing tools from `@lightfin/core/annotations`; shows the left
    * toolbar and, for the selected drawing, a floating style toolbar. Omit
    * to leave them out (and the annotations code unloaded).
    */

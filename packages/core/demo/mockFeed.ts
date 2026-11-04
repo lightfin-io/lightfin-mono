@@ -1,4 +1,4 @@
-import type { Bar, DataSource } from 'lightfin-web-chart'
+import type { Bar, DataSource } from '@lightfin/core'
 
 /**
  * A deterministic mock market feed for the e2e tests and offline work,

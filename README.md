@@ -1,4 +1,4 @@
-# lightfin-web-chart
+# @lightfin/core
 
 A lightweight, dependency-free financial charting library for the web —
 candlesticks, volume, indicators, drawing tools, smooth pan/zoom, and live data,
@@ -16,10 +16,10 @@ Early development. Phases 0–11 shipped (see [PLAN.md §13](./PLAN.md)).
 A [Bun](https://bun.sh) workspace. Packages live under [`packages/`](./packages):
 
 - **[`packages/core`](./packages/core)** — the chart library, published as
-  `lightfin-web-chart`. Framework-agnostic, zero runtime dependencies. Holds the
+  `@lightfin/core`. Framework-agnostic, zero runtime dependencies. Holds the
   `demo/` playground and Playwright `e2e/` suite.
 - **[`packages/react`](./packages/react)** — React bindings, published as
-  `lightfin-web-chart-react` (`<LightfinChart>` + hooks). `react` and the core
+  `@lightfin/react` (`<LightfinChart>` + hooks). `react` and the core
   are peer dependencies, so the core stays React-free.
 
 ## Development
@@ -37,7 +37,7 @@ bun run format     # prettier --write
 
 The root scripts fan out to the workspace packages; run a single package's
 scripts with `bun run --filter <name> <script>` (e.g.
-`bun run --filter lightfin-web-chart-react test`). With `bun run dev` running,
+`bun run --filter @lightfin/react test`). With `bun run dev` running,
 `/stress.html` loads 500k candles and benchmarks paint, calc, and backfill times.
 
 ## License

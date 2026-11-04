@@ -18,7 +18,7 @@
        prior `core` build. The declaration build (tsconfig.build.json) drops
        this alias and resolves the core's published .d.ts instead. */
     "paths": {
-      "lightfin-web-chart": ["../core/src/index.ts"]
+      "@lightfin/core": ["../core/src/index.ts"]
     },
 
     /* Strictness — mirrors the core package. */

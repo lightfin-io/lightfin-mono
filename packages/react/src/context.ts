@@ -1,4 +1,4 @@
-import type { Chart } from 'lightfin-web-chart'
+import type { Chart } from '@lightfin/core'
 import { createContext, useContext } from 'react'
 
 /**

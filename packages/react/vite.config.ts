@@ -22,7 +22,7 @@ export default defineConfig({
         'react',
         'react-dom',
         'react/jsx-runtime',
-        'lightfin-web-chart',
+        '@lightfin/core',
       ],
       output: {
         entryFileNames: '[name].js',

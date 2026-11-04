@@ -1,5 +1,5 @@
 /**
- * lightfin-web-chart/annotations — opt-in drawing tools (PLAN §8.5): lines,
+ * @lightfin/core/annotations — opt-in drawing tools (PLAN §8.5): lines,
  * channels, Fibonacci tools, shapes, labels, and measurements.
  *
  * Its own subpath export, so the core bundle never includes annotation code
@@ -7,7 +7,7 @@
  * to persist:
  *
  * ```ts
- * import { createAnnotations } from 'lightfin-web-chart/annotations'
+ * import { createAnnotations } from '@lightfin/core/annotations'
  * const drawings = createAnnotations(chart)
  * drawings.load(JSON.parse(localStorage.drawings ?? '[]'))
  * drawings.on('change', () => {
@@ -17,7 +17,7 @@
  * ```
  *
  * A program — say an AI — annotates through the same JSON, as a group it
- * replaces wholesale; `lightfin-web-chart/annotations/schema` describes the
+ * replaces wholesale; `@lightfin/core/annotations/schema` describes the
  * JSON for a model (PLAN §8.7):
  *
  * ```ts

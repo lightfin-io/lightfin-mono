@@ -1,5 +1,5 @@
 {
-  "name": "lightfin-web-chart",
+  "name": "@lightfin/core",
   "version": "0.0.0",
   "description": "A powerful, lightweight, dependency-free financial charting library for the web.",
   "type": "module",

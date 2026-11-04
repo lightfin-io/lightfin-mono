@@ -5,7 +5,7 @@ import type { BarReader, IndicatorDefinition } from './types'
  * Exponential Moving Average (PLAN §8.4). Seeded with an SMA over the first
  * `period` closes, then recursively weighted by `k = 2/(period+1)`. Drawn as
  * one overlay line. Its own subpath module:
- * `import('lightfin-web-chart/indicators/ema')`.
+ * `import('@lightfin/core/indicators/ema')`.
  */
 export interface EmaOptions {
   period: number

@@ -1,9 +1,9 @@
-import type { Bar } from 'lightfin-web-chart'
-import type { AnnotationInput } from 'lightfin-web-chart/annotations'
+import type { Bar } from '@lightfin/core'
+import type { AnnotationInput } from '@lightfin/core/annotations'
 
 /**
  * A stand-in for an AI model answering with the `annotate_chart` tool
- * (`annotateChartTool` from 'lightfin-web-chart/annotations/schema'). A real
+ * (`annotateChartTool` from '@lightfin/core/annotations/schema'). A real
  * host sends the model the bars and the tool; this returns the same shaped
  * input from a few lines of swing/trend detection, so the demo runs offline.
  */

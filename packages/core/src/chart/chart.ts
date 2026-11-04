@@ -420,7 +420,7 @@ export class Chart {
    *
    * ```ts
    * const sma = await chart.addIndicator(
-   *   import('lightfin-web-chart/indicators/sma'),
+   *   import('@lightfin/core/indicators/sma'),
    *   { period: 20 },
    * )
    * ```

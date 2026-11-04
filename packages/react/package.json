@@ -1,7 +1,7 @@
 {
-  "name": "lightfin-web-chart-react",
+  "name": "@lightfin/react",
   "version": "0.0.0",
-  "description": "React bindings for lightfin-web-chart: <LightfinChart> plus hooks.",
+  "description": "React bindings for @lightfin/core: <LightfinChart> plus hooks.",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,
@@ -25,11 +25,11 @@
     "size": "size-limit"
   },
   "peerDependencies": {
-    "lightfin-web-chart": "*",
+    "@lightfin/core": "*",
     "react": ">=18.0.0"
   },
   "devDependencies": {
-    "lightfin-web-chart": "workspace:*",
+    "@lightfin/core": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "@types/react": "^19.3.0",

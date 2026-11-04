@@ -16,13 +16,13 @@
     /* Lets the demo import the library by its package name. Runtime resolution
        of this alias is handled by Vite (see vite.demo.config.ts). */
     "paths": {
-      "lightfin-web-chart": ["./src/index.ts"],
-      "lightfin-web-chart/indicators": ["./src/indicators/index.ts"],
-      "lightfin-web-chart/indicators/*": ["./src/indicators/*.ts"],
-      "lightfin-web-chart/chrome": ["./src/chrome/index.ts"],
-      "lightfin-web-chart/annotations": ["./src/annotations/index.ts"],
-      "lightfin-web-chart/annotations/schema": ["./src/annotations/schema.ts"],
-      "lightfin-web-chart/price-lines": ["./src/priceLines/index.ts"]
+      "@lightfin/core": ["./src/index.ts"],
+      "@lightfin/core/indicators": ["./src/indicators/index.ts"],
+      "@lightfin/core/indicators/*": ["./src/indicators/*.ts"],
+      "@lightfin/core/chrome": ["./src/chrome/index.ts"],
+      "@lightfin/core/annotations": ["./src/annotations/index.ts"],
+      "@lightfin/core/annotations/schema": ["./src/annotations/schema.ts"],
+      "@lightfin/core/price-lines": ["./src/priceLines/index.ts"]
     },
 
     /* Strictness */

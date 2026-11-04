@@ -1,13 +1,13 @@
 /**
- * lightfin-web-chart-react — a thin React wrapper (PLAN §8.8).
+ * @lightfin/react — a thin React wrapper (PLAN §8.8).
  *
  * `<LightfinChart>` owns the chart's lifecycle; `useChartEffect` wires features
  * (series, indicators, chrome, annotations, price lines) imperatively onto it.
  * Its own package so the core stays framework-agnostic and dependency-free —
- * `lightfin-web-chart` and `react` are both peer dependencies here.
+ * `@lightfin/core` and `react` are both peer dependencies here.
  *
  * ```tsx
- * import { LightfinChart, useChartEffect } from 'lightfin-web-chart-react'
+ * import { LightfinChart, useChartEffect } from '@lightfin/react'
  *
  * function Candles({ bars }: { bars: Bar[] }) {
  *   useChartEffect(chart => {

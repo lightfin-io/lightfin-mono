@@ -1,4 +1,4 @@
-# lightfin-web-chart — Project Plan
+# @lightfin/core — Project Plan
 
 ## 1. Vision
 
@@ -40,7 +40,7 @@ See §13; ecosystem work (React wrapper, theming, docs) is parked in §14.
 | Rendering          | **Canvas2D for everything** (geometry + text), stacked as layered `<canvas>`. The 0.5px minimum bar width (§6) caps draw count at ~2 bars per pixel, so GPU isn't needed; Canvas2D is synchronous, universal, deterministic in headless CI. Renderer stays behind an interface so WebGL can be added later if a benchmark proves it's the bottleneck. |
 | X-axis model       | **Index-based** (uniform bar spacing); time is a per-index label, not a continuous axis. Skips weekend/overnight gaps for free, integer-friendly panning.                                                                                                                                                                                             |
 | Language           | TypeScript, **zero runtime dependencies**.                                                                                                                                                                                                                                                                                                            |
-| Framework bindings | None in core; thin framework wrappers ship as sibling packages in the monorepo (§4). `lightfin-web-chart-react` ships (§8.8); a Vue wrapper can follow the same shape.                                                                                                                                                                                 |
+| Framework bindings | None in core; thin framework wrappers ship as sibling packages in the monorepo (§4). `@lightfin/react` ships (§8.8); a Vue wrapper can follow the same shape.                                                                                                                                                                                 |
 | Scripting          | Indicators are plain TS/JS against a small API; **no** Pine Script clone or custom DSL (§8.4).                                                                                                                                                                                                                                                        |
 
 ## 4. Module layout
@@ -51,7 +51,7 @@ builds and versions on its own.
 
 ```
 packages/
-  core/         The chart library, published as `lightfin-web-chart`.
+  core/         The chart library, published as `@lightfin/core`.
     src/
       chart/        Chart class, container sizing/resize-observer, pane layout, theming
       render/       Canvas layer manager, draw primitives, devicePixelRatio handling
@@ -67,7 +67,7 @@ packages/
       index.ts      Package entry — re-exports the minimal "core" surface only
     demo/         Playground + Playwright target (§12)
     e2e/          Playwright tests
-  react/        React bindings, published as `lightfin-web-chart-react` (§8.8).
+  react/        React bindings, published as `@lightfin/react` (§8.8).
     src/          <LightfinChart> + hooks; both react and the core are peers.
 ```
 
@@ -375,8 +375,8 @@ milliseconds; use Unix seconds`). A batch is all-or-nothing. Hosts can
 
 ### 8.8 React wrapper
 
-A thin React binding in its own package, `lightfin-web-chart-react` (§4), with
-both `react` and `lightfin-web-chart` as peer dependencies — so the core pulls
+A thin React binding in its own package, `@lightfin/react` (§4), with
+both `react` and `@lightfin/core` as peer dependencies — so the core pulls
 in no React and the dependency-free promise holds for everyone else. It only
 glues the imperative chart to React's lifecycle — no feature is re-expressed as
 a component tree, so there's nothing to keep in step as the core grows.
@@ -401,7 +401,7 @@ a component tree, so there's nothing to keep in step as the core grows.
 ## 9. Chart chrome / UI widgets
 
 Optional DOM widgets rendered inside the chart container, driven by chart state +
-events. Subpath-exported and tree-shakeable (`lightfin-web-chart/chrome`) so
+events. Subpath-exported and tree-shakeable (`@lightfin/core/chrome`) so
 headless/embedded charts pay nothing and hosts can swap their own. All are
 theme-aware and overlay the canvas stack.
 
@@ -469,7 +469,7 @@ const volume = chart.addHistogramSeries({ pane: 'overlay-hidden-scale' })
 volume.setData(volumeBars)
 
 const sma = await chart.addIndicator(
-  import('lightfin-web-chart/indicators/sma'),
+  import('@lightfin/core/indicators/sma'),
   { period: 20 },
 )
 sma.setOptions({ period: 50 })
@@ -486,7 +486,7 @@ chart.on('crosshairMove', e => {
 }) // + dataChange, indicatorsChange, layoutChange, …
 chart.onOrderIntent(e => openMyOrderForm(e.price, e.clientPoint)) // §8.2
 
-// Working orders/positions (§8.2), from 'lightfin-web-chart/price-lines'.
+// Working orders/positions (§8.2), from '@lightfin/core/price-lines'.
 const order = addPriceLine(chart, {
   price,
   title: 'Limit 1.0',
@@ -494,14 +494,14 @@ const order = addPriceLine(chart, {
 })
 order.on('dragEnd', price => modifyOrder(id, price))
 
-// Drawing tools (§8.5), from 'lightfin-web-chart/annotations'.
+// Drawing tools (§8.5), from '@lightfin/core/annotations'.
 const drawings = createAnnotations(chart)
 drawings.load(saved)
 drawings.on('change', () => save(drawings.toJSON()))
 drawings.setTool('trendline') // or let the left toolbar do it
 
 // An AI's drawings (§8.7): hand it the bars and annotateChartTool (from
-// 'lightfin-web-chart/annotations/schema'); apply each tool call as a group.
+// '@lightfin/core/annotations/schema'); apply each tool call as a group.
 drawings.replace('ai', toolCall.input.annotations) // throws a retry-able message
 
 // Optional widgets (§9); the host owns intervals and reloads bars on change.
@@ -562,7 +562,7 @@ Container sizing is implicit — no `width`/`height` option.
 
 - Tradingview has tags that show events for example has E tags (earnings) and D tags (dividends) along the bottom of the price chart which when clicked open an earnings modal centered above them.
 - Settings modal, saving annotations, reset to defaults etc
-- **Ecosystem** — React wrapper ✅ (shipped as `lightfin-web-chart-react`, §8.8,
+- **Ecosystem** — React wrapper ✅ (shipped as `@lightfin/react`, §8.8,
   which also moved the repo to a Bun-workspace monorepo, §4); still to do: a
   theming system and a docs site. Theming open question: today the canvas takes
   a JS `theme` object and chrome mirrors it into CSS variables; decide whether

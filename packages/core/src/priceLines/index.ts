@@ -1,11 +1,11 @@
 /**
- * lightfin-web-chart/price-lines — host-managed horizontal price lines for
+ * @lightfin/core/price-lines — host-managed horizontal price lines for
  * orders, positions, alerts, and the like (PLAN §8.2), on the core primitive
  * hook. The host owns the state: a draggable line follows the pointer and
  * reports the price, and the host decides whether to keep it.
  *
  * ```ts
- * import { addPriceLine } from 'lightfin-web-chart/price-lines'
+ * import { addPriceLine } from '@lightfin/core/price-lines'
  * const order = addPriceLine(chart, {
  *   price: 101.25,
  *   title: 'Buy limit 1.0',

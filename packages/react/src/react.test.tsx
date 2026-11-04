@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { createChart } from 'lightfin-web-chart'
-import type { Chart, InstrumentInfo } from 'lightfin-web-chart'
+import { createChart } from '@lightfin/core'
+import type { Chart, InstrumentInfo } from '@lightfin/core'
 import { act, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -11,7 +11,7 @@ import { useChart, useChartEffect } from './index'
 // Construct no real chart — jsdom has no canvas 2D context or ResizeObserver.
 // We own the wrapper logic (lifecycle, event latching, context); the real
 // engine is covered by the core package's Playwright suite (PLAN §12).
-vi.mock('lightfin-web-chart', () => ({ createChart: vi.fn() }))
+vi.mock('@lightfin/core', () => ({ createChart: vi.fn() }))
 
 /** A fake chart that records subscriptions and can emit to them. */
 function makeFakeChart() {

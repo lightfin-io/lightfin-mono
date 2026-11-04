@@ -1,5 +1,5 @@
 /**
- * lightfin-web-chart indicator contract (PLAN §8.4).
+ * @lightfin/core indicator contract (PLAN §8.4).
  *
  * These are **types only** — importing them into the core costs zero runtime
  * bytes (erased under `verbatimModuleSyntax`). Each concrete indicator (SMA,

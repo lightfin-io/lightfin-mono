@@ -1,4 +1,4 @@
-import type { Chart } from 'lightfin-web-chart'
+import type { Chart } from '@lightfin/core'
 import { useEffect } from 'react'
 import type { DependencyList } from 'react'
 

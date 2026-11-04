@@ -1,4 +1,4 @@
-import type { Bar, DataSource } from 'lightfin-web-chart'
+import type { Bar, DataSource } from '@lightfin/core'
 
 // Binance's market-data-only hosts: public, keyless, CORS-enabled.
 const REST_URL = 'https://data-api.binance.vision/api/v3/klines'

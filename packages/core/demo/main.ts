@@ -1,9 +1,9 @@
-import { createChart } from 'lightfin-web-chart'
-import { createAnnotations } from 'lightfin-web-chart/annotations'
-import type { AnnotationInput } from 'lightfin-web-chart/annotations'
-import { createChrome } from 'lightfin-web-chart/chrome'
-import { addPriceLine } from 'lightfin-web-chart/price-lines'
-import type { PriceLine } from 'lightfin-web-chart/price-lines'
+import { createChart } from '@lightfin/core'
+import { createAnnotations } from '@lightfin/core/annotations'
+import type { AnnotationInput } from '@lightfin/core/annotations'
+import { createChrome } from '@lightfin/core/chrome'
+import { addPriceLine } from '@lightfin/core/price-lines'
+import type { PriceLine } from '@lightfin/core/price-lines'
 
 import { createBinanceFeed } from './binanceFeed.ts'
 import { mockAnalyst } from './mockAnalyst.ts'
@@ -87,27 +87,27 @@ const chrome = createChrome(chart, {
 // bundle never includes them until used here. More can be added from the
 // toolbar's indicators menu.
 const sma = await chart.addIndicator(
-  import('lightfin-web-chart/indicators/sma'),
+  import('@lightfin/core/indicators/sma'),
   { period: 20, color: '#2962ff' },
 )
 const ema = await chart.addIndicator(
-  import('lightfin-web-chart/indicators/ema'),
+  import('@lightfin/core/indicators/ema'),
   { period: 50, color: '#ff6d00' },
 )
 const bb = await chart.addIndicator(
-  import('lightfin-web-chart/indicators/bollinger'),
+  import('@lightfin/core/indicators/bollinger'),
   { period: 20, mult: 2 },
 )
 // Pane indicators get their own sub-panes with independent scales.
 const rsi = await chart.addIndicator(
-  import('lightfin-web-chart/indicators/rsi'),
+  import('@lightfin/core/indicators/rsi'),
 )
 const macd = await chart.addIndicator(
-  import('lightfin-web-chart/indicators/macd'),
+  import('@lightfin/core/indicators/macd'),
 )
 // Draws over the volume histogram on its hidden scale.
 const volumeMa = await chart.addIndicator(
-  import('lightfin-web-chart/indicators/volumeMa'),
+  import('@lightfin/core/indicators/volumeMa'),
 )
 
 // The chart only draws the "+" button on the crosshair line; the order form is

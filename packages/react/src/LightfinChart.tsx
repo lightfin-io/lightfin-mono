@@ -1,4 +1,4 @@
-import { createChart } from 'lightfin-web-chart'
+import { createChart } from '@lightfin/core'
 import type {
   Chart,
   ChartOptionsInput,
@@ -7,7 +7,7 @@ import type {
   OrderIntentEvent,
   Series,
   SeriesChange,
-} from 'lightfin-web-chart'
+} from '@lightfin/core'
 import {
   forwardRef,
   useEffect,

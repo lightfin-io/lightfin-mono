@@ -1,5 +1,5 @@
 {
-  "name": "lightfin-web-chart-monorepo",
+  "name": "@lightfin/monorepo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,11 +8,11 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --filter lightfin-web-chart dev",
-    "build": "bun run --filter lightfin-web-chart build && bun run --filter lightfin-web-chart-react build",
+    "dev": "bun run --filter @lightfin/core dev",
+    "build": "bun run --filter @lightfin/core build && bun run --filter @lightfin/react build",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun run --filter '*' test",
-    "test:e2e": "bun run --filter lightfin-web-chart test:e2e",
+    "test:e2e": "bun run --filter @lightfin/core test:e2e",
     "size": "bun run --filter '*' size",
     "format": "prettier --write ."
   },

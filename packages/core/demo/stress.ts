@@ -1,5 +1,5 @@
-import { type Bar, createChart } from 'lightfin-web-chart'
-import { createChrome } from 'lightfin-web-chart/chrome'
+import { type Bar, createChart } from '@lightfin/core'
+import { createChrome } from '@lightfin/core/chrome'
 
 import './style.css'
 
@@ -73,12 +73,12 @@ internals.paint = dirty => {
 createChrome(chart, { intervals: ['1m'], interval: '1m' })
 
 const modules = await Promise.all([
-  import('lightfin-web-chart/indicators/sma'),
-  import('lightfin-web-chart/indicators/ema'),
-  import('lightfin-web-chart/indicators/bollinger'),
-  import('lightfin-web-chart/indicators/rsi'),
-  import('lightfin-web-chart/indicators/macd'),
-  import('lightfin-web-chart/indicators/volumeMa'),
+  import('@lightfin/core/indicators/sma'),
+  import('@lightfin/core/indicators/ema'),
+  import('@lightfin/core/indicators/bollinger'),
+  import('@lightfin/core/indicators/rsi'),
+  import('@lightfin/core/indicators/macd'),
+  import('@lightfin/core/indicators/volumeMa'),
 ])
 const indicatorOptions: Record<string, unknown>[] = [
   { period: 20, color: '#2962ff' },

@@ -5,7 +5,7 @@ import type { BarReader, IndicatorDefinition } from './types'
  * Volume Moving Average (PLAN §8.4) — the mean of the last `period` volumes,
  * drawn as a line over the volume histogram on its hidden scale. Renders only
  * while the chart shows volume (`volumeVisible` with volume-carrying bars).
- * Its own subpath module: `import('lightfin-web-chart/indicators/volumeMa')`.
+ * Its own subpath module: `import('@lightfin/core/indicators/volumeMa')`.
  */
 export interface VolumeMaOptions {
   period: number

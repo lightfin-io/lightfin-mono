@@ -12,35 +12,35 @@ export default defineConfig({
   root: resolve(root, 'demo'),
   resolve: {
     // Ordered, most-specific first. The regex maps per-indicator subpaths
-    // (`lightfin-web-chart/indicators/sma`) straight to their source file so the
+    // (`@lightfin/core/indicators/sma`) straight to their source file so the
     // demo exercises real dynamic imports against `src`.
     alias: [
       {
-        find: /^lightfin-web-chart\/indicators\/(.+)$/,
+        find: /^@lightfin\/core\/indicators\/(.+)$/,
         replacement: resolve(root, 'src/indicators/$1.ts'),
       },
       {
-        find: 'lightfin-web-chart/indicators',
+        find: '@lightfin/core/indicators',
         replacement: resolve(root, 'src/indicators/index.ts'),
       },
       {
-        find: 'lightfin-web-chart/chrome',
+        find: '@lightfin/core/chrome',
         replacement: resolve(root, 'src/chrome/index.ts'),
       },
       {
-        find: 'lightfin-web-chart/annotations/schema',
+        find: '@lightfin/core/annotations/schema',
         replacement: resolve(root, 'src/annotations/schema.ts'),
       },
       {
-        find: 'lightfin-web-chart/annotations',
+        find: '@lightfin/core/annotations',
         replacement: resolve(root, 'src/annotations/index.ts'),
       },
       {
-        find: 'lightfin-web-chart/price-lines',
+        find: '@lightfin/core/price-lines',
         replacement: resolve(root, 'src/priceLines/index.ts'),
       },
       {
-        find: 'lightfin-web-chart',
+        find: '@lightfin/core',
         replacement: resolve(root, 'src/index.ts'),
       },
     ],
