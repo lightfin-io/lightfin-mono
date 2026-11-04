@@ -272,12 +272,12 @@ src/
 - **Markers** (`type: 'marker'`, `shape: 'arrowUp' | 'arrowDown' | 'circle'`)
   flag a single bar, e.g. a signal: an up arrow sits below its point in the
   theme's up color, a down arrow above in the down color. No toolbar button —
-  they're meant for programmatic use.
+  they're meant for programmatic use (§8.7).
 - **Captions:** `text` on any non-text drawing labels it — above an hline's
   right end, at the bottom of a vline, inside a rectangle's top-left, along a
   trendline's midpoint, beside a marker. Clicking a caption selects its drawing.
 - Serializable to plain JSON (`{ id, type, points: [{ time, price }], style,
-text?, shape? }`) via `toJSON()` / `load()`; a `change` event (once per edit, not
+text?, shape?, group? }`) via `toJSON()` / `load()`; a `change` event (once per edit, not
   mid-drag) tells the host when to persist — persistence itself is the host's job.
 
 ### 8.6 Accessibility
@@ -296,6 +296,31 @@ text?, shape? }`) via `toJSON()` / `load()`; a `change` event (once per edit, no
   chart without it.
 - No hidden data table: walking bars with announcements reads the same data,
   and a table of every loaded bar (up to 500k) would be a heavy DOM.
+
+### 8.7 Programmatic & AI annotations
+
+The indicator API lets an AI _write_ an indicator (§8.4); this lets one
+_annotate_ a chart — mark support/resistance, flag signals, box a range —
+through the same JSON the drawing tools persist. No new runtime or language:
+the model emits annotation JSON, the host applies it.
+
+- **Reading the chart:** `chart.visibleTimeRange()` and
+  `series.bars({ from, to })` give the host the bars on screen to hand the
+  model; `indicator.value(key, index)` and `drawings.list()` (the user's
+  own drawings) add context.
+- **Groups:** `group` tags who placed a drawing. `drawings.replace('ai',
+annotations)` swaps that group's drawings for a new set in one `change`,
+  leaving the user's alone, so each analysis replaces the last;
+  `list(group)` / `clear(group)` scope to it. AI drawings are ordinary
+  drawings otherwise — the user can select, move, or delete them.
+- **Ids:** callers may supply their own (unique) ids, so a model can refer
+  back to its drawings (`update('support-1', …)`) across turns.
+- **Validation as feedback:** model output is untrusted, so `add` / `load` /
+  `replace` / `update` validate everything and throw a message listing each
+  problem by field and position (`[2] points[0].time looks like
+milliseconds; use Unix seconds`). A batch is all-or-nothing. Hosts can
+  pass the message back to the model to retry; `validateAnnotation()` runs
+  the same checks without throwing.
 
 ## 9. Chart chrome / UI widgets
 

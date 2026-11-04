@@ -8,6 +8,7 @@ import { Annotations } from './annotations'
 import { distToSegment } from './geometry'
 import { TOOLS, drawAnnotation, hitAnnotation, resolveStyle } from './tools'
 import type { Annotation } from './types'
+import { validateAnnotation } from './validate'
 
 /**
  * A stand-in for the chart's coordinate API: 1-minute bars 10px apart
@@ -218,6 +219,89 @@ describe('Annotations', () => {
     ).toThrow(/2 point/)
   })
 
+  it("replaces one group's drawings in a single change, leaving the rest", () => {
+    const t = setup()
+    const mine = t.drawings.add(trendline([600, 50, 1200, 60]))
+    t.drawings.replace('ai', [
+      { type: 'hline', points: [{ time: 60, price: 40 }], text: 'Support' },
+    ])
+    const old = t.drawings.list('ai')[0]!.id
+    t.drawings.select(old)
+    t.changes.mockClear()
+
+    const ids = t.drawings.replace('ai', [
+      { id: 'r1', type: 'hline', points: [{ time: 60, price: 70 }] },
+      {
+        type: 'marker',
+        shape: 'arrowUp',
+        points: [{ time: 120, price: 45 }],
+      },
+    ])
+    expect(t.changes).toHaveBeenCalledTimes(1)
+    expect(ids[0]).toBe('r1')
+    expect(t.drawings.list('ai').map(a => a.id)).toEqual(ids)
+    expect(t.drawings.list('ai').every(a => a.group === 'ai')).toBe(true)
+    expect(t.drawings.get(mine)).not.toBeNull()
+    expect(t.drawings.selected).toBeNull()
+
+    t.drawings.clear('ai')
+    expect(t.drawings.list().map(a => a.id)).toEqual([mine])
+  })
+
+  it('rejects a malformed batch whole, naming each problem by position', () => {
+    const t = setup()
+    t.drawings.replace('ai', [
+      { type: 'vline', points: [{ time: 60, price: 1 }] },
+    ])
+    const before = t.drawings.list()
+    expect(() =>
+      t.drawings.replace('ai', [
+        { type: 'hline', points: [{ time: 60, price: 1 }] },
+        { type: 'hline', points: [{ time: 60, price: NaN }] },
+        { type: 'circle' as 'marker', points: [] },
+      ]),
+    ).toThrow(
+      /\[1\] points\[0\]\.price must be a finite number; \[2\] type must be one of/,
+    )
+    expect(t.drawings.list()).toEqual(before)
+  })
+
+  it('keeps ids unique', () => {
+    const t = setup()
+    t.drawings.add({ ...trendline([0, 1, 60, 2]), id: 'a' })
+    expect(() =>
+      t.drawings.add({ ...trendline([0, 1, 60, 2]), id: 'a' }),
+    ).toThrow(/id "a" is already in use/)
+    expect(() =>
+      t.drawings.load([
+        { ...trendline([0, 1, 60, 2]), id: 'b' },
+        { ...trendline([0, 1, 60, 2]), id: 'b' },
+      ]),
+    ).toThrow(/\[1\] id "b"/)
+    // Replacing a group may reuse its own ids, not another's.
+    t.drawings.replace('ai', [{ ...trendline([0, 1, 60, 2]), id: 'c' }])
+    t.drawings.replace('ai', [{ ...trendline([0, 1, 60, 2]), id: 'c' }])
+    expect(() =>
+      t.drawings.replace('ai', [{ ...trendline([0, 1, 60, 2]), id: 'a' }]),
+    ).toThrow(/already in use/)
+  })
+
+  it('validates updates, which cannot retarget a drawing', () => {
+    const t = setup()
+    const id = t.drawings.add(trendline([600, 50, 1200, 60]))
+    t.drawings.update(id, { text: 'Uptrend', style: { color: 'lime' } })
+    expect(t.drawings.get(id)).toMatchObject({
+      text: 'Uptrend',
+      style: { color: 'lime' },
+    })
+    expect(() => t.drawings.update(id, { style: { lineWidth: -1 } })).toThrow(
+      /style\.lineWidth/,
+    )
+    t.drawings.update(id, { type: 'hline', group: 'x' } as never)
+    expect(t.drawings.get(id)).toMatchObject({ type: 'trendline' })
+    expect(t.drawings.get(id)!.group).toBeUndefined()
+  })
+
   it('returns copies, so callers cannot mutate drawings behind its back', () => {
     const t = setup()
     const id = t.drawings.add(trendline([600, 50, 1200, 60]))
@@ -230,6 +314,51 @@ describe('Annotations', () => {
     t.drawings.dispose()
     expect(t.detached()).toBe(true)
     expect(t.element.hasAttribute('tabindex')).toBe(false)
+  })
+})
+
+describe('validateAnnotation', () => {
+  it('accepts a well-formed annotation', () => {
+    expect(
+      validateAnnotation({
+        id: 'x',
+        type: 'marker',
+        shape: 'arrowDown',
+        points: [{ time: 1_700_000_000, price: 101.5 }],
+        text: 'Top',
+        group: 'ai',
+        style: { color: '#f00', lineStyle: 'dashed', fontSize: 12 },
+      }),
+    ).toEqual([])
+  })
+
+  it('names each problem so a model can fix its input', () => {
+    expect(validateAnnotation(null)).toEqual([
+      'an annotation must be an object',
+    ])
+    expect(
+      validateAnnotation({
+        type: 'trendline',
+        points: [{ time: 1_700_000_000_000, price: '5' }],
+        label: 'x',
+        shape: 'star',
+        style: { lineStyle: 'wavy', width: 2 },
+      }),
+    ).toEqual([
+      'unknown field "label"',
+      'a trendline annotation takes 2 point(s), got 1',
+      'points[0].time looks like milliseconds; use Unix seconds',
+      'points[0].price must be a finite number',
+      'shape must be one of "arrowUp", "arrowDown", "circle"',
+      'unknown field "style.width"',
+      'style.lineStyle must be one of "solid", "dashed", "dotted"',
+    ])
+  })
+
+  it('does not mistake inherited object keys for a type', () => {
+    expect(validateAnnotation({ type: 'constructor', points: [] })[0]).toMatch(
+      /^type must be one of/,
+    )
   })
 })
 

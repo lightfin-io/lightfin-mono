@@ -15,7 +15,7 @@
     "name": "annotations",
     "path": "dist/annotations.js",
     "import": "{ createAnnotations }",
-    "limit": "5 kB"
+    "limit": "6 kB"
   },
   {
     "name": "price lines",
@@ -42,6 +42,6 @@
       "dist/price-lines.js",
       "dist/indicators/*.js"
     ],
-    "limit": "32 kB"
+    "limit": "34 kB"
   }
 ]

@@ -57,6 +57,11 @@ export interface Annotation {
   text?: string
   /** A `marker`'s shape. Default `circle`. */
   shape?: MarkerShape
+  /**
+   * Who placed the drawing, e.g. `'ai'`, so the host can replace or clear one
+   * source's drawings without touching the rest. The user's have none.
+   */
+  group?: string
 }
 
 /** What `add()`/`load()` accept: an annotation whose id and style are optional. */

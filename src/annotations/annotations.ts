@@ -20,6 +20,7 @@ import type {
   AnnotationPoint,
   AnnotationType,
 } from './types'
+import { validateAnnotation } from './validate'
 
 /** Payloads of the events {@link Annotations.on} can subscribe to. */
 export interface AnnotationsEventMap {
@@ -134,9 +135,16 @@ export class Annotations {
     this.events.emit('selectionChange', id)
   }
 
-  /** Every drawing, oldest (bottom) first, as plain JSON-safe copies. */
-  list(): Annotation[] {
-    return this.items.map(copy)
+  /**
+   * Every drawing (or just `group`'s), oldest (bottom) first, as plain
+   * JSON-safe copies.
+   */
+  list(group?: string): Annotation[] {
+    const items =
+      group === undefined
+        ? this.items
+        : this.items.filter(a => a.group === group)
+    return items.map(copy)
   }
 
   toJSON(): Annotation[] {
@@ -148,36 +156,70 @@ export class Annotations {
     return ann ? copy(ann) : null
   }
 
-  /** Add a drawing; returns its id. Throws if its points don't fit its type. */
+  /**
+   * Add a drawing; returns its id. Throws, listing every problem (see
+   * {@link validateAnnotation}), if it's malformed or its id is taken.
+   */
   add(input: AnnotationInput): string {
-    const ann = create(input)
-    this.items.push(ann)
+    const [ann] = createAll([input], this.items)
+    this.items.push(ann!)
     this.changed()
-    return ann.id
+    return ann!.id
   }
 
-  /** Replace all drawings, e.g. with ones restored from storage. */
+  /** Replace all drawings, e.g. with ones restored from storage. Throws if any is malformed. */
   load(inputs: readonly AnnotationInput[]): void {
+    const items = createAll(inputs, [])
     this.closeEditor()
-    this.items = inputs.map(create)
+    this.items = items
     this.selectedId = null
     this.handle.redraw()
     this.events.emit('selectionChange', null)
   }
 
-  /** Move, restyle (merged over the current style), relabel, or reshape a drawing. */
+  /**
+   * Swap `group`'s drawings for `inputs` (each tagged with `group`) in one
+   * change, leaving every other drawing alone — e.g. an AI's latest
+   * analysis replacing its previous one. Validates all first, so a malformed
+   * input changes nothing. Returns the new ids.
+   */
+  replace(group: string, inputs: readonly AnnotationInput[]): string[] {
+    const kept = this.items.filter(a => a.group !== group)
+    const added = createAll(inputs, kept, group)
+    if (this.editor && this.editor.ann.group === group) this.closeEditor()
+    this.items = [...kept, ...added]
+    if (this.selectedId !== null && !this.find(this.selectedId)) {
+      this.select(null)
+    }
+    this.changed()
+    return added.map(a => a.id)
+  }
+
+  /**
+   * Move, restyle (merged over the current style), relabel, or reshape a
+   * drawing. Throws, changing nothing, if the result is malformed.
+   */
   update(
     id: string,
     patch: Partial<Pick<Annotation, 'points' | 'style' | 'text' | 'shape'>>,
   ): void {
     const ann = this.find(id)
     if (!ann) return
-    if (patch.points) {
-      ann.points = create({ ...ann, points: patch.points }).points
-    }
-    if (patch.style) ann.style = { ...ann.style, ...patch.style }
-    if (patch.text !== undefined) ann.text = patch.text
-    if (patch.shape !== undefined) ann.shape = patch.shape
+    // Patches may come straight from JSON, so they can't retarget the drawing.
+    const [next] = createAll(
+      [
+        {
+          ...ann,
+          ...patch,
+          id: ann.id,
+          type: ann.type,
+          group: ann.group,
+          style: { ...ann.style, ...patch.style },
+        },
+      ],
+      [],
+    )
+    Object.assign(ann, next)
     this.changed()
   }
 
@@ -190,7 +232,12 @@ export class Annotations {
     this.changed()
   }
 
-  clear(): void {
+  /** Remove every drawing, or just `group`'s. */
+  clear(group?: string): void {
+    if (group !== undefined) {
+      this.replace(group, [])
+      return
+    }
     if (this.items.length === 0) return
     this.closeEditor()
     this.items = []
@@ -384,7 +431,7 @@ export class Annotations {
 
     const tool = this.activeTool
     if (tool) {
-      const ann = create({
+      const ann = build({
         type: tool,
         points: Array.from({ length: TOOLS[tool].points }, () => ({
           ...point,
@@ -598,15 +645,41 @@ export class Annotations {
   }
 }
 
-function create(input: AnnotationInput): Annotation {
-  const spec = TOOLS[input.type]
-  if (!spec)
-    throw new Error(`lightfin: unknown annotation type "${input.type}"`)
-  if (input.points.length !== spec.points) {
-    throw new Error(
-      `lightfin: a ${input.type} annotation takes ${spec.points} point(s), got ${input.points.length}`,
-    )
+/**
+ * Validate and build drawings, ids unique among themselves and `existing`,
+ * tagged with `group` when given. Throws with every problem, prefixed by the
+ * input's position in a batch.
+ */
+function createAll(
+  inputs: readonly AnnotationInput[],
+  existing: readonly Annotation[],
+  group?: string,
+): Annotation[] {
+  if (!Array.isArray(inputs)) {
+    throw new Error('lightfin: annotations must be an array')
   }
+  const taken = new Set(existing.map(a => a.id))
+  const errors: string[] = []
+  inputs.forEach((input, i) => {
+    const problems = validateAnnotation(input)
+    const id = (input as { id?: unknown } | null)?.id
+    if (typeof id === 'string') {
+      if (taken.has(id)) problems.push(`id "${id}" is already in use`)
+      taken.add(id)
+    }
+    const at = inputs.length > 1 ? `[${i}] ` : ''
+    errors.push(...problems.map(p => at + p))
+  })
+  if (errors.length > 0) {
+    throw new Error(`lightfin: invalid annotation: ${errors.join('; ')}`)
+  }
+  return inputs.map(input =>
+    build(group === undefined ? input : { ...input, group }),
+  )
+}
+
+/** A drawing from an already-valid input. */
+function build(input: AnnotationInput): Annotation {
   const ann: Annotation = {
     id: input.id ?? nextId(),
     type: input.type,
@@ -615,6 +688,7 @@ function create(input: AnnotationInput): Annotation {
   }
   if (input.text !== undefined) ann.text = input.text
   if (input.shape !== undefined) ann.shape = input.shape
+  if (input.group !== undefined) ann.group = input.group
   return ann
 }
 

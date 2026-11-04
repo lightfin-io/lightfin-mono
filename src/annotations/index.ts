@@ -21,6 +21,7 @@ import { Annotations } from './annotations'
 export { Annotations } from './annotations'
 export type { AnnotationsEventMap } from './annotations'
 export { FIB_LEVELS } from './tools'
+export { validateAnnotation } from './validate'
 export type {
   Annotation,
   AnnotationInput,
