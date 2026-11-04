@@ -15,17 +15,18 @@ host renders the order form.
 
 ## 2. Current state
 
-Phases 0–6 and 8 shipped: cleanup/scaffold, core rendering (candlesticks, index
+Phases 0–8 shipped: cleanup/scaffold, core rendering (candlesticks, index
 time axis, price axis, pan/zoom, resize), crosshair + current-price line, volume
 sub-pane, interval-aware time ticks, live data (update/follow-mode/DataSource +
 history backfill), the indicator framework with SMA, EMA, Bollinger, RSI,
 MACD, Volume MA, candlestick/bar/line/area series switchable in place via
 `setChartType()`, the `/chrome` widgets (instrument metadata + timezone,
-HUD/legend, indicator rows, top/bottom toolbars, go-to modal, exchange clock),
-the order-intent "+" hook, magnet crosshair mode, the 500k-candle stress page,
-and a bundle-size budget in CI. Decimation and worker-based calc were measured
-and deliberately not built (§6, §8.4). Phase 7 (annotations, plus the left
-annotation toolbar) is next. See §13.
+HUD/legend, indicator rows, top/bottom/left toolbars, go-to modal, exchange
+clock), the `/annotations` drawing tools (trendline, h/v line, rectangle, fib,
+text) on a generic primitive hook, the order-intent "+" hook, magnet crosshair
+mode, the 500k-candle stress page, and a bundle-size budget in CI. Decimation
+and worker-based calc were measured and deliberately not built (§6, §8.4).
+Phase 9 (ecosystem) is next. See §13.
 
 ## 3. Core technical decisions
 
@@ -209,10 +210,24 @@ src/
 
 ### 8.5 Annotations
 
-- Drawing tools (trendline, h/v line, rectangle, fib, text) as their own
-  interaction + overlay layer, independent of indicators.
-- Hit-testing for select/drag/delete; serializable to JSON
-  (`{ type, points, style }`) for host persistence (persistence itself is host's job).
+- Drawing tools (trendline, h/v line, rectangle, fib retracement, text) in the
+  `/annotations` subpath, independent of indicators. They plug into the core
+  through a generic **primitive** hook (`chart.attachPrimitive()`): draw
+  callbacks on the series and overlay layers plus pointer hooks that can claim
+  a press (so it doesn't pan). The core carries no annotation code.
+- **Anchored by time + price**, not index: `chart.timeToCoordinate()`
+  interpolates between bars and extrapolates past either end, so drawings hold
+  across backfill, interval switches, and into the right-offset space.
+- Committed drawings paint on the series layer; the selected one and any in
+  progress paint on the overlay, so dragging never repaints the rest.
+- Pick a tool, then drag or click twice (one click for h/v line and text).
+  Points snap to bar times and follow magnet mode. Select to drag the body
+  (whole bars, free in price) or a handle; Delete removes, Escape cancels;
+  double-click edits text in place. The tool reverts to the cursor after
+  each drawing.
+- Serializable to plain JSON (`{ id, type, points: [{ time, price }], style,
+text? }`) via `toJSON()` / `load()`; a `change` event (once per edit, not
+  mid-drag) tells the host when to persist — persistence itself is the host's job.
 
 ## 9. Chart chrome / UI widgets
 
@@ -237,8 +252,9 @@ theme-aware and overlay the canvas stack.
   All), a **custom date / range** button opening a date-picker modal, and the
   exchange-local time.
 - **Left annotation toolbar:** vertical strip of drawing tools (cursor, trendline,
-  h/v line, rectangle, fib, text, clear) wired to §8.5; shown only when annotations
-  are loaded.
+  h/v line, rectangle, fib, text, clear) wired to §8.5; shown only when the host
+  passes an annotations instance (`createChrome(chart, { annotations })`), so
+  chrome never imports annotation code itself.
 
 ## 10. Bundle size & modularity
 
@@ -248,8 +264,8 @@ theme-aware and overlay the canvas stack.
   per-indicator), `/annotations`, `/chrome`, future `/react`.
 - `package.json` `exports` map + `sideEffects: false` for tree-shaking.
 - Bundle size is budgeted in CI with `size-limit` (`.size-limit.json`, `bun run
-size`): core, chrome, one indicator, all indicators, and everything together,
-  each with ~10% headroom. Raising a budget is a deliberate, reviewed change.
+size`): core, chrome, annotations, one indicator, all indicators, and
+  everything together, each with ~10% headroom. Raising a budget is a deliberate, reviewed change.
 
 ## 11. Public API sketch
 
@@ -283,11 +299,28 @@ chart.on('crosshairMove', e => {
 }) // + dataChange, indicatorsChange, layoutChange, …
 chart.onOrderIntent(e => openMyOrderForm(e.price, e.clientPoint)) // §8.2
 
+// Drawing tools (§8.5), from 'lightfin-web-chart/annotations'.
+const drawings = createAnnotations(chart)
+drawings.load(saved)
+drawings.on('change', () => save(drawings.toJSON()))
+drawings.setTool('trendline') // or let the left toolbar do it
+
 // Optional widgets (§9); the host owns intervals and reloads bars on change.
 const chrome = createChrome(chart, {
   intervals: ['1m', '1H', '1D'],
   interval: '1m',
   onIntervalChange,
+  annotations: drawings, // adds the left drawing toolbar
+})
+
+// Custom drawing/interaction on the main pane — what annotations build on.
+chart.attachPrimitive({
+  draw(ctx, { pane }) {
+    /* … */
+  },
+  pointerDown(e) {
+    /* … */
+  },
 })
 ```
 
@@ -315,9 +348,9 @@ Container sizing is implicit — no `width`/`height` option.
 4. **Indicators framework** — overlay + pane, incremental calc, 5 built-ins. ✅
 5. **Series types & chart-type switching** — line, area, bar renderers; `setChartType()`; Volume MA. ✅
 6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock). ✅ (left annotation toolbar moves to Phase 7)
-7. **Annotations** _(next)_ — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar.
+7. **Annotations** — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar. ✅
 8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation and worker-based calc were measured and not built (§6, §8.4).
-9. **Ecosystem** — React wrapper (first), theming system, docs site.
+9. **Ecosystem** _(next)_ — React wrapper (first), theming system, docs site.
 
 ## 14. Extras (don't pick up yet)
 

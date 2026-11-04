@@ -1,7 +1,8 @@
 /**
  * lightfin-web-chart/chrome — optional DOM widgets around the chart (PLAN §9):
- * the top-left HUD/legend, the top toolbar (interval, chart type, indicators)
- * and the bottom toolbar (date ranges, go-to dialog, exchange clock).
+ * the top-left HUD/legend, the top toolbar (interval, chart type, indicators),
+ * the bottom toolbar (date ranges, go-to dialog, exchange clock), and — given
+ * an annotations instance — the left drawing-tools toolbar.
  *
  * Its own subpath export, so headless/embedded charts pay nothing for it and
  * hosts can build their own widgets on the same public chart API instead.
@@ -15,14 +16,20 @@
  * })
  * ```
  */
+import type { Annotations } from '../annotations'
 import type { Chart } from '../chart/chart'
 import type { ChartType } from '../series/series'
+import { el } from './dom'
 import type { DateRangePreset } from './format'
 import { DATE_RANGE_PRESETS, formatClock } from './format'
 import { Hud } from './hud'
 import { acquireStyles, releaseStyles, themeVars } from './styles'
 import type { IndicatorCatalogEntry, Toolbar } from './toolbars'
-import { createBottomToolbar, createTopToolbar } from './toolbars'
+import {
+  createBottomToolbar,
+  createLeftToolbar,
+  createTopToolbar,
+} from './toolbars'
 
 export type { DateRangePreset } from './format'
 export { DATE_RANGE_PRESETS } from './format'
@@ -70,6 +77,11 @@ export interface ChromeOptions {
   indicators?: readonly IndicatorCatalogEntry[]
   /** Quick ranges in the bottom toolbar. Default {@link DATE_RANGE_PRESETS}. */
   ranges?: readonly DateRangePreset[]
+  /**
+   * Drawing tools from `lightfin-web-chart/annotations`; shows the left
+   * toolbar. Omit to leave it out (and the annotations code unloaded).
+   */
+  annotations?: Annotations
 }
 
 export interface Chrome {
@@ -138,7 +150,18 @@ export function createChrome(
           ],
           catalog: options.indicators ?? BUILTIN_INDICATORS,
         })
-  if (top) host.insertBefore(top.el, root)
+
+  // The left toolbar sits beside the chart, so the two share a row.
+  const left = options.annotations
+    ? createLeftToolbar(options.annotations)
+    : null
+  const body = left ? el('div', 'lf-body') : null
+  if (body) {
+    root.replaceWith(body)
+    body.append(left!.el, root)
+  }
+  const main = body ?? root
+  if (top) host.insertBefore(top.el, main)
 
   const bottom = showBottom
     ? createBottomToolbar(
@@ -147,7 +170,7 @@ export function createChrome(
         now => formatClock(now, timeZone()),
       )
     : null
-  if (bottom) root.after(bottom.el)
+  if (bottom) main.after(bottom.el)
 
   // Tick the exchange clock on each wall-clock second.
   let clockTimer: ReturnType<typeof setTimeout> | undefined
@@ -175,7 +198,10 @@ export function createChrome(
       clearTimeout(clockTimer)
       offInstrument()
       hud?.dispose()
-      for (const bar of [top, bottom] as (Toolbar | null)[]) bar?.dispose()
+      for (const bar of [top, bottom, left] as (Toolbar | null)[]) {
+        bar?.dispose()
+      }
+      body?.replaceWith(root)
       host
         .querySelectorAll(':scope > .lf-backdrop, :scope > .lf-menu')
         .forEach(n => n.remove())

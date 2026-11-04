@@ -19,6 +19,12 @@ export type {
   ChartTheme,
   CrosshairMode,
 } from './chart/options'
+export type {
+  ChartPointerEvent,
+  ChartPrimitive,
+  PrimitiveHandle,
+  PrimitiveView,
+} from './chart/primitive'
 export type { OrderIntentEvent } from './interaction/orderIntent'
 export { DEFAULT_OPTIONS, DEFAULT_THEME } from './chart/options'
 export type { Bar, InstrumentInfo, UTCTimestamp } from './data/types'

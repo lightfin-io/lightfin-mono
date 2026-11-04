@@ -14,6 +14,7 @@ import { LayerManager } from '../render/layers'
 import { FrameScheduler } from '../render/scheduler'
 import { PriceScale } from '../scales/priceScale'
 import { priceTicks, stepDecimals } from '../scales/ticks'
+import { indexToTime, timeToIndex } from '../scales/timeIndex'
 import { TimeScale } from '../scales/timeScale'
 import { timeAxisLabels } from '../scales/timeTicks'
 import { toZoned } from '../scales/timezone'
@@ -24,6 +25,11 @@ import { Emitter } from './events'
 import { IndicatorController, IndicatorInstance } from './indicators'
 import type { ChartOptions, ChartOptionsInput, CrosshairMode } from './options'
 import { resolveOptions } from './options'
+import type {
+  ChartPointerEvent,
+  ChartPrimitive,
+  PrimitiveHandle,
+} from './primitive'
 
 /**
  * Any indicator definition/module, regardless of its option shape. The core
@@ -108,9 +114,17 @@ export class Chart {
   // Order-intent listeners (PLAN §8.2); the "+" button shows only while there
   // is at least one.
   private readonly orderHandlers = new Set<(e: OrderIntentEvent) => void>()
-  private orderHover = false
   // A pointerdown landed on the button; it fires on a pointerup there too.
   private orderPressed = false
+  // Attached primitives, bottom to top; the topmost gets first refusal on a press.
+  private readonly primitives: ChartPrimitive[] = []
+  // The primitive that claimed the current press, and that press's pointer.
+  private activePrimitive: {
+    primitive: ChartPrimitive
+    pointerId: number
+  } | null = null
+  private primitiveCursor = ''
+  private cursor = ''
 
   private readonly timeScaleModel = new TimeScale()
   private readonly priceScale = new PriceScale()
@@ -144,12 +158,14 @@ export class Chart {
     this.panzoom = new PanZoomController(this.layers.root, {
       onPan: dx => this.onPan(dx),
       onZoom: (factor, anchorX) => this.onZoom(factor, anchorX),
-      claim: point => this.claimOrderPress(point),
+      claim: (point, e) => this.claimPress(point, e),
     })
     this.crosshair = new CrosshairController(this.layers.root, {
       onMove: point => this.onCrosshairMove(point),
     })
+    this.layers.root.addEventListener('pointermove', this.onPointerMove)
     this.layers.root.addEventListener('pointerup', this.onPointerUp)
+    this.layers.root.addEventListener('pointercancel', this.onPointerUp)
 
     // Observe the chart's own element rather than the container, so chrome
     // can share the container (toolbars above/below) and the canvases still
@@ -228,6 +244,64 @@ export class Chart {
   setCrosshairMode(mode: CrosshairMode): void {
     this.options.crosshairMode = mode
     this.scheduler.invalidate('overlay')
+  }
+
+  /**
+   * Attach custom drawing + interaction to the main pane (see
+   * {@link ChartPrimitive}), e.g. the annotations module. Later primitives
+   * draw on top and get first refusal on presses.
+   */
+  attachPrimitive(primitive: ChartPrimitive): PrimitiveHandle {
+    this.primitives.push(primitive)
+    this.scheduler.invalidate('series', 'overlay')
+    return {
+      redraw: layer =>
+        layer
+          ? this.scheduler.invalidate(layer)
+          : this.scheduler.invalidate('series', 'overlay'),
+      detach: () => {
+        const i = this.primitives.indexOf(primitive)
+        if (i === -1) return
+        this.primitives.splice(i, 1)
+        if (this.activePrimitive?.primitive === primitive) {
+          this.activePrimitive = null
+        }
+        this.primitiveCursor = ''
+        this.scheduler.invalidate('series', 'overlay')
+      },
+    }
+  }
+
+  /**
+   * X (CSS px, chart element) of a time — interpolated between bars and
+   * extrapolated past either end of the data. Null when there is no data.
+   */
+  timeToCoordinate(time: UTCTimestamp): number | null {
+    const store = this.series?.store
+    if (!store || store.size === 0) return null
+    return this.timeScaleModel.indexToX(
+      timeToIndex(store, time, this.barInterval()),
+    )
+  }
+
+  /** Time of the bar slot nearest x (extrapolated past the data), or null with no data. */
+  coordinateToTime(x: number): UTCTimestamp | null {
+    const store = this.series?.store
+    if (!store || store.size === 0) return null
+    const index = this.timeScaleModel.nearestIndex(x)
+    return Math.round(indexToTime(store, index, this.barInterval()))
+  }
+
+  /** Y (CSS px, chart element) of a price on the main pane's scale. */
+  priceToCoordinate(price: number): number {
+    const main = this.mainRect()
+    return main.top + this.priceScale.priceToY(price, main.height)
+  }
+
+  /** Price at y (CSS px, chart element) on the main pane's scale. */
+  coordinateToPrice(y: number): number {
+    const main = this.mainRect()
+    return this.priceScale.yToPrice(y - main.top, main.height)
   }
 
   /**
@@ -898,9 +972,18 @@ export class Chart {
       this.options.theme,
       dpr,
     )
+    if (!this.indicatorCtl.isEmpty && window.from <= window.to) {
+      this.paintIndicators(ctx, window, main, dpr)
+    }
+    for (const p of this.primitives) p.draw?.(ctx, { pane: main, dpr })
+  }
 
-    if (this.indicatorCtl.isEmpty || window.from > window.to) return
-
+  private paintIndicators(
+    ctx: CanvasRenderingContext2D,
+    window: IndexWindow,
+    main: PlotRect,
+    dpr: number,
+  ): void {
     // Overlay indicators draw on top of the candles, sharing the main price
     // scale, clipped to the main pane so lines don't bleed into other regions.
     if (this.indicatorCtl.hasOverlays) {
@@ -1067,6 +1150,9 @@ export class Chart {
     let hover = false
     if (store && store.size > 0) {
       const main = this.mainRect()
+      const ctx = this.layers.getContext('overlay')
+      const view = { pane: main, dpr: this.layers.getDpr() }
+      for (const p of this.primitives) p.drawOverlay?.(ctx, view)
       if (this.options.priceLineVisible) this.paintPriceLine(main)
       if (this.crosshairPoint) {
         hover = this.paintCrosshair(this.crosshairPoint)
@@ -1074,9 +1160,10 @@ export class Chart {
     }
     // Re-checked every paint: the button moves under a still pointer when
     // the view scrolls or the magnet snaps to a different level.
-    if (hover !== this.orderHover) {
-      this.orderHover = hover
-      this.layers.root.style.cursor = hover ? 'pointer' : ''
+    const cursor = hover ? 'pointer' : this.primitiveCursor
+    if (cursor !== this.cursor) {
+      this.cursor = cursor
+      this.layers.root.style.cursor = cursor
     }
   }
 
@@ -1199,17 +1286,89 @@ export class Chart {
     return this.options.theme.fontSize + 8
   }
 
-  private claimOrderPress(point: { x: number; y: number }): boolean {
+  /** A press that the order button or a primitive takes, so it doesn't pan. */
+  private claimPress(
+    point: { x: number; y: number },
+    e: PointerEvent,
+  ): boolean {
+    // A second finger while a primitive drags is ignored rather than pinching.
+    if (this.activePrimitive) return true
     const button = this.orderButton()
     this.orderPressed = button !== null && hitsButton(button, point)
-    return this.orderPressed
+    if (this.orderPressed) return true
+    if (this.primitives.length === 0) return false
+    const ev = this.pointerEvent(point, e)
+    for (let i = this.primitives.length - 1; i >= 0; i--) {
+      const primitive = this.primitives[i]!
+      if (primitive.pointerDown?.(ev)) {
+        this.activePrimitive = { primitive, pointerId: e.pointerId }
+        this.layers.root.setPointerCapture(e.pointerId)
+        return true
+      }
+    }
+    return false
+  }
+
+  private localPoint(e: PointerEvent): { x: number; y: number } {
+    const box = this.layers.root.getBoundingClientRect()
+    return { x: e.clientX - box.left, y: e.clientY - box.top }
+  }
+
+  /** Bar time and (magnet-aware) main-pane price under a pointer, for primitives. */
+  private pointerEvent(
+    point: { x: number; y: number },
+    source: PointerEvent,
+  ): ChartPointerEvent {
+    const main = this.mainRect()
+    const inMainPane =
+      point.x >= 0 &&
+      point.x <= main.width &&
+      point.y >= main.top &&
+      point.y <= main.top + main.height
+    let price = this.coordinateToPrice(point.y)
+    if (inMainPane && this.series && this.series.store.size > 0) {
+      price = this.crosshairLine(point).value
+    }
+    const time = this.coordinateToTime(point.x)
+    return { point, time, price, inMainPane, source }
+  }
+
+  private onPointerMove = (e: PointerEvent): void => {
+    if (this.primitives.length === 0) return
+    const active = this.activePrimitive
+    if (!active && this.panzoom.busy) return
+    if (active && e.pointerId !== active.pointerId) return
+    const ev = this.pointerEvent(this.localPoint(e), e)
+    let cursor = ''
+    if (active) {
+      active.primitive.pointerMove?.(ev, true)
+      cursor = active.primitive.cursor?.(ev) ?? ''
+    } else {
+      for (const p of this.primitives) p.pointerMove?.(ev, false)
+      for (let i = this.primitives.length - 1; i >= 0 && !cursor; i--) {
+        cursor = this.primitives[i]!.cursor?.(ev) ?? ''
+      }
+    }
+    if (cursor !== this.primitiveCursor) {
+      this.primitiveCursor = cursor
+      this.scheduler.invalidate('overlay')
+    }
   }
 
   private onPointerUp = (e: PointerEvent): void => {
+    const active = this.activePrimitive
+    if (active && e.pointerId === active.pointerId) {
+      this.activePrimitive = null
+      if (this.layers.root.hasPointerCapture(e.pointerId)) {
+        this.layers.root.releasePointerCapture(e.pointerId)
+      }
+      active.primitive.pointerUp?.(this.pointerEvent(this.localPoint(e), e))
+      return
+    }
     if (!this.orderPressed) return
     this.orderPressed = false
-    const box = this.layers.root.getBoundingClientRect()
-    const point = { x: e.clientX - box.left, y: e.clientY - box.top }
+    if (e.type !== 'pointerup') return
+    const point = this.localPoint(e)
     const button = this.orderButton()
     if (!button || !hitsButton(button, point)) return
 
@@ -1368,8 +1527,12 @@ export class Chart {
   remove(): void {
     this.events.clear()
     this.orderHandlers.clear()
+    this.primitives.length = 0
+    this.activePrimitive = null
     this.detachDataSource()
+    this.layers.root.removeEventListener('pointermove', this.onPointerMove)
     this.layers.root.removeEventListener('pointerup', this.onPointerUp)
+    this.layers.root.removeEventListener('pointercancel', this.onPointerUp)
     this.resizeObserver.disconnect()
     this.panzoom.dispose()
     this.crosshair.dispose()

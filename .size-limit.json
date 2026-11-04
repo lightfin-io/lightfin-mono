@@ -3,13 +3,19 @@
     "name": "core (createChart)",
     "path": "dist/index.js",
     "import": "{ createChart }",
-    "limit": "12 kB"
+    "limit": "13 kB"
   },
   {
     "name": "chrome",
     "path": "dist/chrome.js",
     "import": "{ createChrome }",
-    "limit": "11 kB"
+    "limit": "11.5 kB"
+  },
+  {
+    "name": "annotations",
+    "path": "dist/annotations.js",
+    "import": "{ createAnnotations }",
+    "limit": "4.5 kB"
   },
   {
     "name": "one indicator (SMA)",
@@ -22,8 +28,13 @@
     "limit": "3.5 kB"
   },
   {
-    "name": "everything (core + chrome + indicators)",
-    "path": ["dist/index.js", "dist/chrome.js", "dist/indicators/*.js"],
-    "limit": "23 kB"
+    "name": "everything (core + chrome + annotations + indicators)",
+    "path": [
+      "dist/index.js",
+      "dist/chrome.js",
+      "dist/annotations.js",
+      "dist/indicators/*.js"
+    ],
+    "limit": "29 kB"
   }
 ]

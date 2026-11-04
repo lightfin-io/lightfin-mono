@@ -9,7 +9,9 @@ const STYLE_ID = 'lightfin-chrome-styles'
  */
 const CSS = `
 .lf-host { display: flex; flex-direction: column; }
-.lf-host > .lf-chart { flex: 1 1 0; min-height: 0; }
+.lf-host > .lf-chart, .lf-host > .lf-body { flex: 1 1 0; min-height: 0; }
+.lf-body { display: flex; }
+.lf-body > .lf-chart { flex: 1 1 0; min-width: 0; }
 
 .lf-toolbar {
   display: flex; align-items: center; gap: 2px; flex: none;
@@ -19,6 +21,11 @@ const CSS = `
 }
 .lf-toolbar-top { border-bottom: 1px solid var(--lf-border); }
 .lf-toolbar-bottom { border-top: 1px solid var(--lf-border); }
+.lf-toolbar-left {
+  flex-direction: column; padding: 6px 4px; overflow: hidden auto;
+  border-right: 1px solid var(--lf-border);
+}
+.lf-toolbar-left .lf-sep { width: 18px; height: 1px; margin: 4px 0; }
 .lf-sep { flex: none; width: 1px; height: 18px; margin: 0 4px; background: var(--lf-border); }
 .lf-spacer { flex: 1; }
 

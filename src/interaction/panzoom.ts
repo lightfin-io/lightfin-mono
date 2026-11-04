@@ -18,7 +18,7 @@ export interface PanZoomHandlers {
    * Return true to claim a pointerdown at this CSS-px point (e.g. it landed on
    * a button), so it doesn't start a pan.
    */
-  claim?(point: { x: number; y: number }): boolean
+  claim?(point: { x: number; y: number }, e: PointerEvent): boolean
 }
 
 /** How much one wheel notch zooms. */
@@ -56,6 +56,11 @@ export class PanZoomController {
     this.rect = this.el.getBoundingClientRect()
   }
 
+  /** Whether a pan or pinch is in progress. */
+  get busy(): boolean {
+    return this.pointers.size > 0
+  }
+
   private localX(clientX: number): number {
     return clientX - this.rect.left
   }
@@ -63,7 +68,7 @@ export class PanZoomController {
   private onPointerDown = (e: PointerEvent): void => {
     this.refreshRect()
     const point = { x: this.localX(e.clientX), y: e.clientY - this.rect.top }
-    if (this.pointers.size === 0 && this.handlers.claim?.(point)) return
+    if (this.pointers.size === 0 && this.handlers.claim?.(point, e)) return
     this.el.setPointerCapture(e.pointerId)
     this.pointers.set(e.pointerId, point)
 

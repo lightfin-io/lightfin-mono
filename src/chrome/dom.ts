@@ -58,4 +58,22 @@ export const ICONS = {
     '<circle cx="9" cy="9" r="2.25"/><path d="M9 1.75v2M9 14.25v2M3.87 3.87l1.42 1.42M12.71 12.71l1.42 1.42M1.75 9h2M14.25 9h2M3.87 14.13l1.42-1.42M12.71 5.29l1.42-1.42"/>',
   ),
   close: svg('<path d="M4.5 4.5l9 9M13.5 4.5l-9 9"/>'),
+  cursor: svg('<path d="M5 2.5v11l3-2.75 2 4.5 2-.9-2-4.4h4z"/>'),
+  trendline: svg(
+    '<path d="M5 13l8-8"/><circle cx="3.75" cy="14.25" r="1.75"/><circle cx="14.25" cy="3.75" r="1.75"/>',
+  ),
+  hline: svg(
+    '<path d="M1.5 9h5.75M10.75 9h5.75"/><circle cx="9" cy="9" r="1.75"/>',
+  ),
+  vline: svg(
+    '<path d="M9 1.5v5.75M9 10.75v5.75"/><circle cx="9" cy="9" r="1.75"/>',
+  ),
+  rectangle: svg('<rect x="2.5" y="4.5" width="13" height="9" rx="1"/>'),
+  fib: svg(
+    '<path d="M2 3.5h14M2 7h14M2 10.5h14M2 14.5h14"/><path d="M4 14.5L14 3.5" stroke-dasharray="1.5 2"/>',
+  ),
+  text: svg('<path d="M4 5V3.5h10V5M9 3.5v11M7 14.5h4"/>'),
+  trash: svg(
+    '<path d="M3 5h12M7 5V3.5h4V5M4.5 5l.75 10h7.5l.75-10M7.5 8v4.5M10.5 8v4.5"/>',
+  ),
 } as const

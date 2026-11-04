@@ -1,4 +1,5 @@
 import { createChart } from 'lightfin-web-chart'
+import { createAnnotations } from 'lightfin-web-chart/annotations'
 import { createChrome } from 'lightfin-web-chart/chrome'
 
 import { createMockFeed } from './mockFeed.ts'
@@ -40,10 +41,24 @@ function loadInterval(interval: string): void {
 }
 loadInterval('1m')
 
+// Drawings are plain JSON (PLAN §8.5); persisting them is the host's job, here
+// localStorage. They anchor to time + price, so they survive interval switches.
+const DRAWINGS_KEY = 'lightfin-demo-drawings'
+const drawings = createAnnotations(chart)
+try {
+  drawings.load(JSON.parse(localStorage.getItem(DRAWINGS_KEY) ?? '[]'))
+} catch {
+  localStorage.removeItem(DRAWINGS_KEY)
+}
+drawings.on('change', () => {
+  localStorage.setItem(DRAWINGS_KEY, JSON.stringify(drawings.toJSON()))
+})
+
 const chrome = createChrome(chart, {
   intervals: Object.keys(INTERVALS),
   interval: '1m',
   onIntervalChange: loadInterval,
+  annotations: drawings,
 })
 
 // Indicators load on demand from their own chunks (PLAN §8.4/§10) — the core
@@ -102,6 +117,7 @@ document.addEventListener('keydown', e => {
 Object.assign(window as unknown as Record<string, unknown>, {
   chart,
   chrome,
+  drawings,
   candles,
   sma,
   ema,
