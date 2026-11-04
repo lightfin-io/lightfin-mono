@@ -159,6 +159,7 @@ export class Chart {
       onPan: dx => this.onPan(dx),
       onZoom: (factor, anchorX) => this.onZoom(factor, anchorX),
       claim: (point, e) => this.claimPress(point, e),
+      onHold: point => this.onCrosshairMove(point),
     })
     this.crosshair = new CrosshairController(this.layers.root, {
       onMove: point => this.onCrosshairMove(point),
@@ -1296,6 +1297,10 @@ export class Chart {
     const button = this.orderButton()
     this.orderPressed = button !== null && hitsButton(button, point)
     if (this.orderPressed) return true
+    // A crosshair left up by a touch hold stays until the next tap elsewhere.
+    if (e.pointerType === 'touch' && this.crosshairPoint) {
+      this.onCrosshairMove(null)
+    }
     if (this.primitives.length === 0) return false
     const ev = this.pointerEvent(point, e)
     for (let i = this.primitives.length - 1; i >= 0; i--) {

@@ -2,10 +2,8 @@
  * Crosshair hover tracking (PLAN §8.2).
  *
  * Reports the pointer's CSS-px position relative to the element, or `null`
- * when it leaves. Mouse/pen only for now: touch's single-pointer move is
- * already claimed by {@link PanZoomController} for panning, so a touch
- * crosshair needs a press-and-hold gesture to disambiguate from a drag —
- * flagged in PLAN §8.2 as a later addition, not required for v1.
+ * when it leaves. Mouse/pen only: a touch drag pans, so the touch crosshair
+ * comes from the press-and-hold gesture in {@link PanZoomController}.
  */
 export interface CrosshairHandlers {
   onMove(point: { x: number; y: number } | null): void
@@ -39,7 +37,9 @@ export class CrosshairController {
     })
   }
 
-  private onPointerLeave = (): void => {
+  private onPointerLeave = (e: PointerEvent): void => {
+    // A lifted finger "leaves" too; the touch crosshair outlives it.
+    if (e.pointerType === 'touch') return
     this.handlers.onMove(null)
   }
 

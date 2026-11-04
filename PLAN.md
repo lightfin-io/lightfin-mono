@@ -152,8 +152,11 @@ src/
 
 ### 8.2 Crosshair & order hook
 
-- Pointer move (press-hold on touch) updates only the overlay layer: dotted
-  cross-lines through the nearest bar + time/price axis labels.
+- Pointer move updates only the overlay layer: dotted cross-lines through the
+  nearest bar + time/price axis labels.
+- **Touch:** a drag pans, so the crosshair comes from press-and-hold — a
+  finger held still for 400ms stops panning and drags the crosshair. It stays
+  up after lifting (so the "+" button can be tapped) until the next tap.
 - **Magnet mode** (snap to OHLC; close for line/area) — opt-in via
   `crosshairMode: 'magnet'` / `chart.setCrosshairMode()`.
 - **Order-intent hook** (opt-in, off by default): a "+" button at the price-axis
