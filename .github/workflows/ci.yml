@@ -17,3 +17,5 @@ jobs:
       - run: bun run build
       # Fails the build when a bundle outgrows its budget in .size-limit.json.
       - run: bun run size
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:e2e

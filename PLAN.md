@@ -353,11 +353,14 @@ Container sizing is implicit — no `width`/`height` option.
 
 - **Vitest** for pure logic: tick/interval selection, scale math, indicator
   incremental-vs-batch equivalence.
-- **Playwright** against `/demo`: pan, zoom, crosshair, resize, touch gestures,
-  screenshot diffing (CPU-rendered Canvas2D → deterministic, no GPU flags; small
-  pixel tolerance for font/AA).
-- `/demo` is both manual QA playground and the Playwright target; runs static JSON
-  fixtures + a mock live feed.
+- **Playwright** (`e2e/`, `bun run test:e2e`, in CI) against `/demo?live=0`:
+  real pointer input, asserting through the public API
+  (`paneLayout()`, `timeScale()`, events) rather than pixels. Screenshot
+  diffing is left out: baselines differ between macOS dev machines and Linux
+  CI in font rendering, so they'd need generating in a Linux container.
+- `/demo` is both manual QA playground and the Playwright target; it runs a
+  deterministic mock feed, and `?live=0` drops the live ticks so the chart
+  holds still.
 - `/demo/stress.html` loads 500k 1m bars (`?bars=N` to change) with the demo's
   indicators and reports ingest, calc, backfill, and per-frame paint times, with
   scripted pan / zoom / live-tick / backfill benchmarks.

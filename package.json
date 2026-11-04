@@ -46,10 +46,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "size": "size-limit",
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@size-limit/preset-small-lib": "^14.3.0",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/node": "^26.6.6",

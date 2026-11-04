@@ -32,5 +32,12 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src", "demo", "vite.config.ts", "vite.demo.config.ts"]
+  "include": [
+    "src",
+    "demo",
+    "e2e",
+    "vite.config.ts",
+    "vite.demo.config.ts",
+    "playwright.config.ts"
+  ]
 }

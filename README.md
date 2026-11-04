@@ -20,6 +20,7 @@ bun install
 bun run dev        # serve the /demo playground (app-mode Vite)
 bun run build      # build the library (ESM + .d.ts) to dist/
 bun run test       # run unit tests (Vitest)
+bun run test:e2e   # run browser tests against the demo (Playwright)
 bun run typecheck  # tsc --noEmit
 bun run size       # check built bundles against .size-limit.json (run build first)
 bun run format     # prettier --write
