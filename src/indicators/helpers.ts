@@ -1,4 +1,4 @@
-import type { BarReader, IndicatorCalc } from './types.ts'
+import type { BarReader, IndicatorCalc } from './types'
 
 /**
  * Shared base for built-in indicators. Holds each plot's output as a plain

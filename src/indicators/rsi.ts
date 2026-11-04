@@ -1,5 +1,5 @@
-import { BaseCalc } from './helpers.ts'
-import type { BarReader, IndicatorDefinition } from './types.ts'
+import { BaseCalc } from './helpers'
+import type { BarReader, IndicatorDefinition } from './types'
 
 /**
  * Relative Strength Index (PLAN §8.4), Wilder's smoothing. A pane indicator on

@@ -1,4 +1,4 @@
-import type { Bar, UTCTimestamp } from './types.ts'
+import type { Bar, UTCTimestamp } from './types'
 
 /**
  * Result of pushing a bar at the live edge: whether it extended the series with

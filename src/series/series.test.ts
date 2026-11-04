@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Bar } from '../data/types.ts'
-import { TimeScale } from '../scales/timeScale.ts'
-import { CandlestickSeries } from './candlestick.ts'
+import type { Bar } from '../data/types'
+import { TimeScale } from '../scales/timeScale'
+import { Series } from './series'
 
 function bar(
   time: number,
@@ -15,8 +15,8 @@ function bar(
   return { time, open: o, high: h, low: l, close: c, volume: v }
 }
 
-function series(): CandlestickSeries {
-  const s = new CandlestickSeries()
+function series(): Series {
+  const s = new Series()
   s.setData([
     bar(10, 5, 8, 4, 7),
     bar(20, 7, 9, 6, 6),
@@ -26,7 +26,7 @@ function series(): CandlestickSeries {
   return s
 }
 
-describe('CandlestickSeries.visibleWindow', () => {
+describe('Series.visibleWindow', () => {
   it('clamps the visible range to the stored data', () => {
     const s = series()
     // Wide bars, scrolled to the start: all four in view, clamped to [0,3].
@@ -44,16 +44,16 @@ describe('CandlestickSeries.visibleWindow', () => {
   })
 
   it('reports an empty window for an empty series', () => {
-    const s = new CandlestickSeries()
+    const s = new Series()
     const ts = new TimeScale(10, 0)
     const w = s.visibleWindow(ts, 500)
     expect(w.from).toBeGreaterThan(w.to)
   })
 })
 
-describe('CandlestickSeries change signals', () => {
+describe('Series change signals', () => {
   it('signals reset on setData', () => {
-    const s = new CandlestickSeries()
+    const s = new Series()
     const seen: string[] = []
     s.onChange = c => seen.push(c)
     s.setData([bar(10, 5, 8, 4, 7)])
@@ -97,7 +97,7 @@ describe('CandlestickSeries change signals', () => {
   })
 })
 
-describe('CandlestickSeries.priceRange', () => {
+describe('Series.priceRange', () => {
   it('spans min low to max high across the window', () => {
     const s = series()
     expect(s.priceRange({ from: 0, to: 3 })).toEqual({ low: 3, high: 12 })
@@ -113,11 +113,52 @@ describe('CandlestickSeries.priceRange', () => {
     const s = series()
     expect(s.priceRange({ from: 2, to: 1 })).toBeNull()
   })
+
+  it('spans the full high/low range for OHLC bars', () => {
+    const s = series()
+    s.setChartType('bar')
+    expect(s.priceRange({ from: 0, to: 3 })).toEqual({ low: 3, high: 12 })
+  })
+
+  it.each(['line', 'area'] as const)(
+    'spans only the closes for %s cha',
+    type => {
+      const s = series()
+      s.setChartType(type)
+      // closes 7, 6, 10, 4 — wicks (high 12, low 3) are ignored.
+      expect(s.priceRange({ from: 0, to: 3 })).toEqual({ low: 4, high: 10 })
+    },
+  )
 })
 
-describe('CandlestickSeries.volumeMax', () => {
-  function volSeries(): CandlestickSeries {
-    const s = new CandlestickSeries()
+describe('Series.setChartType', () => {
+  it('defaults to candlestick, or the type passed to the constructor', () => {
+    expect(new Series().chartType).toBe('candlestick')
+    expect(new Series('area').chartType).toBe('area')
+  })
+
+  it('switches type and signals style, leaving the data untouched', () => {
+    const s = series()
+    const seen: string[] = []
+    s.onChange = c => seen.push(c)
+    s.setChartType('line')
+    expect(s.chartType).toBe('line')
+    expect(seen).toEqual(['style'])
+    expect(s.store.size).toBe(4)
+  })
+
+  it('is a no-op when already of that type', () => {
+    const s = series()
+    const seen: string[] = []
+    s.onChange = c => seen.push(c)
+    s.setChartType('candlestick')
+    expect(seen).toEqual([])
+  })
+})
+
+describe('Series.volumeMax', () => {
+  function volSeries(): Series {
+    const s = new Series()
     s.setData([
       bar(10, 5, 8, 4, 7, 100),
       bar(20, 7, 9, 6, 6, 500),

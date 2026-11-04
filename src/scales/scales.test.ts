@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { PriceScale } from './priceScale.ts'
-import { TimeScale } from './timeScale.ts'
+import { PriceScale } from './priceScale'
+import { TimeScale } from './timeScale'
 
 describe('TimeScale', () => {
   it('round-trips index <-> x through the slot center', () => {

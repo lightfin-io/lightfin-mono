@@ -1,5 +1,5 @@
-import { Chart } from '../chart/chart.ts'
-import type { ChartOptionsInput } from '../chart/options.ts'
+import { Chart } from '../chart/chart'
+import type { ChartOptionsInput } from '../chart/options'
 
 /**
  * Create a chart bound to `container`. Synchronous by design — Canvas2D needs

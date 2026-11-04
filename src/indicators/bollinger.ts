@@ -1,5 +1,5 @@
-import { BaseCalc, meanClose, stdDevClose } from './helpers.ts'
-import type { BarReader, IndicatorDefinition } from './types.ts'
+import { BaseCalc, meanClose, stdDevClose } from './helpers'
+import type { BarReader, IndicatorDefinition } from './types'
 
 /**
  * Bollinger Bands (PLAN §8.4): an SMA(`period`) middle line with upper/lower

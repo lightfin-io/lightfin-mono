@@ -1,4 +1,5 @@
 import { createChart } from 'lightfin-web-chart'
+import type { ChartType } from 'lightfin-web-chart'
 
 import { createMockFeed } from './mockFeed.ts'
 
@@ -39,6 +40,25 @@ const rsi = await chart.addIndicator(
 const macd = await chart.addIndicator(
   import('lightfin-web-chart/indicators/macd'),
 )
+// Draws over the volume histogram on its hidden scale.
+const volumeMa = await chart.addIndicator(
+  import('lightfin-web-chart/indicators/volumeMa'),
+)
+
+// Chart-type switcher: re-renders the same data, no reload.
+const buttons = document.querySelectorAll<HTMLButtonElement>('#toolbar button')
+const syncButtons = () => {
+  for (const b of buttons) {
+    b.setAttribute('aria-pressed', String(b.dataset.type === candles.chartType))
+  }
+}
+for (const b of buttons) {
+  b.addEventListener('click', () => {
+    candles.setChartType(b.dataset.type as ChartType)
+    syncButtons()
+  })
+}
+syncButtons()
 
 // Expose for manual poking in the console.
 Object.assign(window as unknown as Record<string, unknown>, {
@@ -50,4 +70,5 @@ Object.assign(window as unknown as Record<string, unknown>, {
   bb,
   rsi,
   macd,
+  volumeMa,
 })

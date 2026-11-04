@@ -1,172 +1,69 @@
-import type { PlotRect } from '../chart/chart.ts'
-import type { ChartTheme } from '../chart/options.ts'
-import { ColumnStore, type PushResult } from '../data/store.ts'
-import type { Bar } from '../data/types.ts'
-import type { PriceScale } from '../scales/priceScale.ts'
-import type { TimeScale } from '../scales/timeScale.ts'
-
-/** Inclusive integer index window actually on screen. Empty when from > to. */
-export interface IndexWindow {
-  from: number
-  to: number
-}
+import type { PlotRect } from '../chart/chart'
+import type { ChartTheme } from '../chart/options'
+import type { ColumnStore } from '../data/store'
+import type { PriceScale } from '../scales/priceScale'
+import type { TimeScale } from '../scales/timeScale'
+import type { IndexWindow } from './series'
 
 /**
- * How a series' data changed, so the chart can respond appropriately:
- *   - `reset`   — full replacement via `setData`; the chart refits the viewport.
- *   - `new-bar` — `update` appended a newer bar; the chart advances the viewport
- *                 when it's following the live edge (PLAN §8.3 follow-mode).
- *   - `tick`    — `update` mutated the last bar in place; only a repaint is
- *                 needed, the scroll bounds are unchanged.
- *   - `prepend` — older bars were backfilled at the front; logical indices stay
- *                 bound to their bars (PLAN §6), so the view holds still and
- *                 only a repaint is needed.
- */
-export type SeriesChange = 'reset' | 'new-bar' | 'tick' | 'prepend'
-
-/**
- * Candlestick series (PLAN §5 layer 2, §9 batching rules).
+ * Candlestick renderer (PLAN §5 layer 2, §9 batching rules).
  *
- * Owns a {@link ColumnStore} and draws it with the batched-path technique:
- * walk the visible range once, bucket bars into up vs down, accumulate every
- * up body *and* wick as `rect()` subpaths in a single path, set `fillStyle`
- * once, and `fill()` once — then the same for down. That's ~2 fills for the
- * whole series regardless of candle count, versus the per-candle
- * `fillStyle=…; fillRect(); stroke()` anti-pattern.
+ * Walks the visible window once, buckets bars into up vs down, accumulates
+ * every up body *and* wick as `rect()` subpaths in a single path, sets
+ * `fillStyle` once, and `fill()`s once — then the same for down. That's ~2
+ * fills for the whole series regardless of candle count, versus the
+ * per-candle `fillStyle=…; fillRect(); stroke()` anti-pattern. The caller
+ * clips to `plot`.
  */
-export class CandlestickSeries {
-  readonly store = new ColumnStore()
+export function drawCandles(
+  ctx: CanvasRenderingContext2D,
+  store: ColumnStore,
+  window: IndexWindow,
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+  plot: PlotRect,
+  theme: ChartTheme,
+  dpr: number,
+): void {
+  const h = plot.height
+  // 1 device-pixel wick, expressed in CSS px so it stays crisp at any dpr.
+  const wickW = 1 / dpr
+  // Body fills ~80% of the slot, leaving a gap between candles; never wider
+  // than the slot and at least the wick width so thin candles stay visible.
+  const bodyW = Math.max(wickW, timeScale.barWidth * 0.8)
+  const halfBody = bodyW / 2
 
-  /**
-   * Set by the chart when the series is added, so `setData`/`update` can
-   * trigger the right repaint/viewport response (see {@link SeriesChange}).
-   */
-  onChange?: (change: SeriesChange) => void
+  const up = new Path2D()
+  const down = new Path2D()
 
-  setData(bars: readonly Bar[]): void {
-    this.store.setData(bars)
-    this.onChange?.('reset')
+  for (let i = window.from; i <= window.to; i++) {
+    const p = store.physical(i)
+    const open = store.opens[p]!
+    const close = store.closes[p]!
+    const high = store.highs[p]!
+    const low = store.lows[p]!
+
+    const cx = plot.left + timeScale.indexToX(i)
+    const path = close >= open ? up : down
+
+    // Wick: high → low, 1 device-px wide, snapped to a device-pixel column.
+    const wickX = snap(cx - wickW / 2, dpr)
+    const yHigh = priceScale.priceToY(high, h) + plot.top
+    const yLow = priceScale.priceToY(low, h) + plot.top
+    path.rect(wickX, yHigh, wickW, Math.max(wickW, yLow - yHigh))
+
+    // Body: open ↔ close, min 1px tall so dojis remain visible.
+    const yOpen = priceScale.priceToY(open, h) + plot.top
+    const yClose = priceScale.priceToY(close, h) + plot.top
+    const bodyTop = Math.min(yOpen, yClose)
+    const bodyX = snap(cx - halfBody, dpr)
+    path.rect(bodyX, bodyTop, bodyW, Math.max(1, Math.abs(yClose - yOpen)))
   }
 
-  update(bar: Bar): PushResult {
-    const result = this.store.push(bar)
-    this.onChange?.(result.isNewBar ? 'new-bar' : 'tick')
-    return result
-  }
-
-  /** Backfill older bars at the front (history), e.g. from a {@link DataSource}. */
-  prepend(bars: readonly Bar[]): void {
-    if (bars.length === 0) return
-    this.store.prepend(bars)
-    this.onChange?.('prepend')
-  }
-
-  /**
-   * Inclusive integer index window visible in a plot of `width` px, clamped to
-   * the stored data. Returns `from > to` when nothing is in view.
-   */
-  visibleWindow(timeScale: TimeScale, width: number): IndexWindow {
-    const { store } = this
-    if (store.size === 0) return { from: 0, to: -1 }
-    const range = timeScale.visibleRange(width)
-    const from = Math.max(store.firstIndex, Math.floor(range.from))
-    const to = Math.min(store.lastIndex, Math.ceil(range.to))
-    return { from, to }
-  }
-
-  /**
-   * Min low / max high across an inclusive index window, for price-axis
-   * autoscale. Returns null when the window is empty.
-   */
-  priceRange(window: IndexWindow): { low: number; high: number } | null {
-    const { store } = this
-    if (window.from > window.to || store.size === 0) return null
-    let low = Infinity
-    let high = -Infinity
-    for (let i = window.from; i <= window.to; i++) {
-      const p = store.physical(i)
-      const l = store.lows[p]!
-      const h = store.highs[p]!
-      if (l < low) low = l
-      if (h > high) high = h
-    }
-    return low <= high ? { low, high } : null
-  }
-
-  /**
-   * Max volume across an inclusive index window, for the hidden volume scale
-   * (PLAN §7). Returns 0 when the window is empty or no bar carries volume.
-   */
-  volumeMax(window: IndexWindow): number {
-    const { store } = this
-    if (window.from > window.to || !store.hasVolumeData) return 0
-    let max = 0
-    for (let i = window.from; i <= window.to; i++) {
-      const v = store.volumes[store.physical(i)]!
-      if (!Number.isNaN(v) && v > max) max = v
-    }
-    return max
-  }
-
-  draw(
-    ctx: CanvasRenderingContext2D,
-    timeScale: TimeScale,
-    priceScale: PriceScale,
-    plot: PlotRect,
-    theme: ChartTheme,
-    dpr: number,
-  ): void {
-    const { store } = this
-    const window = this.visibleWindow(timeScale, plot.width)
-    if (window.from > window.to) return
-
-    const h = plot.height
-    // 1 device-pixel wick, expressed in CSS px so it stays crisp at any dpr.
-    const wickW = 1 / dpr
-    // Body fills ~80% of the slot, leaving a gap between candles; never wider
-    // than the slot and at least the wick width so thin candles stay visible.
-    const bodyW = Math.max(wickW, timeScale.barWidth * 0.8)
-    const halfBody = bodyW / 2
-
-    const up = new Path2D()
-    const down = new Path2D()
-
-    for (let i = window.from; i <= window.to; i++) {
-      const p = store.physical(i)
-      const open = store.opens[p]!
-      const close = store.closes[p]!
-      const high = store.highs[p]!
-      const low = store.lows[p]!
-
-      const cx = plot.left + timeScale.indexToX(i)
-      const path = close >= open ? up : down
-
-      // Wick: high → low, 1 device-px wide, snapped to a device-pixel column.
-      const wickX = snap(cx - wickW / 2, dpr)
-      const yHigh = priceScale.priceToY(high, h) + plot.top
-      const yLow = priceScale.priceToY(low, h) + plot.top
-      path.rect(wickX, yHigh, wickW, Math.max(wickW, yLow - yHigh))
-
-      // Body: open ↔ close, min 1px tall so dojis remain visible.
-      const yOpen = priceScale.priceToY(open, h) + plot.top
-      const yClose = priceScale.priceToY(close, h) + plot.top
-      const bodyTop = Math.min(yOpen, yClose)
-      const bodyX = snap(cx - halfBody, dpr)
-      path.rect(bodyX, bodyTop, bodyW, Math.max(1, Math.abs(yClose - yOpen)))
-    }
-
-    // Clip to the plot rect: the rightmost/leftmost visible candle can be
-    // partially in view, and its wick/body must not bleed into the axis strips.
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(plot.left, plot.top, plot.width, plot.height)
-    ctx.clip()
-    ctx.fillStyle = theme.upColor
-    ctx.fill(up)
-    ctx.fillStyle = theme.downColor
-    ctx.fill(down)
-    ctx.restore()
-  }
+  ctx.fillStyle = theme.upColor
+  ctx.fill(up)
+  ctx.fillStyle = theme.downColor
+  ctx.fill(down)
 }
 
 /** Snap a CSS-px coordinate to a whole device pixel for crisp edges (PLAN §9). */

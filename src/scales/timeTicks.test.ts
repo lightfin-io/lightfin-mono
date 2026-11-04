@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { timeAxisLabels } from './timeTicks.ts'
+import { timeAxisLabels } from './timeTicks'
 
 const HOUR = 3600
 const JAN1 = Date.UTC(2024, 0, 1) / 1000

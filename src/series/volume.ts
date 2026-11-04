@@ -1,7 +1,7 @@
-import type { PlotRect } from '../chart/chart.ts'
-import type { ColumnStore } from '../data/store.ts'
-import type { TimeScale } from '../scales/timeScale.ts'
-import type { IndexWindow } from './candlestick.ts'
+import type { PlotRect } from '../chart/chart'
+import type { ColumnStore } from '../data/store'
+import type { TimeScale } from '../scales/timeScale'
+import type { IndexWindow } from './series'
 
 export interface VolumeStyle {
   /** Largest volume in the visible window — the top of the hidden scale. */

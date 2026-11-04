@@ -1,5 +1,5 @@
-import { BaseCalc, meanClose } from './helpers.ts'
-import type { BarReader, IndicatorDefinition } from './types.ts'
+import { BaseCalc, meanClose } from './helpers'
+import type { BarReader, IndicatorDefinition } from './types'
 
 /**
  * Exponential Moving Average (PLAN §8.4). Seeded with an SMA over the first

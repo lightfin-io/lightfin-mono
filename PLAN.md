@@ -15,11 +15,12 @@ host renders the order form.
 
 ## 2. Current state
 
-Phases 0–4 shipped: cleanup/scaffold, core rendering (candlesticks, index time
+Phases 0–5 shipped: cleanup/scaffold, core rendering (candlesticks, index time
 axis, price axis, pan/zoom, resize), crosshair + current-price line, volume
 sub-pane, interval-aware time ticks, live data (update/follow-mode/DataSource +
-history backfill), and the indicator framework with SMA, EMA, Bollinger, RSI,
-MACD. See §13 for what remains.
+history backfill), the indicator framework with SMA, EMA, Bollinger, RSI,
+MACD, Volume MA, and candlestick/bar/line/area series switchable in place via
+`setChartType()`. See §13 for what remains.
 
 ## 3. Core technical decisions
 
@@ -161,8 +162,8 @@ src/
   tail update. Contract: `calculateAll(bars)` + `update(bar)`.
 - **Extensibility:** plain TS/JS functions against a small runtime API
   (`ta.sma()`, `ta.ema()`, `ta.rsi()`, series accessors), each a dynamically
-  importable module. Built-ins: SMA, EMA, RSI, MACD, Bollinger (shipped) + Volume
-  MA (todo).
+  importable module. Built-ins: SMA, EMA, RSI, MACD, Bollinger, Volume MA (an
+  overlay on the hidden volume scale, `scale: 'volume'`).
 - **AI-friendly:** an AI-driven UI can dynamically add existing or author new
   indicators.
 - **No Pine Script clone** (proprietary/trademarked, legal risk). A TS/JS API gets
@@ -250,8 +251,8 @@ Container sizing is implicit — no `width`/`height` option.
 2. **Single-pane polish** — crosshair, current-price line, volume sub-pane, smart ticks. ✅
 3. **Live data** — update/follow-mode, DataSource, mock feed, backfill. ✅
 4. **Indicators framework** — overlay + pane, incremental calc, 5 built-ins. ✅
-5. **Series types & chart-type switching** — line, area, bar renderers; `setChartType()`; Volume MA. _(next)_
-6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock), left annotation toolbar.
+5. **Series types & chart-type switching** — line, area, bar renderers; `setChartType()`; Volume MA. ✅
+6. **Chart chrome** _(next)_ — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock), left annotation toolbar.
 7. **Annotations** — drawing tools, hit-testing, selection/drag, JSON serialization.
 8. **Scale-out perf** — decimation + multi-resolution cache, worker-based calc investigation, bundle-size budget in CI, 500k-candle stress page, order-intent hook + magnet mode.
 9. **Ecosystem** — React wrapper (first), theming system, docs site, (stretch) original scripting DSL.

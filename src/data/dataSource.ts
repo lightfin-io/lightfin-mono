@@ -1,4 +1,4 @@
-import type { Bar, UTCTimestamp } from './types.ts'
+import type { Bar, UTCTimestamp } from './types'
 
 /** A half-open-ish time window (inclusive seconds) a {@link DataSource} is asked to fill. */
 export interface BarRange {

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { StoreReader } from '../data/barReader.ts'
-import { ColumnStore } from '../data/store.ts'
-import type { Bar } from '../data/types.ts'
-import bollingerDef from './bollinger.ts'
-import emaDef from './ema.ts'
-import macdDef from './macd.ts'
-import rsiDef from './rsi.ts'
-import smaDef from './sma.ts'
-import type { IndicatorDefinition } from './types.ts'
+import { StoreReader } from '../data/barReader'
+import { ColumnStore } from '../data/store'
+import type { Bar } from '../data/types'
+import bollingerDef from './bollinger'
+import emaDef from './ema'
+import macdDef from './macd'
+import rsiDef from './rsi'
+import smaDef from './sma'
+import type { IndicatorDefinition } from './types'
+import volumeMaDef from './volumeMa'
 
 // The core treats indicator options opaquely; tests do the same (see chart.ts).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,6 +28,7 @@ function bars(n: number): Bar[] {
       high: Math.max(open, close) + 1,
       low: Math.min(open, close) - 1,
       close,
+      volume: 1000 + ((i * 37) % 11) * 100,
     })
     price = close
   }
@@ -59,6 +61,7 @@ const definitions: [string, AnyDef, Record<string, unknown>][] = [
   ['Bollinger', bollingerDef as unknown as AnyDef, { period: 10, mult: 2 }],
   ['RSI', rsiDef as unknown as AnyDef, { period: 14 }],
   ['MACD', macdDef as unknown as AnyDef, {}],
+  ['Volume MA', volumeMaDef as unknown as AnyDef, { period: 10 }],
 ]
 
 describe.each(definitions)('%s indicator', (_name, def, options) => {
@@ -129,5 +132,43 @@ describe.each(definitions)('%s indicator', (_name, def, options) => {
       const want = ref[key]![refStore.lastIndex - refStore.firstIndex]!
       expect(live).toBeCloseTo(want, 10)
     }
+  })
+})
+
+describe('Volume MA', () => {
+  const vol = (time: number, volume?: number): Bar => ({
+    time,
+    open: 1,
+    high: 1,
+    low: 1,
+    close: 1,
+    volume,
+  })
+
+  it('averages the last `period` volumes', () => {
+    const store = new ColumnStore()
+    store.setData([vol(1, 100), vol(2, 200), vol(3, 600), vol(4, 400)])
+    const snap = snapshot(
+      volumeMaDef as unknown as AnyDef,
+      { period: 3 },
+      store,
+    )
+    expect(snap.volumeMa).toEqual([NaN, NaN, 300, 400])
+  })
+
+  it('is undefined for any window containing a bar without volume', () => {
+    const store = new ColumnStore()
+    store.setData([vol(1, 100), vol(2), vol(3, 300), vol(4, 300)])
+    const snap = snapshot(
+      volumeMaDef as unknown as AnyDef,
+      { period: 2 },
+      store,
+    )
+    expect(snap.volumeMa).toEqual([NaN, NaN, NaN, 300])
+  })
+
+  it('draws on the volume scale, not the price scale', () => {
+    expect(volumeMaDef.overlay).toBe(true)
+    expect(volumeMaDef.scale).toBe('volume')
   })
 })

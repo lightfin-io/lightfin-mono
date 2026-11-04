@@ -1,5 +1,5 @@
-import { BaseCalc, meanClose } from './helpers.ts'
-import type { BarReader, IndicatorDefinition } from './types.ts'
+import { BaseCalc, meanClose } from './helpers'
+import type { BarReader, IndicatorDefinition } from './types'
 
 /**
  * MACD (PLAN §8.4): the difference of a fast and slow EMA of close, a signal

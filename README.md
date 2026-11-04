@@ -9,7 +9,7 @@ See [PLAN.md](./PLAN.md) for the full design and roadmap.
 
 ## Status
 
-Early development. Phase 1 (core rendering) in progress.
+Early development. Phases 0–5 shipped (see [PLAN.md §13](./PLAN.md)).
 
 ## Development
 

@@ -89,6 +89,13 @@ export interface IndicatorDefinition<Options = Record<string, never>> {
    * averages, Bollinger). `false` → its own sub-pane and scale (RSI, MACD).
    */
   overlay: boolean
+  /**
+   * Overlay indicators only: which main-pane scale the plots read against.
+   * `'price'` (default) shares the candles' price scale; `'volume'` draws on
+   * the hidden volume scale over the volume histogram (e.g. Volume MA), and
+   * only renders while the chart's volume histogram does.
+   */
+  scale?: 'price' | 'volume'
   /** Options applied when the caller omits them. */
   defaultOptions: Options
   /** The plots this indicator emits for the given (resolved) options. */
@@ -97,7 +104,7 @@ export interface IndicatorDefinition<Options = Record<string, never>> {
   fills?(options: Options): BandFill[]
   /**
    * Pane indicators only: a fixed value range for the pane's scale (e.g. RSI's
-   * 0–100). When omitted, the pane autoscales to its plots' visible values.
+   * 0–100). When omitted, the pane autoscales to its pl' visible values.
    */
   fixedRange?(options: Options): { min: number; max: number }
   /** Pane indicators only: horizontal reference lines (e.g. RSI 30/70). */

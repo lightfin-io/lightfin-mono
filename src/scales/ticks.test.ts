@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { niceStep, priceTicks, stepDecimals } from './ticks.ts'
+import { niceStep, priceTicks, stepDecimals } from './ticks'
 
 describe('niceStep', () => {
   it('snaps to 1/2/2.5/5 × 10ⁿ', () => {

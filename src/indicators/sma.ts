@@ -1,5 +1,5 @@
-import { BaseCalc, meanClose } from './helpers.ts'
-import type { BarReader, IndicatorDefinition } from './types.ts'
+import { BaseCalc, meanClose } from './helpers'
+import type { BarReader, IndicatorDefinition } from './types'
 
 /**
  * Simple Moving Average (PLAN §8.4) — the mean of the last `period` closes,

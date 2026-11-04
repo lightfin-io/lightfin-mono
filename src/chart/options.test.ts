@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_OPTIONS, DEFAULT_THEME, resolveOptions } from './options.ts'
+import { DEFAULT_OPTIONS, DEFAULT_THEME, resolveOptions } from './options'
 
 describe('resolveOptions', () => {
   it('returns defaults when given nothing', () => {

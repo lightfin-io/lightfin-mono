@@ -19,4 +19,4 @@ export type {
   IndicatorHandle,
   IndicatorModule,
   PlotStyle,
-} from './types.ts'
+} from './types'

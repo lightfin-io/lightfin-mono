@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { ColumnStore } from './store.ts'
-import type { Bar } from './types.ts'
+import { ColumnStore } from './store'
+import type { Bar } from './types'
 
 function bar(time: number, close = time, volume?: number): Bar {
   return {

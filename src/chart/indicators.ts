@@ -1,14 +1,14 @@
-import type { StoreReader } from '../data/barReader.ts'
+import type { StoreReader } from '../data/barReader'
 import type {
   BandFill,
   IndicatorCalc,
   IndicatorDefinition,
   PlotStyle,
   ReferenceLevel,
-} from '../indicators/types.ts'
-import { PriceScale } from '../scales/priceScale.ts'
-import type { TimeScale } from '../scales/timeScale.ts'
-import type { PlotRect } from './chart.ts'
+} from '../indicators/types'
+import { PriceScale } from '../scales/priceScale'
+import type { TimeScale } from '../scales/timeScale'
+import type { PlotRect } from './chart'
 
 /** Inclusive integer index window actually on screen. */
 interface IndexWindow {
@@ -19,6 +19,8 @@ interface IndexWindow {
 /** A live indicator added to the chart: its definition, resolved options, plots, and calc. */
 export class IndicatorInstance {
   readonly overlay: boolean
+  /** Overlays only: draws on the hidden volume scale rather than the price scale. */
+  readonly onVolumeScale: boolean
   readonly plots: PlotStyle[]
   readonly fills: BandFill[]
   readonly levels: ReferenceLevel[]
@@ -34,6 +36,7 @@ export class IndicatorInstance {
   constructor(def: IndicatorDefinition<any>, options: Record<string, unknown>) {
     const resolved = { ...def.defaultOptions, ...options }
     this.overlay = def.overlay
+    this.onVolumeScale = def.overlay && def.scale === 'volume'
     this.plots = def.plots(resolved)
     this.fills = def.fills?.(resolved) ?? []
     this.levels = def.overlay ? [] : (def.levels?.(resolved) ?? [])
@@ -112,8 +115,14 @@ export class IndicatorController {
     return this.instances.length === 0
   }
 
+  /** Whether any overlay draws on the main price scale. */
   get hasOverlays(): boolean {
-    return this.instances.some(i => i.overlay)
+    return this.instances.some(i => i.overlay && !i.onVolumeScale)
+  }
+
+  /** Whether any overlay draws on the hidden volume scale (e.g. Volume MA). */
+  get hasVolumeOverlays(): boolean {
+    return this.instances.some(i => i.onVolumeScale)
   }
 
   /** Pane indicators (own sub-pane), in the order they were added. */
@@ -140,7 +149,7 @@ export class IndicatorController {
     high: number,
   ): { low: number; high: number } {
     for (const inst of this.instances) {
-      if (!inst.overlay) continue
+      if (!inst.overlay || inst.onVolumeScale) continue
       for (const plot of inst.plots) {
         for (let i = window.from; i <= window.to; i++) {
           const v = inst.value(plot.key, i)
@@ -153,16 +162,39 @@ export class IndicatorController {
     return { low, high }
   }
 
-  /** Draw all overlay indicators onto the (already clipped) series context. */
+  /**
+   * Max of every volume-scale overlay plot across the visible window, folded
+   * into the histogram's own max so e.g. a Volume MA lagging a volume spike
+   * that just scrolled off-screen isn't clipped at the top of the region.
+   */
+  extendVolumeMax(window: IndexWindow, max: number): number {
+    for (const inst of this.instances) {
+      if (!inst.onVolumeScale) continue
+      for (const plot of inst.plots) {
+        for (let i = window.from; i <= window.to; i++) {
+          const v = inst.value(plot.key, i)
+          if (Number.isFinite(v) && v > max) max = v
+        }
+      }
+    }
+    return max
+  }
+
+  /**
+   * Draw overlay indicators onto the (already clipped) series context: the
+   * price-scale ones by default, or with `volumeScale` set, the volume-scale
+   * ones mapped into the volume histogram's region `plot`.
+   */
   drawOverlays(
     ctx: CanvasRenderingContext2D,
     window: IndexWindow,
     timeScale: TimeScale,
     priceScale: PriceScale,
     plot: PlotRect,
+    volumeScale = false,
   ): void {
     for (const inst of this.instances) {
-      if (!inst.overlay) continue
+      if (!inst.overlay || inst.onVolumeScale !== volumeScale) continue
       // Bands first, so the lines read on top of their own shaded fill.
       for (const fill of inst.fills) {
         drawBandFill(ctx, inst, fill, window, timeScale, priceScale, plot)

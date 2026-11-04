@@ -10,6 +10,11 @@ export interface ChartTheme {
   /** Volume histogram fill for up bars; usually semi-transparent so candles read through. */
   volumeUpColor: string
   volumeDownColor: string
+  /** Stroke for the line and area chart types (and their current-price line). */
+  lineColor: string
+  /** Area chart gradient fill, from the top of the pane down to its bottom. */
+  areaTopColor: string
+  areaBottomColor: string
   crosshairColor: string
   fontFamily: string
   fontSize: number
@@ -66,6 +71,9 @@ export const DEFAULT_THEME: ChartTheme = {
   downColor: '#ef5350',
   volumeUpColor: 'rgba(38, 166, 154, 0.5)',
   volumeDownColor: 'rgba(239, 83, 80, 0.5)',
+  lineColor: '#2962ff',
+  areaTopColor: 'rgba(41, 98, 255, 0.28)',
+  areaBottomColor: 'rgba(41, 98, 255, 0.02)',
   crosshairColor: '#758696',
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',

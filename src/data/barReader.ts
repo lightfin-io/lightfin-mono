@@ -1,5 +1,5 @@
-import type { BarReader } from '../indicators/types.ts'
-import type { ColumnStore } from './store.ts'
+import type { BarReader } from '../indicators/types'
+import type { ColumnStore } from './store'
 
 /**
  * Adapts a {@link ColumnStore} to the indicator-facing {@link BarReader}

@@ -1,24 +1,24 @@
-import { StoreReader } from '../data/barReader.ts'
-import type { DataSource } from '../data/dataSource.ts'
+import { StoreReader } from '../data/barReader'
+import type { DataSource } from '../data/dataSource'
 import type {
   IndicatorDefinition,
   IndicatorHandle,
   IndicatorModule,
-} from '../indicators/types.ts'
-import { CrosshairController } from '../interaction/crosshair.ts'
-import { PanZoomController } from '../interaction/panzoom.ts'
-import { LayerManager } from '../render/layers.ts'
-import { FrameScheduler } from '../render/scheduler.ts'
-import { PriceScale } from '../scales/priceScale.ts'
-import { priceTicks, stepDecimals } from '../scales/ticks.ts'
-import { TimeScale } from '../scales/timeScale.ts'
-import { timeAxisLabels } from '../scales/timeTicks.ts'
-import { CandlestickSeries } from '../series/candlestick.ts'
-import type { SeriesChange } from '../series/candlestick.ts'
-import { drawVolume } from '../series/volume.ts'
-import { IndicatorController, IndicatorInstance } from './indicators.ts'
-import type { ChartOptions, ChartOptionsInput } from './options.ts'
-import { resolveOptions } from './options.ts'
+} from '../indicators/types'
+import { CrosshairController } from '../interaction/crosshair'
+import { PanZoomController } from '../interaction/panzoom'
+import { LayerManager } from '../render/layers'
+import { FrameScheduler } from '../render/scheduler'
+import { PriceScale } from '../scales/priceScale'
+import { priceTicks, stepDecimals } from '../scales/ticks'
+import { TimeScale } from '../scales/timeScale'
+import { timeAxisLabels } from '../scales/timeTicks'
+import { Series } from '../series/series'
+import type { ChartType, IndexWindow, SeriesChange } from '../series/series'
+import { drawVolume } from '../series/volume'
+import { IndicatorController, IndicatorInstance } from './indicators'
+import type { ChartOptions, ChartOptionsInput } from './options'
+import { resolveOptions } from './options'
 
 /**
  * Any indicator definition/module, regardless of its option shape. The core
@@ -55,8 +55,9 @@ const VOLUME_PRICE_MARGIN = 0.6
 /**
  * The root chart object (PLAN §4 `chart/`). Owns the layered canvas stack, the
  * frame scheduler, the time/price scales, the pan/zoom controller, the series,
- * and the indicators. Supports a candlestick series on an index-based time axis
- * with an autoscaled price axis, anchored pan/zoom, a crosshair and live
+ * and the indicators. Supports one price series (candlestick, OHLC bar, line,
+ * or area — switchable in place) on an index-based time axis with an
+ * autoscaled price axis, anchored pan/zoom, a crosshair and live
  * data/follow-mode, plus overlay and own-pane indicators (PLAN §8.4).
  */
 export class Chart {
@@ -71,7 +72,7 @@ export class Chart {
 
   private readonly timeScaleModel = new TimeScale()
   private readonly priceScale = new PriceScale()
-  private series: CandlestickSeries | null = null
+  private series: Series | null = null
   private reader: StoreReader | null = null
   private readonly indicators = new IndicatorController()
   // Whether the viewport is pinned to the live edge, so new bars scroll it
@@ -104,9 +105,34 @@ export class Chart {
     this.syncSize()
   }
 
-  /** Add the chart's candlestick series. Phase 1 supports one. */
-  addCandlestickSeries(): CandlestickSeries {
-    const series = new CandlestickSeries()
+  /** Add the chart's price series, drawn as candlesticks. */
+  addCandlestickSeries(): Series {
+    return this.addSeries('candlestick')
+  }
+
+  /** Add the chart's price series, drawn as OHLC bars. */
+  addBarSeries(): Series {
+    return this.addSeries('bar')
+  }
+
+  /** Add the chart's price series, drawn as a line through the closes. */
+  addLineSeries(): Series {
+    return this.addSeries('line')
+  }
+
+  /** Add the chart's price series, drawn as a gradient-filled area under the closes. */
+  addAreaSeries(): Series {
+    return this.addSeries('area')
+  }
+
+  /**
+   * The chart holds one price series; adding another replaces it. The chart
+   * type is only the starting renderer — `series.setChartType()` switches it
+   * later without touching the data.
+   */
+  private addSeries(chartType: ChartType): Series {
+    if (this.series) this.series.onChange = undefined
+    const series = new Series(chartType)
     series.onChange = change => this.onSeriesChange(change)
     this.series = series
     this.reader = new StoreReader(series.store)
@@ -151,11 +177,12 @@ export class Chart {
   private onSeriesChange(change: SeriesChange): void {
     // Keep indicator caches in step with the data (PLAN §8.4). A reset or
     // backfill shifts the index space, so recompute from scratch; a live tick or
-    // new bar only needs the tail recomputed. Pan/zoom never lands here.
+    // new bar only needs the tail recomputed. Pan/zoom and a chart-type switch
+    // never land here.
     if (this.reader && !this.indicators.isEmpty) {
       if (change === 'reset' || change === 'prepend') {
         this.indicators.recomputeAll(this.reader)
-      } else {
+      } else if (change === 'tick' || change === 'new-bar') {
         this.indicators.updateLast(this.reader)
       }
     }
@@ -177,7 +204,8 @@ export class Chart {
       else this.clampScroll()
     }
     // A `prepend` leaves logical indices (and thus the scroll position) bound to
-    // the same bars, so the view holds still — just repaint the wider data.
+    // the same bars, so the view holds still — just repaint the wider data. A
+    // `style` change likewise keeps the view; the repaint re-autoscales it.
     this.invalidateViewport()
   }
 
@@ -496,22 +524,9 @@ export class Chart {
     const dpr = this.layers.getDpr()
     const window = this.series.visibleWindow(this.timeScaleModel, main.width)
 
-    // Volume first so the candles draw on top of its (semi-transparent) bars.
+    // Volume first so the series draws on top of its (semi-transparent) bars.
     if (this.options.volumeVisible && this.series.store.hasVolumeData) {
-      drawVolume(
-        ctx,
-        this.series.store,
-        window,
-        this.timeScaleModel,
-        main,
-        {
-          max: this.series.volumeMax(window),
-          heightRatio: this.options.volumeHeightRatio,
-          upColor: this.options.theme.volumeUpColor,
-          downColor: this.options.theme.volumeDownColor,
-        },
-        dpr,
-      )
+      this.paintVolume(ctx, window, main, dpr)
     }
 
     this.series.draw(
@@ -558,6 +573,59 @@ export class Chart {
       )
       ctx.restore()
     }
+  }
+
+  /**
+   * The volume histogram plus any volume-scale overlays (Volume MA), both on
+   * the hidden 0 → max volume scale spanning the bottom slice of `main`.
+   */
+  private paintVolume(
+    ctx: CanvasRenderingContext2D,
+    window: IndexWindow,
+    main: PlotRect,
+    dpr: number,
+  ): void {
+    const series = this.series!
+    const { theme, volumeHeightRatio } = this.options
+    const max = this.indicators.extendVolumeMax(
+      window,
+      series.volumeMax(window),
+    )
+    drawVolume(
+      ctx,
+      series.store,
+      window,
+      this.timeScaleModel,
+      main,
+      {
+        max,
+        heightRatio: volumeHeightRatio,
+        upColor: theme.volumeUpColor,
+        downColor: theme.volumeDownColor,
+      },
+      dpr,
+    )
+
+    if (!this.indicators.hasVolumeOverlays || max <= 0) return
+    const regionH = main.height * volumeHeightRatio
+    const region: PlotRect = {
+      ...main,
+      top: main.top + main.height - regionH,
+      height: regionH,
+    }
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(main.left, main.top, main.width, main.height)
+    ctx.clip()
+    this.indicators.drawOverlays(
+      ctx,
+      window,
+      this.timeScaleModel,
+      new PriceScale(0, max, 0),
+      region,
+      true,
+    )
+    ctx.restore()
   }
 
   private paintAxes(): void {
@@ -657,11 +725,13 @@ export class Chart {
 
   /**
    * Dotted horizontal line + filled price-axis badge at the last bar's close
-   * (PLAN §8.3), colored by the last candle's direction like TradingView. Drawn
+   * (PLAN §8.3), colored by the last candle's direction like TradingView — or
+   * in the line color for line/area charts, which carry no direction. Drawn
    * only when that price sits within the autoscaled visible range.
    */
   private paintPriceLine(main: PlotRect): void {
-    const store = this.series!.store
+    const series = this.series!
+    const store = series.store
     const { width, height } = this.layers.getSize()
     const { theme } = this.options
     const dpr = this.layers.getDpr()
@@ -672,7 +742,11 @@ export class Chart {
     const y = this.priceScale.priceToY(close, main.height)
     if (y < 0 || y > main.height) return
 
-    const color = up ? theme.upColor : theme.downColor
+    const color = series.closeOnly
+      ? theme.lineColor
+      : up
+        ? theme.upColor
+        : theme.downColor
     const ctx = this.layers.getContext('overlay')
     const lineY = snap(y, dpr)
 
