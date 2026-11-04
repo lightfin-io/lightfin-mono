@@ -26,7 +26,7 @@ clock), the `/annotations` drawing tools (trendline, h/v line, rectangle, fib,
 text) on a generic primitive hook, the order-intent "+" hook, magnet crosshair
 mode, the 500k-candle stress page, and a bundle-size budget in CI. Decimation
 and worker-based calc were measured and deliberately not built (§6, §8.4).
-Phase 9 (ecosystem) is next. See §13.
+See §13; ecosystem work (React wrapper, theming, docs) is parked in §14.
 
 ## 3. Core technical decisions
 
@@ -124,6 +124,9 @@ src/
     subscribeLive?(onBar: (bar: Bar, isNewBar: boolean) => void): () => void
   }
   ```
+  Interface only: no built-in REST/websocket adapters. Wiring an exchange
+  API is a few lines of host code, and shipping adapters would mean tracking
+  every vendor's API.
 
 ## 7. Time & price axes
 
@@ -131,8 +134,9 @@ src/
   (1s/5s/15s/30s, 1m/5m/15m/30m, 1H/2H/4H, 1D/1W/1M/1Y) by target pixel-per-label
   density; index-based so it skips gaps. Label format adapts to interval. Ticks
   render in the instrument timezone (§6).
-- **Price axis:** autoscale to visible min/max with margin; multiple scales per
-  pane (left/right) and multiple panes supported.
+- **Price axis:** autoscale to visible min/max with margin. The main pane and
+  each indicator sub-pane have their own right-side scale; a second (left)
+  scale per pane isn't built (§15).
 - **Volume sub-scale:** histogram in the bottom ~15–20% of the main pane on its own
   hidden scale (0 → max visible volume × margin), not shown as an axis.
 
@@ -350,20 +354,23 @@ Container sizing is implicit — no `width`/`height` option.
 6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock). ✅ (left annotation toolbar moves to Phase 7)
 7. **Annotations** — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar. ✅
 8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation and worker-based calc were measured and not built (§6, §8.4).
-9. **Ecosystem** _(next)_ — React wrapper (first), theming system, docs site.
 
-## 14. Extras (don't pick up yet)
+## 14. Don't pick up yet
 
 - Tradingview has tags that show events for example has E tags along the bottom of the price chart which when clicked open an earnings modal.
+- Settings modal, saving annotations, reset to defaults etc
+- **Ecosystem** — React wrapper (first), theming system, docs site. Theming
+  open question: today the canvas takes a JS `theme` object and chrome mirrors
+  it into CSS variables; decide whether CSS variables become the source of truth.
 
 ## 15. Open questions
 
-- **Columnar store** — leaning typed/columnar (uPlot's headline win); confirm with a spike.
-- **Tick-interval ladder & locale** — exact ladder + date/number locale handling; decide before chrome/axes work hardens.
-- **Theming API** — CSS variables vs. JS options object; touches render + chrome layers.
+- **Date locale** — axis/crosshair month names are English and the clock is
+  24h `en-GB`; numbers go through `priceFormatter`. A `locale` option would
+  route dates through `Intl.DateTimeFormat` too.
+- **Left price scale** — a second scale per pane (e.g. comparing two symbols).
 - **Accessibility** — canvas is invisible to AT. Baseline: `aria-label`/described
   container + optional hidden data-table; keyboard pan/zoom/crosshair nice-to-have.
   Decide before calling v1 "done".
 - **Order/position price-line primitive** — draggable, host-managed markers; Phase 8 follow-on to the order hook.
-- **Built-in data adapters** — leaning interface-only for v1 (REST/websocket helpers stay user-land).
 - **WebGL backend** — only if a real benchmark hits a wall (many panes/series at high DPR is the likely trigger, not raw candle count). WebGL, not WebGPU.
