@@ -4,24 +4,43 @@ import { createChrome } from 'lightfin-web-chart/chrome'
 import { addPriceLine } from 'lightfin-web-chart/price-lines'
 import type { PriceLine } from 'lightfin-web-chart/price-lines'
 
+import { createBinanceFeed } from './binanceFeed.ts'
 import { createMockFeed } from './mockFeed.ts'
 
 import './style.css'
 
+// Live BTC/USDT from Binance by default. `?feed=mock` swaps in a
+// deterministic offline feed, and `?live=0` keeps history paging but drops
+// live ticks so the chart holds still (the e2e tests use both).
+const params = new URLSearchParams(location.search)
+const mock = params.get('feed') === 'mock'
+const live = params.get('live') !== '0'
+
 const container = document.querySelector<HTMLDivElement>('#chart')!
 
 const chart = createChart(container, { volumeVisible: true })
-chart.setInstrument({
-  symbol: 'MOCKUSD',
-  name: 'Mock Coin / US Dollar',
-  exchange: 'DEMO',
-  timezone: 'America/New_York',
-  pricePrecision: 2,
-})
+chart.setInstrument(
+  mock
+    ? {
+        symbol: 'MOCKUSD',
+        name: 'Mock Coin / US Dollar',
+        exchange: 'DEMO',
+        timezone: 'America/New_York',
+        pricePrecision: 2,
+      }
+    : {
+        symbol: 'BTCUSDT',
+        name: 'Bitcoin / TetherUS',
+        exchange: 'BINANCE',
+        timezone: 'UTC',
+        pricePrecision: 2,
+      },
+)
 const candles = chart.addCandlestickSeries()
 
 // The chart has no notion of interval: the chrome's selector asks us to load
-// the matching bars, here by swapping in a mock feed at that bar period.
+// the matching bars, by attaching a data source at that bar period. The chart
+// cancels the previous source's requests and loads the new one.
 const INTERVALS: Record<string, number> = {
   '1m': 60,
   '5m': 300,
@@ -30,21 +49,15 @@ const INTERVALS: Record<string, number> = {
   '4H': 14_400,
   '1D': 86_400,
 }
-// `?live=0` keeps history backfill but drops the live ticks, so the chart
-// holds still (the e2e tests use it).
-const live = new URLSearchParams(location.search).get('live') !== '0'
-let detach = () => {}
 function loadInterval(interval: string): void {
-  detach()
-  const feed = createMockFeed({
-    intervalSec: INTERVALS[interval]!,
-    initialCount: 200,
-    tickMs: 1000,
-  })
-  candles.setData(feed.initial())
-  detach = chart.setDataSource(
-    live ? feed.source : { getBars: feed.source.getBars },
-  )
+  const source = mock
+    ? createMockFeed({ intervalSec: INTERVALS[interval]!, tickMs: 1000 })
+    : // Binance spells these intervals in lowercase: 1m … 1h, 4h, 1d.
+      createBinanceFeed({
+        symbol: 'BTCUSDT',
+        interval: interval.toLowerCase(),
+      })
+  chart.setDataSource(live ? source : { getBars: source.getBars })
 }
 loadInterval('1m')
 

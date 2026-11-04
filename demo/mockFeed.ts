@@ -1,25 +1,15 @@
 import type { Bar, DataSource } from 'lightfin-web-chart'
 
 /**
- * A deterministic mock market feed for the demo / manual QA, implementing the
- * library's {@link DataSource} contract (PLAN §6). Price is a pure, smooth
- * function of time, so history (`getBars`, panning left) and the live stream
- * (`subscribeLive`) stay perfectly continuous and reproducible.
- *
- * Returns the {@link DataSource} plus an `initial()` helper for the bars to seed
- * the chart with before attaching the source.
+ * A deterministic mock market feed for the e2e tests and offline work,
+ * implementing the library's {@link DataSource} contract (PLAN §6). Price is
+ * a pure, smooth function of time, so history (`getBars`, panning left) and
+ * the live stream (`subscribeLive`) stay perfectly continuous and
+ * reproducible.
  */
-export interface MockFeed {
-  source: DataSource
-  /** A batch of recent complete bars to `setData()` before attaching `source`. */
-  initial(): Bar[]
-}
-
 export interface MockFeedOptions {
   /** Seconds per bar (the synthetic candle period). */
   intervalSec?: number
-  /** How many complete bars to seed the chart with. */
-  initialCount?: number
   /** Wall-clock ms between live ticks. */
   tickMs?: number
   /** Synthetic seconds the clock advances per tick (defaults to ~20 ticks/bar). */
@@ -29,9 +19,8 @@ export interface MockFeedOptions {
   anchorTime?: number
 }
 
-export function createMockFeed(options: MockFeedOptions = {}): MockFeed {
+export function createMockFeed(options: MockFeedOptions = {}): DataSource {
   const interval = options.intervalSec ?? 60
-  const initialCount = options.initialCount ?? 200
   const tickMs = options.tickMs ?? 200
   const stepSec = options.stepSec ?? interval / 20
   const startPrice = options.startPrice ?? 100
@@ -64,20 +53,15 @@ export function createMockFeed(options: MockFeedOptions = {}): MockFeed {
     return { time: ps, open, high, low, close, volume }
   }
 
-  function initial(): Bar[] {
-    const bars: Bar[] = []
-    for (let k = initialCount; k >= 1; k--) {
-      const ps = anchor - k * interval
-      bars.push(buildBar(ps, ps + interval))
-    }
-    return bars
-  }
-
-  const source: DataSource = {
-    getBars({ from, to }) {
+  return {
+    // The `count` complete bars before `before`; the first request (no
+    // `before`) gets those ending where the live stream starts forming.
+    getBars({ before, count }) {
+      const end =
+        before === undefined ? anchor : Math.ceil(before / interval) * interval
       const bars: Bar[] = []
-      const firstPs = Math.ceil(from / interval) * interval
-      for (let ps = firstPs; ps <= to; ps += interval) {
+      for (let k = count; k >= 1; k--) {
+        const ps = end - k * interval
         bars.push(buildBar(ps, ps + interval))
       }
       return bars
@@ -85,19 +69,14 @@ export function createMockFeed(options: MockFeedOptions = {}): MockFeed {
 
     subscribeLive(onBar) {
       let now = anchor
-      let lastPs = anchor - interval // so the first emitted period is new
       const timer = setInterval(() => {
         now += stepSec
         const ps = Math.floor(now / interval) * interval
-        const isNewBar = ps > lastPs
-        onBar(buildBar(ps, now), isNewBar)
-        lastPs = ps
+        onBar(buildBar(ps, now))
       }, tickMs)
       return () => clearInterval(timer)
     },
   }
-
-  return { source, initial }
 }
 
 /** Hash an integer to [0, 1). */

@@ -121,16 +121,42 @@ src/
   ```
   Set via `chart.setInstrument(info)`. Exchange-local time is derived from
   `timezone` with `Intl.DateTimeFormat` (no deps).
-- **DataSource interface** (opt-in; `setData` covers the static case directly):
+- **DataSource interface** (opt-in; `setData` covers the static case directly).
+  `chart.setDataSource(source)` hands loading to the chart:
   ```ts
   interface DataSource {
-    getBars(range: { from: number; to: number }): Promise<Bar[]> | Bar[]
-    subscribeLive?(onBar: (bar: Bar, isNewBar: boolean) => void): () => void
+    // The newest `count` bars before `before` (absent: the newest bars).
+    getBars(req: {
+      before?: UTCTimestamp
+      count: number
+      signal: AbortSignal
+    }): Promise<Bar[]> | Bar[]
+    subscribeLive?(onBar: (bar: Bar) => void): () => void
   }
   ```
-  Interface only: no built-in REST/websocket adapters. Wiring an exchange
-  API is a few lines of host code, and shipping adapters would mean tracking
-  every vendor's API.
+  - **Count-based, not time ranges:** on an index axis the chart knows how
+    many bars it needs, not how much time they span (weekends, halts). A
+    time window over a gap would come back empty and read as "no more
+    history"; "N bars before T" never does, so `[]` can mean exactly that.
+  - **The chart drives it:** clears the series, asks for one screen of the
+    newest bars (at ~8px/bar), then keeps a screen of history loaded left of
+    the view as it pans/zooms. A short page (an API cap, e.g. Binance's 1000) is followed by another; `[]` marks the start of history and stops
+    requests. Go-to-date pages back to the target the same way.
+  - **One request at a time, cancelled only when superseded:** calls while a
+    request runs share it. Every older page extends the same left edge, so
+    panning never cancels one; replacing the source (interval/symbol switch),
+    `setData()`, or `remove()` aborts it via `signal` and drops a late result.
+    Failures back off (1s doubling to 30s); a failed first page retries.
+  - **Merging:** pages are sorted, de-duplicated, and trimmed to before the
+    oldest bar; live bars that arrive before the first page are held and
+    merged after it (so subscribing first leaves no gap); live bars older
+    than the last bar are dropped. History only grows left and live bars
+    right, so the data stays contiguous and indices stable. Healing a
+    websocket disconnect is the adapter's job (it knows when it dropped):
+    the demo's replays the missed bars over REST before resuming.
+  - No built-in adapters: wiring an exchange API is a few lines of host code
+    (the demo's Binance adapter is ~100), and shipping adapters would mean
+    tracking every vendor's API.
 
 ## 7. Time & price axes
 
@@ -310,7 +336,8 @@ const chart = createChart(container, {/* theme, rightOffset, ... */}) // synchro
 chart.setInstrument({ symbol: 'BTCUSD', exchange: 'BINANCE', timezone: 'UTC' })
 
 const candles = chart.addCandlestickSeries() // or addLineSeries / addAreaSeries / addBarSeries
-candles.setData(bars) // static
+chart.setDataSource(binanceSource) // chart pages history + merges live (§6)
+candles.setData(bars) // or static
 candles.update(bar) // live tick / new bar
 candles.setChartType('line') // switch render type on the same series
 
@@ -373,14 +400,16 @@ Container sizing is implicit — no `width`/`height` option.
 
 - **Vitest** for pure logic: tick/interval selection, scale math, indicator
   incremental-vs-batch equivalence.
-- **Playwright** (`e2e/`, `bun run test:e2e`, in CI) against `/demo?live=0`:
+- **Playwright** (`e2e/`, `bun run test:e2e`, in CI) against
+  `/demo?feed=mock&live=0`:
   real pointer and keyboard input, asserting through the public API
   (`paneLayout()`, `timeScale()`, events) rather than pixels. Screenshot
   diffing is left out: baselines differ between macOS dev machines and Linux
   CI in font rendering, so they'd need generating in a Linux container.
-- `/demo` is both manual QA playground and the Playwright target; it runs a
-  deterministic mock feed, and `?live=0` drops the live ticks so the chart
-  holds still.
+- `/demo` is both manual QA playground and the Playwright target. It loads
+  live BTC/USDT from Binance's public market data (REST klines + kline
+  websocket); `?feed=mock` swaps in a deterministic offline feed, and
+  `?live=0` drops the live ticks so the chart holds still.
 - `/demo/stress.html` loads 500k 1m bars (`?bars=N` to change) with the demo's
   indicators and reports ingest, calc, backfill, and per-frame paint times, with
   scripted pan / zoom / live-tick / backfill benchmarks.
@@ -397,10 +426,10 @@ Container sizing is implicit — no `width`/`height` option.
 7. **Annotations** — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar. ✅
 8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation and worker-based calc were measured and not built (§6, §8.4).
 9. **v1 gaps** — touch press-and-hold crosshair, resizable indicator panes, price lines, accessibility + keyboard control, Playwright e2e in CI. ✅
+10. **Chart-driven loading** — count-based `DataSource` paging with cancellation and live merging (§6), demo on live Binance BTC/USDT. ✅
 
 ## 14. Don't pick up yet
 
-- Connect demo to real datasource e.g. Binance BTC-USD
 - Tradingview has tags that show events for example has E tags along the bottom of the price chart which when clicked open an earnings modal.
 - Settings modal, saving annotations, reset to defaults etc
 - **Ecosystem** — React wrapper (first), theming system, docs site. Theming

@@ -1,5 +1,6 @@
 import { StoreReader } from '../data/barReader'
 import type { DataSource } from '../data/dataSource'
+import { DataFeed } from '../data/feed'
 import type { InstrumentInfo, UTCTimestamp } from '../data/types'
 import type {
   IndicatorDefinition,
@@ -84,6 +85,11 @@ export interface ChartEventMap {
 
 const MIN_BAR_WIDTH = 0.5
 const MAX_BAR_WIDTH = 200
+// A DataSource's first page fills the plot at about this bar width.
+const INITIAL_BAR_WIDTH = 8
+// The fewest bars asked of a DataSource at once, so a zoomed-in view doesn't
+// page history a few bars at a time.
+const MIN_PAGE_BARS = 100
 const PRICE_LABEL_SPACING = 48
 const TIME_LABEL_SPACING = 90
 // Each indicator sub-pane's default share of the plot height, and the cap on
@@ -175,14 +181,8 @@ export class Chart {
   // away from the right edge and back on when they return to it.
   private following = true
 
-  // Optional pull-based adapter (PLAN §6): live subscription + history backfill.
-  private dataSource: DataSource | null = null
-  private unsubscribeLive: (() => void) | null = null
-  // The in-flight history fetch; only one runs at a time.
-  private historyRequest: Promise<void> | null = null
-  // Bumped on every `reset`, so a fetch started against replaced data (e.g.
-  // before an interval switch) is dropped instead of prepended.
-  private dataEpoch = 0
+  // Loads the attached DataSource (PLAN §6): initial page, history, live bars.
+  private feed: DataFeed | null = null
 
   constructor(container: HTMLElement, options: ChartOptionsInput = {}) {
     this.options = resolveOptions(options)
@@ -404,6 +404,7 @@ export class Chart {
     this.clearKeyboardCrosshair()
     this.refreshLabel()
     this.events.emit('seriesChange', series)
+    if (this.feed) this.setDataSource(this.feed.source)
     return series
   }
 
@@ -515,7 +516,7 @@ export class Chart {
 
     if (change === 'style') this.refreshLabel()
     if (change === 'reset') {
-      this.dataEpoch++
+      this.feed?.dataReplaced()
       this.clearKeyboardCrosshair()
       this.following = true
       this.fitContent()
@@ -542,30 +543,37 @@ export class Chart {
   }
 
   /**
-   * Attach a pull-based {@link DataSource} (PLAN §6) for live ticks and/or
-   * history backfill. Additive to `series.setData()`: set the initial bars
-   * directly, then attach a source to stream live updates and lazily fetch
-   * older bars as the user pans left. Replaces any previous source; returns a
-   * detach function (also cleaned up by {@link Chart.remove}).
+   * Load the price series from a {@link DataSource} (PLAN §6): the series is
+   * cleared and the chart requests a screen of the newest bars, then older
+   * pages as the view nears the oldest loaded bar, and merges live bars.
+   * Replaces any previous source, cancelling its requests (attach a new
+   * source to switch interval or symbol); returns a detach function (also
+   * cleaned up by {@link Chart.remove}).
    */
   setDataSource(source: DataSource): () => void {
-    this.detachDataSource()
-    this.dataSource = source
-    if (source.subscribeLive) {
-      this.unsubscribeLive = source.subscribeLive(bar => {
-        this.series?.update(bar)
-      })
+    const series = this.series
+    if (!series) {
+      throw new Error('lightfin: add a price series before setDataSource()')
     }
-    // If data is already loaded at its left edge, start pulling history now
-    // (e.g. so indicators added later have lookback without a pan).
-    this.maybeBackfill()
-    return () => this.detachDataSource()
+    this.detachDataSource()
+    const feed = new DataFeed(source, series, () =>
+      this.pageBars(this.plotRect().width / INITIAL_BAR_WIDTH),
+    )
+    this.feed = feed
+    feed.start()
+    return () => {
+      if (this.feed?.source === source) this.detachDataSource()
+    }
   }
 
   private detachDataSource(): void {
-    this.unsubscribeLive?.()
-    this.unsubscribeLive = null
-    this.dataSource = null
+    this.feed?.dispose()
+    this.feed = null
+  }
+
+  /** Bars to ask a DataSource for to cover `bars` of view. */
+  private pageBars(bars: number): number {
+    return Math.max(MIN_PAGE_BARS, Math.ceil(bars))
   }
 
   /** The time scale, for programmatic pan/zoom (PLAN §11). */
@@ -632,48 +640,27 @@ export class Chart {
   }
 
   /**
-   * Fetch history back to `from` when it predates the loaded data, capped at
-   * one screen of bars at the minimum bar width (any more could never show).
+   * Page in history back to `from` when it predates the loaded data, capped
+   * at one screen of bars at the minimum bar width (any more could never
+   * show). Waits for an initial page still loading.
    */
   private async ensureHistory(from: number): Promise<void> {
-    if (this.historyRequest) await this.historyRequest
-    const store = this.series?.store
-    if (!this.dataSource || !store || store.size < 2) return
-    const oldest = store.times[store.physical(store.firstIndex)]!
-    if (from >= oldest) return
-    const interval = this.barInterval()
+    const feed = this.feed
     const maxBars = Math.ceil(this.plotRect().width / MIN_BAR_WIDTH)
-    await this.loadHistory(
-      Math.max(from, oldest - maxBars * interval),
-      oldest - interval,
-    )
-  }
-
-  /**
-   * Fetch `[from, to]` from the data source and prepend whatever predates the
-   * current data. Dropped if the data was replaced meanwhile.
-   */
-  private loadHistory(from: number, to: number): Promise<void> {
-    const source = this.dataSource!
-    const epoch = this.dataEpoch
-    const request = Promise.resolve(source.getBars({ from, to }))
-      .then(bars => {
-        const store = this.series?.store
-        if (epoch !== this.dataEpoch || !store || store.size === 0) return
-        const oldest = store.times[store.physical(store.firstIndex)]!
-        const older = bars
-          .filter(b => b.time < oldest)
-          .sort((a, b) => a.time - b.time)
-        if (older.length > 0) this.series!.prepend(older)
-      })
-      .catch(() => {
-        /* host-side failure; a later pan will retry */
-      })
-      .finally(() => {
-        if (this.historyRequest === request) this.historyRequest = null
-      })
-    this.historyRequest = request
-    return request
+    let loaded = 0
+    while (feed && this.feed === feed && loaded < maxBars) {
+      await feed.settled()
+      const store = this.series?.store
+      if (!store || store.size === 0) return
+      const oldest = store.times[store.physical(store.firstIndex)]!
+      if (from >= oldest) return
+      const wanted = Math.ceil((oldest - from) / this.barInterval())
+      const added = await feed.loadOlder(
+        this.pageBars(Math.min(wanted, maxBars - loaded)),
+      )
+      if (added === 0) return
+      loaded += added
+    }
   }
 
   /**
@@ -857,29 +844,24 @@ export class Chart {
   }
 
   /**
-   * Pull one screen of older history when the view is within a screenful of the
-   * oldest bar — on pan/zoom *and* proactively on load (see
-   * {@link setDataSource}), so indicators have lookback immediately instead of
-   * only after a pan. One request in flight at a time; a subsequent pan
-   * re-triggers if still near the edge. The fetch is a single chunk (not a
-   * chain), so we don't eagerly load/compute far more history than the warmup
-   * needs.
+   * Keep a screen of history loaded left of the view: on pan/zoom, and on
+   * load so indicators have lookback without a pan. Asks the feed for one
+   * screen of bars, so a full page leaves a screen of lookback and stops;
+   * a short page (the source's page limit) asks again. The feed coalesces
+   * calls while a request is in flight.
    */
   private maybeBackfill(): void {
     const store = this.series?.store
-    if (!this.dataSource || this.historyRequest || !store || store.size < 2)
-      return
+    const feed = this.feed
+    if (!feed || !store || store.size === 0) return
 
-    const plot = this.plotRect()
-    const viewBars = plot.width / this.timeScaleModel.barWidth
-    const from = this.timeScaleModel.visibleRange(plot.width).from
-    // Prefetch when the oldest visible bar is within one screen of the data.
-    if (from > store.firstIndex + viewBars) return
+    const ts = this.timeScaleModel
+    const viewBars = this.plotRect().width / ts.barWidth
+    if (ts.scrollIndex - store.firstIndex >= viewBars) return
 
-    const oldestTime = store.times[store.physical(store.firstIndex)]!
-    const interval = this.barInterval()
-    const span = Math.max(Math.ceil(viewBars), 1) * interval
-    void this.loadHistory(oldestTime - span, oldestTime - interval)
+    void feed.loadOlder(this.pageBars(viewBars)).then(added => {
+      if (added > 0 && this.feed === feed) this.maybeBackfill()
+    })
   }
 
   /**

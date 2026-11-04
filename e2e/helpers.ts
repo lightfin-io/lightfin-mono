@@ -11,10 +11,18 @@ declare global {
   }
 }
 
-/** Open the demo with the live feed off, once its indicators have loaded. */
-export async function openDemo(page: Page, query = 'live=0'): Promise<void> {
+/**
+ * Open the demo on its offline mock feed with live ticks off, once its bars
+ * and indicators have loaded.
+ */
+export async function openDemo(
+  page: Page,
+  query = 'feed=mock&live=0',
+): Promise<void> {
   await page.goto(`/?${query}`)
-  await page.waitForFunction(() => 'volumeMa' in window)
+  await page.waitForFunction(
+    () => 'volumeMa' in window && window.chart.getSeries()!.store.size > 0,
+  )
 }
 
 export interface Layout {

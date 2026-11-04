@@ -33,7 +33,7 @@ export type {
   IndicatorPlacement,
   PlotStyle,
 } from './indicators/types'
-export type { BarRange, DataSource } from './data/dataSource'
+export type { BarsRequest, DataSource } from './data/dataSource'
 export { Series } from './series/series'
 export type { ChartType, SeriesChange } from './series/series'
 export type { PushResult } from './data/store'
