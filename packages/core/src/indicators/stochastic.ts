@@ -99,7 +99,10 @@ const definition: IndicatorDefinition<StochasticOptions> = {
     { key: K, color: o.kColor, lineWidth: o.lineWidth },
     { key: D, color: o.dColor, lineWidth: o.lineWidth },
   ],
-  fixedRange: () => ({ min: 0, max: 100 }),
+  // %K/%D frequently peg at the raw 0/100 extremes (unlike RSI's smoothed
+  // values), so pad the domain a little past them to keep the lines off the
+  // pane's edge.
+  fixedRange: () => ({ min: -4, max: 104 }),
   levels: o => [
     { value: o.overbought, color: o.levelColor },
     { value: o.oversold, color: o.levelColor },
