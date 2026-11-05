@@ -1,0 +1,42 @@
+---
+title: Introduction
+description: What Lightfin is, and a 60-second tour of drawing your first chart.
+---
+
+import LiveChart from '../../../components/LiveChart.tsx'
+
+Lightfin is a web financial-charting library with a professional-grade
+charting experience — candlesticks, indicators, drawing tools, smooth pan/zoom
+and live data — while staying **small, dependency-free, and easy to wire to any
+data source**.
+
+The core is framework-agnostic vanilla TypeScript, rendered on layered
+`Canvas2D`. It's _bars in, chart out_: it renders and handles interaction, and
+leaves data, persistence and your trading UI to you.
+
+<div class="not-content">
+  <LiveChart client:only="react" height={360} />
+</div>
+
+## What you get
+
+- **Series** — candlestick, bar, line and area, switchable in place.
+- **Indicators** — SMA, EMA, Bollinger, RSI, MACD, ATR, Stochastic, Volume MA,
+  each on its own resizable pane.
+- **Drawing tools** — 21 of them, with undo/redo and a per-drawing style toolbar.
+- **Live data** — attach a `DataSource` for history backfill and a live stream.
+- **Chrome** — optional HUD/legend, toolbars, instrument metadata, exchange clock.
+- **React bindings** — `<LightfinChart>` and a `useChartEffect` hook.
+
+## Not goals
+
+Lightfin isn't a backtesting engine, a data service, or a trading/execution UI.
+It provides the _hook_ a trading UI needs — it fires price/coordinate events and
+lets your host render the order form.
+
+## Next steps
+
+- [Installation](/docs/installation) — add it to your project.
+- [Your first chart](/docs/guides/first-chart) — the full walkthrough.
+- [Using React](/docs/guides/react) — the `@lightfin/react` wrapper.
+- [Live data](/docs/guides/live-data) — wiring a `DataSource`.

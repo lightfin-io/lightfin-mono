@@ -9,7 +9,9 @@
   ],
   "scripts": {
     "dev": "bun run --filter @lightfin/core dev",
+    "www": "bun run --filter @lightfin/www dev",
     "build": "bun run --filter @lightfin/core build && bun run --filter @lightfin/react build",
+    "build:www": "bun run --filter @lightfin/core build && bun run --filter @lightfin/react build && bun run --filter @lightfin/www build",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun run --filter '*' test",
     "test:e2e": "bun run --filter @lightfin/core test:e2e",

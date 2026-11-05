@@ -1,0 +1,33 @@
+---
+title: Series
+description: The price series — data and renderer.
+---
+
+A `Series` is returned by `chart.addCandlestickSeries()` (and the `Bar`/`Line`/
+`Area` variants). It owns the chart's bars and its renderer.
+
+## Methods
+
+| Method               | Returns      | Notes                                             |
+| -------------------- | ------------ | ------------------------------------------------- |
+| `setData(bars)`      | `void`       | Replace all bars; refits the viewport.            |
+| `update(bar)`        | `PushResult` | Append or replace the last bar (live ticks).      |
+| `prepend(bars)`      | `void`       | Add older bars to the front (history backfill).   |
+| `setChartType(type)` | `void`       | `'candlestick' \| 'bar' \| 'line' \| 'area'`.     |
+| `bars(range?)`       | `Bar[]`      | Read bars, optionally within `{ from, to }`.      |
+
+## The Bar shape
+
+```ts
+interface Bar {
+  time: UTCTimestamp // seconds since the Unix epoch
+  open: number
+  high: number
+  low: number
+  close: number
+  volume?: number
+}
+```
+
+`time` is in **seconds**, ascending, one entry per bar period. `update(bar)`
+with the current period's `time` replaces the forming bar; a new `time` appends.

@@ -1,0 +1,662 @@
+---
+import LiveChart from '../components/LiveChart.tsx'
+
+const features = [
+  {
+    title: 'Professional-grade charting',
+    body: 'Candlesticks, bars, line and area — switchable in place. Smooth pan/zoom, crosshair, volume sub-pane and a current-price line out of the box.',
+  },
+  {
+    title: 'Indicators built in',
+    body: 'SMA, EMA, Bollinger, RSI, MACD, ATR, Stochastic and Volume MA, each on its own resizable pane via a tree-shakeable indicator framework.',
+  },
+  {
+    title: '21 drawing tools',
+    body: 'Trend lines, channels, pitchfork, regression, Fibs, shapes, brush, labels, and position/range measures — with undo/redo and a per-drawing style toolbar.',
+  },
+  {
+    title: 'Live data, any source',
+    body: 'Bars in, chart out. Attach a DataSource for history backfill and a live stream; follow-mode keeps the latest candle in view.',
+  },
+  {
+    title: 'React bindings',
+    body: 'A thin <LightfinChart> wrapper plus a useChartEffect hook wire features imperatively onto the chart while the core stays framework-free.',
+  },
+]
+
+// Bars are to-scale between the two Lightfin bundles; the comparison bar is
+// capped and fades off the track (it's ~47× the full bundle). Sizes for the
+// core are brotli-compressed and enforced in CI (packages/core/.size-limit.json).
+const bundles = [
+  { label: 'Core', size: '14 kB', width: 24, tone: 'lean' },
+  {
+    label: 'Core + chrome + all indicators & annotations',
+    size: '43 kB',
+    width: 72,
+    tone: 'lean',
+  },
+  {
+    label: 'Other full-featured charting libraries',
+    size: '2 MB+',
+    width: 100,
+    tone: 'heavy',
+  },
+]
+
+const perfStats = [
+  { value: '500k', unit: 'candles', note: 'panned & zoomed in real time' },
+  { value: '60', unit: 'fps', note: 'gesture-driven pan, zoom & crosshair' },
+  { value: '0', unit: 'deps', note: 'layered Canvas2D, no WebGL' },
+]
+
+const perf = [
+  {
+    title: 'Batched draw calls',
+    body: 'Each series and indicator collapses to a handful of Path2D fills and strokes per frame — up/down candles bucketed by color, a whole line plot in one stroke.',
+  },
+  {
+    title: 'Columnar data, minimal GC',
+    body: 'Bars live in parallel typed-array columns — a gap-buffered store, not an array of objects — so appends, backfill and redraws barely touch the garbage collector.',
+  },
+  {
+    title: 'One frame, one paint',
+    body: 'A single requestAnimationFrame-batched scheduler coalesces every invalidation into one render pass, drawn on layered canvases at device-pixel sharpness.',
+  },
+  {
+    title: 'Smooth at any scale',
+    body: 'O(1) viewport slicing keeps pan, zoom and live follow-mode fluid whether you are showing 500 candles or 500,000.',
+  },
+]
+
+const install = `npm i @lightfin/core`
+const snippet = `import { createChart } from '@lightfin/core'
+
+const chart = createChart(document.querySelector('#chart'), {
+  volumeVisible: true,
+})
+chart.addCandlestickSeries().setData(bars)`
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Lightfin — a small, fast web charting library</title>
+    <meta
+      name="description"
+      content="A dependency-free web charting library with professional-grade candlesticks, indicators and drawing tools. Vanilla-TS core, Canvas2D, React bindings."
+    />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="nav__brand" href="/">
+        <span class="nav__mark" aria-hidden="true"></span>
+        Lightfin
+      </a>
+      <nav class="nav__links">
+        <a href="/docs/getting-started">Docs</a>
+        <a href="/docs/api/chart">Reference</a>
+        <a href="https://github.com/lightfin/lightfin-web-chart">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero__copy">
+          <h1>Financial charts,<br />without the weight.</h1>
+          <p class="hero__lede">
+            A dependency-free charting library with professional-grade
+            candlesticks, indicators, drawing tools and live data — while
+            staying small and easy to wire to any source.
+          </p>
+          <div class="hero__cta">
+            <a class="btn btn--primary" href="/docs/getting-started">Get started</a>
+            <a class="btn" href="https://github.com/lightfin/lightfin-web-chart">
+              View on GitHub
+            </a>
+          </div>
+          <code class="hero__install">{install}</code>
+        </div>
+      </section>
+
+      <section class="hero__demo">
+        <LiveChart client:only="react" height={520} />
+        <p class="hero__caption">
+          A real <code>@lightfin/core</code> chart with its full chrome,
+          streaming live BTC/USDT from Binance.
+        </p>
+      </section>
+
+      <section class="features">
+        {
+          features.map(f => (
+            <article class="feature">
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </article>
+          ))
+        }
+      </section>
+
+      <section class="bundle" id="bundle">
+        <div class="bundle__head">
+          <h2>Small and dependency-free</h2>
+          <p>
+            Our chart lazily loads optional features like toolbars, annotations
+            and indicators, so you only pay for what you use.
+          </p>
+        </div>
+        <div class="bundle__bars">
+          {
+            bundles.map(b => (
+              <div class="bar" data-tone={b.tone}>
+                <div class="bar__label">
+                  <span class="bar__name">{b.label}</span>
+                  <span class="bar__size">{b.size}</span>
+                </div>
+                <div class="bar__track">
+                  <span class="bar__fill" style={`--w:${b.width}%`} />
+                </div>
+              </div>
+            ))
+          }
+        </div>
+        <p class="bundle__note">
+          Lightfin sizes are brotli-compressed and enforced in CI. The
+          comparison bar is capped — a 2&nbsp;MB bundle is roughly 47&times; the
+          full Lightfin build.
+        </p>
+      </section>
+
+      <section class="perf" id="perf">
+        <div class="perf__head">
+          <h2>Built to stay at 60fps</h2>
+          <p>
+            Optimized draw calls, carefully structured columnar data to minimise
+            GC, and buttery gestures — right up to half a million candles.
+          </p>
+        </div>
+        <div class="perf__stats">
+          {
+            perfStats.map(s => (
+              <div class="stat">
+                <div class="stat__value">
+                  {s.value}
+                  <span class="stat__unit">{s.unit}</span>
+                </div>
+                <div class="stat__note">{s.note}</div>
+              </div>
+            ))
+          }
+        </div>
+        <div class="perf__grid">
+          {
+            perf.map(p => (
+              <article class="perf__card">
+                <h3>{p.title}</h3>
+                <p>{p.body}</p>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="code">
+        <div class="code__copy">
+          <h2>Bars in, chart out.</h2>
+          <p>
+            The core knows nothing about your data or framework. Create a chart,
+            add a series, hand it bars. Reach for <code>@lightfin/react</code>,
+            indicators, drawing tools or a live <code>DataSource</code> only when
+            you need them.
+          </p>
+          <a class="btn btn--primary" href="/docs/getting-started">Read the docs</a>
+        </div>
+        <pre class="code__block"><code>{snippet}</code></pre>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Lightfin — MIT licensed.</span>
+      <nav>
+        <a href="/docs/getting-started">Docs</a>
+        <a href="https://github.com/lightfin/lightfin-web-chart">GitHub</a>
+      </nav>
+    </footer>
+
+    <style is:global>
+      :root {
+        --bg: #0b0e13;
+        --bg-soft: #121722;
+        --panel: #151b27;
+        --border: #222b3a;
+        --fg: #e6edf6;
+        --fg-dim: #9aa7b8;
+        --accent: #3fb6a8;
+        --accent-fg: #04110f;
+        --radius: 12px;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(60rem 40rem at 70% -10%, rgba(63, 182, 168, 0.12), transparent),
+          var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.6 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      code {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 1.25rem 1.5rem;
+      }
+      .nav__brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .nav__mark {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, var(--accent), #6fe3d4);
+        box-shadow: 0 0 20px rgba(63, 182, 168, 0.6);
+      }
+      .nav__links {
+        display: flex;
+        gap: 1.5rem;
+        color: var(--fg-dim);
+        font-size: 0.95rem;
+      }
+      .nav__links a:hover {
+        color: var(--fg);
+      }
+
+      main {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+
+      .hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 3.5rem 0 2rem;
+      }
+      .hero h1 {
+        font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        margin: 0 0 1.2rem;
+      }
+      .hero__lede {
+        color: var(--fg-dim);
+        font-size: 1.1rem;
+        max-width: 52ch;
+      }
+      .hero__cta {
+        display: flex;
+        gap: 0.75rem;
+        margin: 1.75rem 0 1.25rem;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .hero__install {
+        display: inline-block;
+        padding: 0.55rem 0.85rem;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--fg-dim);
+        font-size: 0.9rem;
+      }
+      .hero__install::before {
+        content: '$ ';
+        color: var(--accent);
+      }
+      .hero__demo {
+        width: 100%;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.75rem;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.9);
+      }
+      .hero__caption {
+        margin: 0.75rem 0.25rem 0.25rem;
+        font-size: 0.85rem;
+        color: var(--fg-dim);
+        text-align: center;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.65rem 1.1rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg-soft);
+        color: var(--fg);
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition:
+          transform 0.08s ease,
+          border-color 0.15s ease;
+      }
+      .btn:hover {
+        transform: translateY(-1px);
+        border-color: #33465c;
+      }
+      .btn--primary {
+        background: var(--accent);
+        color: var(--accent-fg);
+        border-color: transparent;
+      }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        padding: 2rem 0 4rem;
+      }
+      .feature {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.4rem;
+      }
+      .feature h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.05rem;
+      }
+      .feature p {
+        margin: 0;
+        color: var(--fg-dim);
+        font-size: 0.95rem;
+      }
+
+      .bundle {
+        padding: 1rem 0 4rem;
+      }
+      .bundle__head {
+        max-width: 60ch;
+        margin-bottom: 2.25rem;
+      }
+      .bundle__head h2 {
+        font-size: clamp(1.6rem, 3vw, 2.2rem);
+        letter-spacing: -0.02em;
+        margin: 0 0 0.75rem;
+      }
+      .bundle__head p {
+        margin: 0;
+        color: var(--fg-dim);
+        font-size: 1.05rem;
+      }
+      .bundle__bars {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+      .bar__label {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.55rem;
+      }
+      .bar__name {
+        color: var(--fg);
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+      .bar__size {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--accent);
+        white-space: nowrap;
+      }
+      .bar[data-tone='heavy'] .bar__size {
+        color: #f0a98a;
+      }
+      .bar__track {
+        position: relative;
+        height: 14px;
+        border-radius: 999px;
+        background: var(--bg-soft);
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+      .bar__fill {
+        display: block;
+        height: 100%;
+        width: 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), #6fe3d4);
+        box-shadow: 0 0 24px -4px rgba(63, 182, 168, 0.6);
+        transition: width 1s cubic-bezier(0.22, 0.61, 0.36, 1);
+      }
+      .bar[data-tone='heavy'] .bar__fill {
+        background: linear-gradient(
+          90deg,
+          #7a3b2e 0%,
+          #c76a4d 55%,
+          rgba(199, 106, 77, 0) 100%
+        );
+        box-shadow: none;
+      }
+      .bundle.is-visible .bar__fill {
+        width: var(--w);
+      }
+      .bundle__note {
+        margin: 1.75rem 0 0;
+        color: var(--fg-dim);
+        font-size: 0.85rem;
+        max-width: 60ch;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bar__fill {
+          transition: none;
+          width: var(--w);
+        }
+      }
+
+      .perf {
+        padding: 1rem 0 4rem;
+      }
+      .perf__head {
+        max-width: 60ch;
+        margin-bottom: 2.25rem;
+      }
+      .perf__head h2 {
+        font-size: clamp(1.6rem, 3vw, 2.2rem);
+        letter-spacing: -0.02em;
+        margin: 0 0 0.75rem;
+      }
+      .perf__head p {
+        margin: 0;
+        color: var(--fg-dim);
+        font-size: 1.05rem;
+      }
+      .perf__stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .stat {
+        background: linear-gradient(180deg, var(--panel), var(--bg-soft));
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem 1.4rem;
+      }
+      .stat__value {
+        display: flex;
+        align-items: baseline;
+        gap: 0.4rem;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        color: var(--accent);
+      }
+      .stat__unit {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--fg-dim);
+        letter-spacing: 0;
+      }
+      .stat__note {
+        margin-top: 0.6rem;
+        color: var(--fg-dim);
+        font-size: 0.9rem;
+      }
+      .perf__grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+      .perf__card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.4rem;
+        position: relative;
+      }
+      .perf__card::before {
+        content: '';
+        position: absolute;
+        left: 1.4rem;
+        top: 1.4rem;
+        width: 24px;
+        height: 3px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, var(--accent), #6fe3d4);
+      }
+      .perf__card h3 {
+        margin: 1rem 0 0.5rem;
+        font-size: 1.05rem;
+      }
+      .perf__card p {
+        margin: 0;
+        color: var(--fg-dim);
+        font-size: 0.95rem;
+      }
+
+      .code {
+        display: grid;
+        grid-template-columns: 1fr 1.2fr;
+        gap: 2.5rem;
+        align-items: center;
+        padding: 2rem 0 5rem;
+      }
+      .code h2 {
+        font-size: clamp(1.6rem, 3vw, 2.2rem);
+        letter-spacing: -0.02em;
+        margin: 0 0 0.75rem;
+      }
+      .code__copy p {
+        color: var(--fg-dim);
+        margin: 0 0 1.5rem;
+      }
+      .code__block {
+        margin: 0;
+        padding: 1.4rem;
+        background: #0d1420;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow-x: auto;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: #cdd9e8;
+      }
+
+      .footer {
+        border-top: 1px solid var(--border);
+        margin-top: 2rem;
+        padding: 2rem 1.5rem;
+        max-width: 1120px;
+        margin-inline: auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--fg-dim);
+        font-size: 0.9rem;
+      }
+      .footer nav {
+        display: flex;
+        gap: 1.25rem;
+      }
+      .footer a:hover {
+        color: var(--fg);
+      }
+
+      @media (max-width: 860px) {
+        .code {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+        .features {
+          grid-template-columns: 1fr;
+        }
+        .perf__stats {
+          grid-template-columns: 1fr;
+        }
+        .perf__grid {
+          grid-template-columns: 1fr;
+        }
+        .nav__links a[href='https://github.com/lightfin/lightfin-web-chart'] {
+          display: none;
+        }
+      }
+    </style>
+
+    <script>
+      // Grow the bundle bars once they scroll into view.
+      const bundle = document.getElementById('bundle')
+      if (bundle) {
+        const observer = new IntersectionObserver(
+          (entries, obs) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible')
+                obs.unobserve(entry.target)
+              }
+            }
+          },
+          { threshold: 0.35 },
+        )
+        observer.observe(bundle)
+      }
+    </script>
+  </body>
+</html>

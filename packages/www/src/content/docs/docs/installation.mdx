@@ -1,0 +1,77 @@
+---
+title: Installation
+description: Install the core (and optionally the React bindings) and render a chart.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components'
+
+## Install
+
+The core has no runtime dependencies.
+
+<Tabs>
+  <TabItem label="npm">
+    ```
+    npm i @lightfin/core
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```
+    pnpm add @lightfin/core
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```
+    bun add @lightfin/core
+    ```
+  </TabItem>
+</Tabs>
+
+Using React? Add the bindings — `@lightfin/core` and `react` are peer
+dependencies:
+
+<Tabs>
+  <TabItem label="npm">
+    ```
+    npm i @lightfin/react
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```
+    pnpm add @lightfin/react
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```
+    bun add @lightfin/react
+    ```
+  </TabItem>
+</Tabs>
+
+## Render a chart
+
+```ts
+import { createChart } from '@lightfin/core'
+
+const chart = createChart(document.querySelector('#chart')!, {
+  volumeVisible: true,
+})
+
+chart.addCandlestickSeries().setData(bars)
+```
+
+The container should have a size — the chart fills it and watches for resizes.
+
+## Subpath exports
+
+Pay only for what you import. The extras live behind their own entry points so
+they tree-shake out when unused:
+
+| Import                        | What it adds                         |
+| ----------------------------- | ------------------------------------ |
+| `@lightfin/core`              | Chart engine, series, axes, crosshair |
+| `@lightfin/core/annotations`  | The 21 drawing tools                  |
+| `@lightfin/core/chrome`       | HUD, legend, toolbars, clock          |
+| `@lightfin/core/price-lines`  | Order and position price lines        |
+
+Next: [your first chart](/docs/guides/first-chart).

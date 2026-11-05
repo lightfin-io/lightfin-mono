@@ -1,0 +1,47 @@
+---
+title: Live data
+description: Wire a DataSource for history backfill and a live stream.
+---
+
+A `DataSource` decouples the chart from where bars come from. The chart asks it
+for history as you pan left, and subscribes to a live stream for the forming
+candle:
+
+```ts
+import type { DataSource } from '@lightfin/core'
+
+const source: DataSource = {
+  // The `count` complete bars ending before `before` (ms). The first call has
+  // no `before` — return the most recent history.
+  async getBars({ before, count }) {
+    return await fetchBars({ before, count })
+  },
+
+  // Optional: push the forming bar as ticks arrive. Return an unsubscribe fn.
+  subscribeLive(onBar) {
+    const socket = openFeed(bar => onBar(bar))
+    return () => socket.close()
+  },
+}
+
+const stop = chart.setDataSource(source)
+```
+
+`setDataSource` returns a teardown function and cancels any previous source's
+in-flight requests. Follow-mode keeps the newest candle in view as it updates.
+
+## Switching intervals
+
+The chart has no notion of interval — it just renders the bars it's given. To
+change timeframe, attach a new source whose bars are at that period:
+
+```ts
+function loadInterval(seconds: number) {
+  chart.setDataSource(makeSource({ intervalSec: seconds }))
+}
+```
+
+## History only
+
+Omit `subscribeLive` (or pass `{ getBars }`) for a static, backfill-only chart —
+useful for replays and tests.

@@ -1,0 +1,12 @@
+/* Nudge Starlight's accent toward Lightfin's teal so the docs and the marketing
+   landing read as one product. */
+:root {
+  --sl-color-accent-low: #10302c;
+  --sl-color-accent: #2f9488;
+  --sl-color-accent-high: #a7e6dc;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #cdeae5;
+  --sl-color-accent: #2f9488;
+  --sl-color-accent-high: #0f2e2a;
+}

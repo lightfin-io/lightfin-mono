@@ -1,0 +1,60 @@
+---
+title: Using React
+description: The @lightfin/react wrapper — <LightfinChart> and useChartEffect.
+---
+
+`@lightfin/react` is a thin wrapper: `<LightfinChart>` owns the chart's
+lifecycle, and `useChartEffect` wires features onto it imperatively. The core
+stays framework-free — `@lightfin/core` and `react` are both peer dependencies.
+
+## The basics
+
+```tsx
+import { LightfinChart, useChartEffect } from '@lightfin/react'
+import type { Bar } from '@lightfin/core'
+
+function Candles({ bars }: { bars: Bar[] }) {
+  useChartEffect(
+    chart => {
+      chart.addCandlestickSeries().setData(bars)
+    },
+    [bars],
+  )
+  return null
+}
+
+export function Chart({ bars }: { bars: Bar[] }) {
+  return (
+    <LightfinChart style={{ height: 420 }} options={{ volumeVisible: true }}>
+      <Candles bars={bars} />
+    </LightfinChart>
+  )
+}
+```
+
+Feature components read the chart from context (via `useChartEffect`) and
+typically render `null`. They compose — add series, indicators, annotations and
+price lines as sibling children.
+
+## Options are applied once
+
+`options` is read when the chart is created; the engine has no live option
+setter. To re-create the chart with fresh options, give `<LightfinChart>` a new
+`key`.
+
+## Reacting to chart events
+
+`<LightfinChart>` forwards the core's events as props:
+
+```tsx
+<LightfinChart
+  style={{ height: 420 }}
+  onCrosshairMove={e => setHover(e)}
+  onOrderIntent={e => openOrderForm(e)}
+/>
+```
+
+`onOrderIntent` also opts the chart into the "+" order button — it only shows
+while that handler is set.
+
+See the [`<LightfinChart>` reference](/docs/api/react) for the full prop list.

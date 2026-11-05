@@ -1,0 +1,63 @@
+---
+title: Your first chart
+description: Create a chart, add a series, and feed it bars.
+---
+
+import LiveChart from '../../../../components/LiveChart.tsx'
+
+This walks through a static chart end to end. For streaming data, see
+[Live data](/docs/guides/live-data).
+
+## 1. A container with a size
+
+The chart fills its container and observes it for resizes, so give the element a
+height:
+
+```html
+<div id="chart" style="height: 420px"></div>
+```
+
+## 2. Create the chart
+
+```ts
+import { createChart } from '@lightfin/core'
+
+const chart = createChart(document.querySelector('#chart')!, {
+  volumeVisible: true, // show the volume sub-pane
+})
+```
+
+## 3. Add a series and set data
+
+A `Bar` is `{ time, open, high, low, close, volume? }`, where `time` is a UTC
+timestamp in **seconds**:
+
+```ts
+const series = chart.addCandlestickSeries()
+
+series.setData([
+  { time: 1704067200, open: 100, high: 104, low: 99, close: 103, volume: 1200 },
+  { time: 1704070800, open: 103, high: 106, low: 102, close: 101, volume: 980 },
+  // …
+])
+```
+
+`setData` replaces the series and refits the viewport. For incremental updates
+use `series.update(bar)`.
+
+## 4. Switch the renderer
+
+The series type is just the starting renderer — switch it in place without
+touching the data:
+
+```ts
+series.setChartType('line') // 'candlestick' | 'bar' | 'line' | 'area'
+```
+
+<LiveChart client:only="react" height={360} />
+
+## Next
+
+- [Using React](/docs/guides/react)
+- [Live data](/docs/guides/live-data)
+- [`Chart` reference](/docs/api/chart)

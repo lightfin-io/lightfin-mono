@@ -1,0 +1,60 @@
+---
+title: '@lightfin/react'
+description: The <LightfinChart> component and useChartEffect hook.
+---
+
+```tsx
+import { LightfinChart, useChartEffect, useChart } from '@lightfin/react'
+```
+
+## `<LightfinChart>`
+
+Owns the chart's lifecycle: creates it on mount, removes it on unmount, keeps
+event-handler props wired, and publishes the instance through a `ref` and to
+child feature components.
+
+| Prop                 | Type                               | Notes                                            |
+| -------------------- | ---------------------------------- | ------------------------------------------------ |
+| `options`            | `ChartOptionsInput`                | Applied once; change `key` to re-create.         |
+| `instrument`         | `InstrumentInfo \| null`           | Re-applied when it changes.                      |
+| `className` / `style`| —                                  | On the container — give it a size.               |
+| `onCrosshairMove`    | `(e \| null) => void`              | Crosshair moved.                                 |
+| `onDataChange`       | `(change) => void`                 | Series data changed.                             |
+| `onSeriesChange`     | `(series) => void`                 | Series added/replaced.                           |
+| `onOrderIntent`      | `(e) => void`                      | Opts in the "+" order button.                    |
+| `onCreate`           | `(chart) => void`                  | Called once with the instance.                   |
+| `children`           | `ReactNode`                        | Feature components (see below).                  |
+
+It also exposes the `Chart` via `ref`:
+
+```tsx
+const ref = useRef<Chart>(null)
+<LightfinChart ref={ref} style={{ height: 420 }} />
+```
+
+## `useChartEffect(fn, deps)`
+
+Runs `fn(chart)` against the chart from context whenever `deps` change, after
+the chart exists. The ideal place to add series, indicators, annotations or
+price lines. Return a cleanup function, like `useEffect`.
+
+```tsx
+function Sma({ period }: { period: number }) {
+  useChartEffect(
+    chart => {
+      let handle: IndicatorHandle | undefined
+      chart
+        .addIndicator(import('@lightfin/core/indicators/sma'), { period })
+        .then(h => (handle = h))
+      return () => handle?.remove()
+    },
+    [period],
+  )
+  return null
+}
+```
+
+## `useChart()`
+
+Returns the `Chart` from context (or `null` before it's created) — for
+components that need it outside an effect.

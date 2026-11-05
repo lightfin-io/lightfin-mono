@@ -1,0 +1,79 @@
+---
+title: Chart
+description: The core Chart instance returned by createChart.
+---
+
+```ts
+import { createChart } from '@lightfin/core'
+
+const chart = createChart(container, options)
+```
+
+`createChart(container, options?)` creates a chart that fills `container` and
+observes it for resizes. Returns a [`Chart`](#methods).
+
+## Options
+
+Passed once at creation (`ChartOptionsInput`). Common fields:
+
+| Option          | Type            | Notes                                  |
+| --------------- | --------------- | -------------------------------------- |
+| `theme`         | `ChartTheme`    | Colors; `DEFAULT_THEME` is the base.   |
+| `volumeVisible` | `boolean`       | Show the volume sub-pane.              |
+| `crosshairMode` | `CrosshairMode` | Normal or magnet snapping.             |
+| `rightOffset`   | `number`        | Bars of empty space kept at the right. |
+
+## Methods
+
+### Series
+
+| Method                     | Returns  | Notes                            |
+| -------------------------- | -------- | -------------------------------- |
+| `addCandlestickSeries()`   | `Series` | Also `addBar/Line/AreaSeries()`. |
+| `getSeries()`              | `Series \| null` | The current series.      |
+
+The series type is only the starting renderer — `series.setChartType(type)`
+switches it in place. See [`Series`](/docs/api/series).
+
+### Data
+
+| Method                   | Returns       | Notes                                      |
+| ------------------------ | ------------- | ------------------------------------------ |
+| `setDataSource(source)`  | `() => void`  | Attach a [`DataSource`](/docs/guides/live-data); returns teardown. |
+| `fitContent()`           | `void`        | Refit the viewport to the data.            |
+
+### Indicators
+
+```ts
+const sma = await chart.addIndicator(
+  import('@lightfin/core/indicators/sma'),
+  { period: 20 },
+)
+```
+
+`addIndicator(source, options?)` loads an indicator — pass a dynamic `import()`
+so its code only ships when used. Bundled indicators: `sma`, `ema`, `bollinger`,
+`rsi`, `macd`, `atr`, `stochastic`, `volumeMa`. Returns an `IndicatorHandle`
+(show/hide, reconfigure, remove); `chart.indicators()` lists them.
+
+### Instrument & coordinates
+
+| Method                     | Notes                                           |
+| -------------------------- | ----------------------------------------------- |
+| `setInstrument(info)`      | Symbol, precision, timezone (powers the chrome). |
+| `timeToCoordinate(t)`      | Time → x pixel (or `null` if off-screen).        |
+| `coordinateToPrice(y)`     | y pixel → price. Also `priceToCoordinate`.       |
+| `formatPrice(price)`       | Format using the instrument's precision.         |
+
+### Events & lifecycle
+
+```ts
+const off = chart.on('crosshairMove', e => {
+  /* … */
+})
+```
+
+`on(type, handler)` subscribes and returns an unsubscribe function. Events
+include `crosshairMove`, `dataChange`, `seriesChange`, `indicatorsChange`,
+`layoutChange` and `instrumentChange`. Call `chart.remove()` to destroy the
+instance and release its listeners.
