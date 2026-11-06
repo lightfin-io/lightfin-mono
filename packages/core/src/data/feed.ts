@@ -34,17 +34,25 @@ export class DataFeed {
   private readonly series: Series
   /** Bars for the first page: enough to fill the view. */
   private readonly initialCount: () => number
+  private readonly onLoadingChange?: (loading: boolean) => void
 
-  constructor(source: DataSource, series: Series, initialCount: () => number) {
+  constructor(
+    source: DataSource,
+    series: Series,
+    initialCount: () => number,
+    onLoadingChange?: (loading: boolean) => void,
+  ) {
     this.source = source
     this.series = series
     this.initialCount = initialCount
+    this.onLoadingChange = onLoadingChange
   }
 
   /** Clear the series, subscribe to live bars, and request the newest page. */
   start(): void {
     this.series.setData([])
     this.initialLoading = true
+    this.onLoadingChange?.(true)
     this.unsubscribe = this.source.subscribeLive?.(bar => this.onLive(bar))
     this.loadInitial()
   }
@@ -89,6 +97,7 @@ export class DataFeed {
     this.retryAt = 0
     if (this.initialLoading) {
       this.initialLoading = false
+      this.onLoadingChange?.(false)
       this.buffered = []
     }
   }
@@ -103,6 +112,7 @@ export class DataFeed {
   private loadInitial(): void {
     void this.request({ count: this.initialCount() }, bars => {
       this.initialLoading = false
+      this.onLoadingChange?.(false)
       const buffered = this.buffered
       this.buffered = []
       if (bars.length > 0) this.series.setData(bars)

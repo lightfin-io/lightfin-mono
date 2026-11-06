@@ -1,5 +1,6 @@
 ---
 import LiveChart from '../components/LiveChart.tsx'
+import logo from '../assets/logo.svg'
 
 const features = [
   {
@@ -21,6 +22,10 @@ const features = [
   {
     title: 'React bindings',
     body: 'A thin <LightfinChart> wrapper plus a useChartEffect hook wire features imperatively onto the chart while the core stays framework-free.',
+  },
+  {
+    title: 'Zero dependencies',
+    body: 'Not one transitive package — no supply-chain surface to audit, no CVEs to chase. The whole library is yours to review, which risk and compliance teams tend to ask about.',
   },
 ]
 
@@ -46,7 +51,6 @@ const bundles = [
 const perfStats = [
   { value: '500k', unit: 'candles', note: 'panned & zoomed in real time' },
   { value: '60', unit: 'fps', note: 'gesture-driven pan, zoom & crosshair' },
-  { value: '0', unit: 'deps', note: 'layered Canvas2D, no WebGL' },
 ]
 
 const perf = [
@@ -91,7 +95,7 @@ chart.addCandlestickSeries().setData(bars)`
   <body>
     <header class="nav">
       <a class="nav__brand" href="/">
-        <span class="nav__mark" aria-hidden="true"></span>
+        <img class="nav__mark" src={logo.src} alt="" aria-hidden="true" />
         Lightfin
       </a>
       <nav class="nav__links">
@@ -282,11 +286,9 @@ chart.addCandlestickSeries().setData(bars)`
         letter-spacing: -0.01em;
       }
       .nav__mark {
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-        background: linear-gradient(135deg, var(--accent), #6fe3d4);
-        box-shadow: 0 0 20px rgba(63, 182, 168, 0.6);
+        width: auto;
+        height: 26px;
+        display: block;
       }
       .nav__links {
         display: flex;
@@ -509,7 +511,7 @@ chart.addCandlestickSeries().setData(bars)`
       }
       .perf__stats {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 1rem;
         margin-bottom: 1rem;
       }

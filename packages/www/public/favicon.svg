@@ -1,9 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#0b0e13" />
-  <g stroke="#3fb6a8" stroke-width="2.4" stroke-linecap="round">
-    <line x1="10" y1="7" x2="10" y2="25" />
-    <line x1="22" y1="9" x2="22" y2="23" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+  <defs>
+    <!-- Speed lines fade out at both ends -->
+    <linearGradient id="streak" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="300" y2="0">
+      <stop offset="0"    stop-color="#22c55e" stop-opacity="0"/>
+      <stop offset="0.35" stop-color="#22c55e" stop-opacity="0.9"/>
+      <stop offset="0.65" stop-color="#22c55e" stop-opacity="0.9"/>
+      <stop offset="1"    stop-color="#22c55e" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="streakGrey" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="300" y2="0">
+      <stop offset="0"    stop-color="#d7dee8" stop-opacity="0"/>
+      <stop offset="0.35" stop-color="#d7dee8" stop-opacity="0.6"/>
+      <stop offset="0.65" stop-color="#d7dee8" stop-opacity="0.6"/>
+      <stop offset="1"    stop-color="#d7dee8" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Candle body shading -->
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#16a34a"/>
+      <stop offset="0.45" stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+
+    <!-- The candle shape -->
+    <g id="candle">
+      <line x1="0" y1="-105" x2="0" y2="105" stroke="#15803d" stroke-width="6" stroke-linecap="round"/>
+      <rect x="-28" y="-60" width="56" height="120" rx="6" fill="url(#body)" stroke="#15803d" stroke-width="4"/>
+    </g>
+
+    <!-- Gap around the candle: lines are cut out wherever this black outline sits. -->
+    <mask id="candleGap" maskUnits="userSpaceOnUse" x="0" y="0" width="320" height="300">
+      <rect width="320" height="300" fill="#fff"/>
+      <g transform="translate(160 150) skewX(-14)" fill="#000" stroke="#000" stroke-linejoin="round" stroke-linecap="round">
+        <line x1="0" y1="-105" x2="0" y2="105" stroke-width="26"/>
+        <rect x="-28" y="-60" width="56" height="120" rx="6" stroke-width="24"/>
+      </g>
+    </mask>
+  </defs>
+
+  <!-- App-icon background -->
+  <rect width="320" height="320" rx="72" fill="#0b0f14"/>
+
+  <!-- Artwork, inset from the rounded corners -->
+  <g transform="translate(160 160) scale(1) translate(-160 -150)">
+    <!-- Speed lines, centred on the candle and passing under it -->
+    <g stroke-linecap="round" mask="url(#candleGap)">
+      <line x1="55"  y1="95"  x2="265" y2="95"  stroke="url(#streakGrey)" stroke-width="4"/>
+      <line x1="35"  y1="130" x2="285" y2="130" stroke="url(#streak)"     stroke-width="7"/>
+      <line x1="55"  y1="170" x2="265" y2="170" stroke="url(#streak)"     stroke-width="7"/>
+      <line x1="75"  y1="205" x2="245" y2="205" stroke="url(#streakGrey)" stroke-width="4"/>
+    </g>
+
+    <!-- Main candle, leaning into the motion -->
+    <g transform="translate(160 150) skewX(-14)">
+      <use href="#candle"/>
+      <rect x="-16" y="-50" width="7" height="100" rx="3.5" fill="#ffffff" opacity="0.35"/>
+    </g>
   </g>
-  <rect x="6.5" y="11" width="7" height="9" rx="1.5" fill="#3fb6a8" />
-  <rect x="18.5" y="13" width="7" height="7" rx="1.5" fill="#6fe3d4" />
 </svg>

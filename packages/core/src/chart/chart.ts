@@ -12,6 +12,7 @@ import type { ButtonRect, OrderIntentEvent } from '../interaction/orderIntent'
 import { hitsButton, orderButtonRect } from '../interaction/orderIntent'
 import { PanZoomController } from '../interaction/panzoom'
 import { LayerManager } from '../render/layers'
+import { LoadingIndicator } from '../render/loadingIndicator'
 import { FrameScheduler } from '../render/scheduler'
 import { PriceScale } from '../scales/priceScale'
 import { priceTicks, stepDecimals } from '../scales/ticks'
@@ -186,10 +187,17 @@ export class Chart {
 
   // Loads the attached DataSource (PLAN §6): initial page, history, live bars.
   private feed: DataFeed | null = null
+  // Spins over the main pane while the feed's initial page is in flight.
+  private readonly loading: LoadingIndicator
 
   constructor(container: HTMLElement, options: ChartOptionsInput = {}) {
     this.options = resolveOptions(options)
     this.layers = new LayerManager(container)
+    this.loading = new LoadingIndicator(this.layers.root)
+    this.loading.setColors(
+      this.options.theme.axisBorderColor,
+      this.options.theme.lineColor,
+    )
     this.scheduler = new FrameScheduler(dirty => this.paint(dirty))
 
     this.panzoom = new PanZoomController(this.layers.root, {
@@ -220,6 +228,9 @@ export class Chart {
     // track exactly the space left for them.
     this.resizeObserver = new ResizeObserver(() => this.syncSize())
     this.resizeObserver.observe(this.layers.root)
+    this.events.on('layoutChange', () =>
+      this.loading.reposition(this.paneLayout().main),
+    )
     this.syncSize()
   }
 
@@ -572,8 +583,11 @@ export class Chart {
       throw new Error('lightfin: add a price series before setDataSource()')
     }
     this.detachDataSource()
-    const feed = new DataFeed(source, series, () =>
-      this.pageBars(this.plotRect().width / INITIAL_BAR_WIDTH),
+    const feed = new DataFeed(
+      source,
+      series,
+      () => this.pageBars(this.plotRect().width / INITIAL_BAR_WIDTH),
+      loading => (loading ? this.loading.show() : this.loading.hide()),
     )
     this.feed = feed
     feed.start()
@@ -1874,6 +1888,7 @@ export class Chart {
     this.panzoom.dispose()
     this.crosshair.dispose()
     this.scheduler.dispose()
+    this.loading.dispose()
     this.layers.dispose()
   }
 }

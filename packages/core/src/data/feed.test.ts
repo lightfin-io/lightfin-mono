@@ -41,12 +41,18 @@ function deferredSource() {
 /** A feed on a fresh series, reset-wired the way the chart wires it. */
 function setup(source: DataSource, initialCount = 10) {
   const series = new Series()
-  const feed = new DataFeed(source, series, () => initialCount)
+  const loading: boolean[] = []
+  const feed = new DataFeed(
+    source,
+    series,
+    () => initialCount,
+    l => loading.push(l),
+  )
   series.onChange = change => {
     if (change === 'reset') feed.dataReplaced()
   }
   feed.start()
-  return { series, feed }
+  return { series, feed, loading }
 }
 
 const times = (series: Series) => {
@@ -183,6 +189,23 @@ describe('DataFeed', () => {
     void feed.loadOlder(10)
     await flush()
     expect(calls).toHaveLength(3)
+  })
+
+  it('reports loading until the initial page resolves', async () => {
+    const { source, calls } = deferredSource()
+    const { loading } = setup(source)
+    expect(loading).toEqual([true])
+    await flush()
+    calls[0]!.resolve(bars(1, 10))
+    await flush()
+    expect(loading).toEqual([true, false])
+  })
+
+  it('stops reporting loading if the data is replaced mid-fetch', async () => {
+    const { source } = deferredSource()
+    const { series, loading } = setup(source)
+    series.setData(bars(100, 110))
+    expect(loading).toEqual([true, false])
   })
 
   it('retries a failed initial page', async () => {

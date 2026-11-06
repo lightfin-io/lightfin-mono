@@ -4,9 +4,26 @@
   --sl-color-accent-low: #10302c;
   --sl-color-accent: #2f9488;
   --sl-color-accent-high: #a7e6dc;
+  /* Match the marketing landing's background so the body and header read as
+     one surface. */
+  --sl-color-bg: #0b0f14;
+  --sl-color-bg-nav: #0b0f14;
 }
 :root[data-theme='light'] {
   --sl-color-accent-low: #cdeae5;
   --sl-color-accent: #2f9488;
   --sl-color-accent-high: #0f2e2a;
+}
+
+/* Site title in the header reads as plain high-contrast text (white in dark,
+   near-black in light), matching the marketing landing nav rather than the
+   teal accent — and sized to match that nav rather than Starlight's larger
+   default. */
+.site-title {
+  color: var(--sl-color-white);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.site-title img {
+  height: 26px;
 }
