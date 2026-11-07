@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 
 import type { Chart, PlotRect } from '../src'
 import type { Annotations } from '../src/annotations'
+import type { ChartEvent } from '../src/eventTags'
 import type { PriceLine } from '../src/priceLines'
 
 declare global {
@@ -10,6 +11,8 @@ declare global {
     drawings: Annotations
     /** Limit-order lines placed through the demo's "+" popup. */
     orders: PriceLine[]
+    /** Earnings/dividend tags the demo seeds across the first screen. */
+    chartEvents: ChartEvent[]
   }
 }
 

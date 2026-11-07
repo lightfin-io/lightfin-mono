@@ -2,6 +2,8 @@ import { createChart } from '@lightfin/core'
 import { createAnnotations } from '@lightfin/core/annotations'
 import type { AnnotationInput } from '@lightfin/core/annotations'
 import { createChrome } from '@lightfin/core/chrome'
+import { addEventTags } from '@lightfin/core/event-tags'
+import type { ChartEvent } from '@lightfin/core/event-tags'
 import { addPriceLine } from '@lightfin/core/price-lines'
 import type { PriceLine } from '@lightfin/core/price-lines'
 
@@ -86,25 +88,21 @@ const chrome = createChrome(chart, {
 // Indicators load on demand from their own chunks (PLAN §8.4/§10) — the core
 // bundle never includes them until used here. More can be added from the
 // toolbar's indicators menu.
-const sma = await chart.addIndicator(
-  import('@lightfin/core/indicators/sma'),
-  { period: 20, color: '#2962ff' },
-)
-const ema = await chart.addIndicator(
-  import('@lightfin/core/indicators/ema'),
-  { period: 50, color: '#ff6d00' },
-)
+const sma = await chart.addIndicator(import('@lightfin/core/indicators/sma'), {
+  period: 20,
+  color: '#2962ff',
+})
+const ema = await chart.addIndicator(import('@lightfin/core/indicators/ema'), {
+  period: 50,
+  color: '#ff6d00',
+})
 const bb = await chart.addIndicator(
   import('@lightfin/core/indicators/bollinger'),
   { period: 20, mult: 2 },
 )
 // Pane indicators get their own sub-panes with independent scales.
-const rsi = await chart.addIndicator(
-  import('@lightfin/core/indicators/rsi'),
-)
-const macd = await chart.addIndicator(
-  import('@lightfin/core/indicators/macd'),
-)
+const rsi = await chart.addIndicator(import('@lightfin/core/indicators/rsi'))
+const macd = await chart.addIndicator(import('@lightfin/core/indicators/macd'))
 // Draws over the volume histogram on its hidden scale.
 const volumeMa = await chart.addIndicator(
   import('@lightfin/core/indicators/volumeMa'),
@@ -148,6 +146,73 @@ placeButton.addEventListener('click', () => {
 document.addEventListener('pointerdown', e => {
   if (!orderPopup.contains(e.target as Node)) orderPopup.hidden = true
 })
+
+// Event tags (PLAN §8.9): E/D markers along the bottom of the price pane. The
+// library draws the tags and reports a click; the detail card is ours, the way
+// TradingView opens an earnings card above the tag. Real hosts feed these from
+// an earnings/dividends calendar; here we scatter a few across the first screen.
+const eventPopup = document.createElement('div')
+eventPopup.className = 'event-popup'
+eventPopup.hidden = true
+document.body.append(eventPopup)
+const closeEventPopup = () => {
+  eventPopup.hidden = true
+}
+const tags = addEventTags(chart, {
+  events: [],
+  onSelect: (event, pos) => {
+    eventPopup.innerHTML = ''
+    const h = document.createElement('strong')
+    h.textContent = event.title ?? event.type ?? 'Event'
+    const p = document.createElement('span')
+    p.textContent = event.body ?? ''
+    eventPopup.append(h, p)
+    eventPopup.style.left = `${pos.clientPoint.x}px`
+    eventPopup.style.top = `${pos.clientPoint.y - 10}px`
+    eventPopup.hidden = false
+  },
+})
+document.addEventListener('pointerdown', e => {
+  if (!eventPopup.contains(e.target as Node)) closeEventPopup()
+})
+// Seed the tags once there's data to anchor them to, then leave them put.
+// The initial load may land during this module's top-level awaits above, so
+// seed immediately if it already has, otherwise on the first data change.
+let seeded = false
+const seedEvents = () => {
+  if (seeded) return
+  const range = chart.visibleTimeRange()
+  if (!range) return
+  seeded = true
+  off()
+  const at = (frac: number) =>
+    (range.from +
+      Math.round((range.to - range.from) * frac)) as typeof range.from
+  const events: ChartEvent[] = [
+    {
+      time: at(0.3),
+      type: 'earnings',
+      title: 'Q3 earnings',
+      body: 'EPS 1.24 vs 1.10 est. · Revenue 8.6B',
+    },
+    {
+      time: at(0.55),
+      type: 'dividend',
+      title: 'Dividend',
+      body: '$0.24 / share · ex-date',
+    },
+    {
+      time: at(0.8),
+      type: 'earnings',
+      title: 'Guidance update',
+      body: 'Raised FY outlook',
+    },
+  ]
+  ;(window as unknown as Record<string, unknown>).chartEvents = events
+  tags.setEvents(events)
+}
+const off = chart.on('dataChange', seedEvents)
+seedEvents()
 
 // AI annotations (PLAN §8.7): a model reads the bars on screen and answers
 // with the `annotate_chart` tool; its drawings form the 'ai' group, which

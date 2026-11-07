@@ -34,6 +34,7 @@ export default defineConfig({
         annotations: resolve(root, 'src/annotations/index.ts'),
         'annotations/schema': resolve(root, 'src/annotations/schema.ts'),
         'price-lines': resolve(root, 'src/priceLines/index.ts'),
+        'event-tags': resolve(root, 'src/eventTags/index.ts'),
       },
       formats: ['es'],
     },

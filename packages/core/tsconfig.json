@@ -22,7 +22,8 @@
       "@lightfin/core/chrome": ["./src/chrome/index.ts"],
       "@lightfin/core/annotations": ["./src/annotations/index.ts"],
       "@lightfin/core/annotations/schema": ["./src/annotations/schema.ts"],
-      "@lightfin/core/price-lines": ["./src/priceLines/index.ts"]
+      "@lightfin/core/price-lines": ["./src/priceLines/index.ts"],
+      "@lightfin/core/event-tags": ["./src/eventTags/index.ts"]
     },
 
     /* Strictness */

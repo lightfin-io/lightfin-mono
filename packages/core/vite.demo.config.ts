@@ -40,6 +40,10 @@ export default defineConfig({
         replacement: resolve(root, 'src/priceLines/index.ts'),
       },
       {
+        find: '@lightfin/core/event-tags',
+        replacement: resolve(root, 'src/eventTags/index.ts'),
+      },
+      {
         find: '@lightfin/core',
         replacement: resolve(root, 'src/index.ts'),
       },

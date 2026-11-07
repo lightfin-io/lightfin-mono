@@ -40,6 +40,10 @@
       "types": "./dist/priceLines/index.d.ts",
       "import": "./dist/price-lines.js"
     },
+    "./event-tags": {
+      "types": "./dist/eventTags/index.d.ts",
+      "import": "./dist/event-tags.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

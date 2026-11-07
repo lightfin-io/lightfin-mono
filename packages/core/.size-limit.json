@@ -29,6 +29,12 @@
     "limit": "1 kB"
   },
   {
+    "name": "event tags",
+    "path": "dist/event-tags.js",
+    "import": "{ addEventTags }",
+    "limit": "1.5 kB"
+  },
+  {
     "name": "one indicator (SMA)",
     "path": "dist/indicators/sma.js",
     "limit": "1 kB"
@@ -45,8 +51,9 @@
       "dist/chrome.js",
       "dist/annotations.js",
       "dist/price-lines.js",
+      "dist/event-tags.js",
       "dist/indicators/*.js"
     ],
-    "limit": "44 kB"
+    "limit": "45 kB"
   }
 ]

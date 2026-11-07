@@ -29,15 +29,14 @@ primitive hook, the order-intent "+" hook, magnet crosshair
 mode, the 500k-candle stress page, a bundle-size budget in CI, a touch
 crosshair, resizable indicator panes, `/price-lines` for orders and
 positions, keyboard control with screen-reader output, and Playwright tests
-in CI. Decimation and worker-based calc were measured and deliberately not
-built (§6, §8.4).
-See §13; ecosystem work (React wrapper, theming, docs) is parked in §14.
+in CI. Decimation was measured and deliberately not built (§6).
+See §13; ecosystem work (theming) is parked in §14.
 
 ## 3. Core technical decisions
 
 | Decision           | Choice                                                                                                                                                                                                                                                                                                                                                |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rendering          | **Canvas2D for everything** (geometry + text), stacked as layered `<canvas>`. The 0.5px minimum bar width (§6) caps draw count at ~2 bars per pixel, so GPU isn't needed; Canvas2D is synchronous, universal, deterministic in headless CI. A full WebGL backend was built and benchmarked and ran **substantially slower** in real workloads (per-pass upload/state overhead and per-pane context juggling swamped any fill-rate win at these draw counts), so it was dropped — Canvas2D is the deliberate, faster choice, not a fallback. |
+| Rendering          | **Canvas2D for everything** (geometry + text), stacked as layered `<canvas>`. The 0.5px minimum bar width (§6) caps draw count at ~2 bars per pixel, so GPU isn't needed; Canvas2D is synchronous, universal, deterministic in headless CI. |
 | X-axis model       | **Index-based** (uniform bar spacing); time is a per-index label, not a continuous axis. Skips weekend/overnight gaps for free, integer-friendly panning.                                                                                                                                                                                             |
 | Language           | TypeScript, **zero runtime dependencies**.                                                                                                                                                                                                                                                                                                            |
 | Framework bindings | None in core; thin framework wrappers ship as sibling packages in the monorepo (§4). `@lightfin/react` ships (§8.8); a Vue wrapper can follow the same shape.                                                                                                                                                                                 |
@@ -180,8 +179,7 @@ public entry.
   density; index-based so it skips gaps. Label format adapts to interval. Ticks
   render in the instrument timezone (§6).
 - **Price axis:** autoscale to visible min/max with margin. The main pane and
-  each indicator sub-pane have their own right-side scale; a second (left)
-  scale per pane isn't built (§15).
+  each indicator sub-pane have their own right-side scale.
 - **Volume sub-scale:** histogram in the bottom ~15–20% of the main pane on its own
   hidden scale (0 → max visible volume × margin), not shown as an axis.
 
@@ -245,17 +243,13 @@ public entry.
 - **Incremental calc is a hard requirement:** compute full output once and cache;
   pan/zoom only slices + redraws, never recomputes; live bars do an O(1)/O(window)
   tail update. Contract: `calculateAll(bars)` + `update(bar)`.
-- **Calc stays on the main thread (worker investigated, not built).** On the
-  stress page the six built-ins compute over 500k bars in ~110ms total, once on
-  load; live ticks are O(1). The only recurring cost is backfill, which
-  recomputes over the full history: ~140ms after prepending 50k to 500k, a few
-  ms at typical sizes (≤50k bars). A worker would need indicator code loadable
-  by URL inside it (breaking plain-function and AI-authored indicators),
-  copying the columns across (~24MB at 500k, or `SharedArrayBuffer`, which
-  forces COOP/COEP headers on every host page), and an async cache that is
-  stale between a data change and its result. If backfill hitches show up,
-  cheaper levers come first: rolling-sum SMA/Bollinger/Volume MA (they re-scan
-  their window per bar) and time-sliced recompute.
+- **Calc stays on the main thread.** On the stress page the six built-ins
+  compute over 500k bars in ~110ms total, once on load; live ticks are O(1).
+  The only recurring cost is backfill, which recomputes over the full history:
+  ~140ms after prepending 50k to 500k, a few ms at typical sizes (≤50k bars).
+  If backfill hitches show up, cheaper levers come first: rolling-sum
+  SMA/Bollinger/Volume MA (they re-scan their window per bar) and time-sliced
+  recompute.
 - **Extensibility:** plain TS/JS functions against a small runtime API
   (`ta.sma()`, `ta.ema()`, `ta.rsi()`, series accessors), each a dynamically
   importable module. Built-ins: SMA, EMA, RSI, MACD, Bollinger, ATR (Wilder
@@ -409,6 +403,27 @@ a component tree, so there's nothing to keep in step as the core grows.
   context), matching how the annotations tests mock the chart (§12); the real
   engine is exercised by the Playwright suite.
 
+### 8.9 Event tags
+
+Small tags along the bottom of the price pane for scheduled events — earnings
+(E), dividends (D), or any host-flagged time — in the `/event-tags` subpath,
+on the same primitive hook as price lines. Like the order-intent hook (§8.2),
+the library owns only the marker: it draws the tags (anchored by time, row-
+stacked when they'd overlap, highlighted on hover) and reports a click through
+`onSelect(event, { point, clientPoint })`; the host renders whatever detail
+card it likes, TradingView-style, above the tag. No built-in modal (kept
+consistent with §8.2); the demo renders a small card and the e2e suite drives
+it.
+
+```ts
+import { addEventTags } from '@lightfin/core/event-tags'
+const tags = addEventTags(chart, {
+  events: [{ time, type: 'earnings', title, body }],
+  onSelect: (e, pos) => openMyCard(e, pos.clientPoint),
+})
+tags.setEvents(next)
+```
+
 ## 9. Chart chrome / UI widgets
 
 Optional DOM widgets rendered inside the chart container, driven by chart state +
@@ -454,13 +469,13 @@ theme-aware and overlay the canvas stack.
   time/price axes + crosshair + pan/zoom. Everything else is opt-in.
 - **Subpath exports**, each dynamically importable: `/indicators` (and
   per-indicator), `/annotations` (and `/annotations/schema`), `/price-lines`,
-  `/chrome`. The React binding is a separate package, not a subpath (§8.8), so
-  the core gains no React dependency.
+  `/event-tags`, `/chrome`. The React binding is a separate package, not a
+  subpath (§8.8), so the core gains no React dependency.
 - `package.json` `exports` map + `sideEffects: false` for tree-shaking.
 - Bundle size is budgeted in CI with `size-limit` (per-package `.size-limit.json`,
   `bun run size` fans out): the core package budgets core, chrome, annotations,
-  the annotations schema, price lines, one indicator, all indicators, and
-  everything together; the React package budgets its glue alone (both react and
+  the annotations schema, price lines, event tags, one indicator, all
+  indicators, and everything together; the React package budgets its glue alone (both react and
   the core are external). Each has ~10% headroom. Raising a budget is a deliberate, reviewed change.
 
 ## 11. Public API sketch
@@ -504,6 +519,13 @@ const order = addPriceLine(chart, {
   draggable: true,
 })
 order.on('dragEnd', price => modifyOrder(id, price))
+
+// Event tags (§8.9), from '@lightfin/core/event-tags'. Library draws the
+// tag; host renders the detail card on select.
+const tags = addEventTags(chart, {
+  events: [{ time, type: 'earnings', title: 'Q3 earnings', body }],
+  onSelect: (e, pos) => openMyCard(e, pos.clientPoint),
+})
 
 // Drawing tools (§8.5), from '@lightfin/core/annotations'.
 const drawings = createAnnotations(chart)
@@ -564,18 +586,23 @@ Container sizing is implicit — no `width`/`height` option.
 5. **Series types & chart-type switching** — line, area, bar renderers; `setChartType()`; Volume MA. ✅
 6. **Chart chrome** — instrument/exchange metadata, top-left HUD + OHLCV, indicator/volume HUD, top toolbar (interval/indicators/chart type), bottom toolbar (date ranges + custom-date modal + exchange clock). ✅ (left annotation toolbar moves to Phase 7)
 7. **Annotations** — drawing tools, hit-testing, selection/drag, JSON serialization, left annotation toolbar. ✅
-8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation and worker-based calc were measured and not built (§6, §8.4).
+8. **Scale-out perf** — 500k-candle stress page, bundle-size budget in CI, order-intent hook + magnet mode. ✅ Decimation was measured and not built (§6).
 9. **v1 gaps** — touch press-and-hold crosshair, resizable indicator panes, price lines, accessibility + keyboard control, Playwright e2e in CI. ✅
 10. **Chart-driven loading** — count-based `DataSource` paging with cancellation and live merging (§6), demo on live Binance BTC/USDT. ✅
 11. **Drawing-tool depth** — 21 drawing types, presets, undo/redo, clone/z-order/lock/hide, grouped left toolbar with flyouts, floating style toolbar with color/font/line controls (§8.5, §9). ✅ Not built: a full per-drawing settings dialog (exact coordinates, per-level fib toggles), Gann/Elliott/pattern tools, per-drawing visibility, and toolbar undo buttons.
+12. **Event tags** — `/event-tags` subpath: earnings/dividend tags along the bottom of the price pane, host-rendered detail card on click (§8.9). ✅
 
 ## 14. Misc
 
-- Tradingview has tags that show events for example has E tags (earnings) and D tags (dividends) along the bottom of the price chart which when clicked open an earnings modal centered above them.
+- **Event tags** ✅ — `/event-tags` subpath (§8.9): E/D (earnings/dividend)
+  tags along the bottom of the price pane; a click fires `onSelect` and the
+  host renders the detail card above the tag (TradingView-style). The card
+  stays host-rendered by design, like the order hook (§8.2).
 - Settings modal, saving annotations, reset to defaults etc
 - **Ecosystem** — React wrapper ✅ (shipped as `@lightfin/react`, §8.8,
-  which also moved the repo to a Bun-workspace monorepo, §4); still to do: a
-  docs site. Theming: the JS `ChartTheme` object is the source of truth;
+  which also moved the repo to a Bun-workspace monorepo, §4). Docs/marketing
+  site ✅ (`packages/www`, Astro + Starlight). Theming: the JS `ChartTheme`
+  object is the source of truth;
   chrome's `themeVars()` derives CSS variables from it one-way for the DOM
   widgets. Settled — no reverse (CSS-as-source) path.
 - Add more indicators
