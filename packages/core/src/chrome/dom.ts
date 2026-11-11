@@ -76,6 +76,9 @@ export const ICONS = {
     '<circle cx="9" cy="9" r="2.25"/><path d="M9 1.75v2M9 14.25v2M3.87 3.87l1.42 1.42M12.71 12.71l1.42 1.42M1.75 9h2M14.25 9h2M3.87 14.13l1.42-1.42M12.71 5.29l1.42-1.42"/>',
   ),
   close: svg('<path d="M4.5 4.5l9 9M13.5 4.5l-9 9"/>'),
+  search: svg(
+    '<circle cx="7.75" cy="7.75" r="4.75"/><path d="M11.5 11.5l3.5 3.5"/>',
+  ),
   cursor: svg('<path d="M5 2.5v11l3-2.75 2 4.5 2-.9-2-4.4h4z"/>'),
   trendline: svg(
     '<path d="M5 13l8-8"/><circle cx="3.75" cy="14.25" r="1.75"/><circle cx="14.25" cy="3.75" r="1.75"/>',

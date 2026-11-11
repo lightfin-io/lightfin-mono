@@ -1,4 +1,4 @@
-import { BaseCalc } from './helpers'
+import { BaseCalc, trueRange } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
@@ -23,19 +23,6 @@ class AtrCalc extends BaseCalc {
     this.period = period
   }
 
-  /** The first bar has no prior close, so its TR is just the bar's range. */
-  private trueRange(reader: BarReader, index: number): number {
-    const high = reader.high(index)
-    const low = reader.low(index)
-    if (index === reader.firstIndex) return high - low
-    const prevClose = reader.close(index - 1)
-    return Math.max(
-      high - low,
-      Math.abs(high - prevClose),
-      Math.abs(low - prevClose),
-    )
-  }
-
   protected computeAt(reader: BarReader, index: number): void {
     const offset = index - reader.firstIndex
     const p = this.period
@@ -45,12 +32,12 @@ class AtrCalc extends BaseCalc {
       // Seed the recursion with a simple average of the first `period` TRs.
       let sum = 0
       for (let i = reader.firstIndex; i <= index; i++) {
-        sum += this.trueRange(reader, i)
+        sum += trueRange(reader, i)
       }
       this.set(ATR, index, sum / p)
     } else {
       const prev = this.prior(ATR, index - 1)
-      this.set(ATR, index, (prev * (p - 1) + this.trueRange(reader, index)) / p)
+      this.set(ATR, index, (prev * (p - 1) + trueRange(reader, index)) / p)
     }
   }
 }

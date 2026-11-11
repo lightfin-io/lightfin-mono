@@ -77,13 +77,11 @@ export function createTopToolbar(
     { icon: 'indicators', label: 'Indicators', title: 'Indicators' },
     () => menu.toggle(),
   )
-  const menu = popover(indicatorsButton, ctx.host, close =>
-    ctx.catalog.map(entry =>
-      menuItem({ label: entry.name }, () => {
-        close()
-        void chart.addIndicator(entry.load(), entry.options)
-      }),
-    ),
+  const menu = popover(
+    indicatorsButton,
+    ctx.host,
+    close => buildIndicatorMenu(chart, ctx.catalog, close),
+    { className: 'lf-menu-indicators', label: 'Indicators' },
   )
   if (ctx.catalog.length > 0) groups.push([indicatorsButton])
 
@@ -119,6 +117,53 @@ export function createTopToolbar(
       bar.remove()
     },
   }
+}
+
+/**
+ * The indicators popover's contents: a search field (filtering the list by
+ * name as you type) above the list of catalog entries. Rebuilt each time the
+ * menu opens, so it always starts unfiltered.
+ */
+function buildIndicatorMenu(
+  chart: Chart,
+  catalog: readonly IndicatorCatalogEntry[],
+  close: () => void,
+): Node[] {
+  const searchRow = el('div', 'lf-menu-search')
+  searchRow.innerHTML = ICONS.search
+  const search = el('input', 'lf-menu-search-input')
+  search.type = 'search'
+  search.placeholder = 'Search'
+  search.setAttribute('aria-label', 'Search indicators')
+  searchRow.append(search)
+
+  const list = el('div', 'lf-menu-list')
+  const items = catalog.map(entry => ({
+    name: entry.name.toLowerCase(),
+    node: menuItem({ label: entry.name }, () => {
+      close()
+      void chart.addIndicator(entry.load(), entry.options)
+    }),
+  }))
+  for (const { node } of items) list.append(node)
+
+  const empty = el('div', 'lf-menu-empty', 'No matching indicators')
+  empty.hidden = true
+  list.append(empty)
+
+  const filter = () => {
+    const q = search.value.trim().toLowerCase()
+    let matches = 0
+    for (const { name, node } of items) {
+      const hit = name.includes(q)
+      node.hidden = !hit
+      if (hit) matches++
+    }
+    empty.hidden = matches > 0
+  }
+  search.addEventListener('input', filter)
+
+  return [searchRow, list]
 }
 
 export interface BottomToolbarContext {

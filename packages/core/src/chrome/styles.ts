@@ -52,9 +52,26 @@ const CSS = `
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); font: 13px/18px var(--lf-font);
 }
 .lf-menu .lf-btn { display: flex; width: 100%; padding: 6px 10px; gap: 8px; }
+.lf-menu .lf-btn[hidden] { display: none; }
 .lf-menu .lf-btn[aria-checked='true'], .lf-menu .lf-btn[aria-pressed='true'] { color: var(--lf-accent); }
 .lf-menu .lf-btn svg { flex: none; }
 .lf-menu-label { padding: 6px 10px 2px; font-size: 11px; opacity: 0.7; }
+
+/* Indicators menu: a pinned search field above a scrolling list. */
+.lf-menu-indicators { display: flex; flex-direction: column; overflow: hidden; }
+.lf-menu-search {
+  display: flex; align-items: center; gap: 6px; margin: -4px -4px 4px;
+  padding: 7px 10px; border-bottom: 1px solid var(--lf-border); color: var(--lf-text);
+}
+.lf-menu-search svg { flex: none; width: 15px; height: 15px; opacity: 0.7; }
+.lf-menu-search-input {
+  flex: 1; min-width: 0; padding: 2px 0; border: 0; background: transparent;
+  color: var(--lf-text-strong); font: inherit; outline: none;
+}
+.lf-menu-search-input::placeholder { color: var(--lf-text); opacity: 0.7; }
+.lf-menu-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.lf-menu-list { overflow-y: auto; }
+.lf-menu-empty { padding: 8px 10px; opacity: 0.6; }
 .lf-sizes { display: grid; grid-template-columns: repeat(5, 1fr); }
 .lf-menu .lf-sizes .lf-btn { justify-content: center; padding: 4px 0; }
 

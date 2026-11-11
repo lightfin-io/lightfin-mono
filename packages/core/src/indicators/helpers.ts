@@ -86,3 +86,49 @@ export function stdDevClose(
   }
   return Math.sqrt(sumSq / period)
 }
+
+/** The typical price of a bar, `(high + low + close) / 3` (used by CCI, VWAP). */
+export function typicalPrice(reader: BarReader, index: number): number {
+  return (reader.high(index) + reader.low(index) + reader.close(index)) / 3
+}
+
+/** Highest `high` over the `period` bars ending at (inclusive) `index`. */
+export function highestHigh(
+  reader: BarReader,
+  index: number,
+  period: number,
+): number {
+  let hi = -Infinity
+  for (let j = index - period + 1; j <= index; j++)
+    hi = Math.max(hi, reader.high(j))
+  return hi
+}
+
+/** Lowest `low` over the `period` bars ending at (inclusive) `index`. */
+export function lowestLow(
+  reader: BarReader,
+  index: number,
+  period: number,
+): number {
+  let lo = Infinity
+  for (let j = index - period + 1; j <= index; j++)
+    lo = Math.min(lo, reader.low(j))
+  return lo
+}
+
+/**
+ * True Range for `index` — the greatest of the bar's range and its gaps from
+ * the prior close. The first bar has no prior close, so its TR is just the
+ * bar's high−low. Shared by ATR, ADX, and Keltner Channels.
+ */
+export function trueRange(reader: BarReader, index: number): number {
+  const high = reader.high(index)
+  const low = reader.low(index)
+  if (index === reader.firstIndex) return high - low
+  const prevClose = reader.close(index - 1)
+  return Math.max(
+    high - low,
+    Math.abs(high - prevClose),
+    Math.abs(low - prevClose),
+  )
+}

@@ -45,20 +45,37 @@ export const BUILTIN_INDICATORS: readonly IndicatorCatalogEntry[] = [
     name: 'Exponential Moving Average (EMA)',
     load: () => import('../indicators/ema'),
   },
+  {
+    name: 'Weighted Moving Average (WMA)',
+    load: () => import('../indicators/wma'),
+  },
   { name: 'Bollinger Bands', load: () => import('../indicators/bollinger') },
+  { name: 'Keltner Channels', load: () => import('../indicators/keltner') },
+  { name: 'VWAP', load: () => import('../indicators/vwap') },
   {
     name: 'Relative Strength Index (RSI)',
     load: () => import('../indicators/rsi'),
   },
   { name: 'MACD', load: () => import('../indicators/macd') },
   {
-    name: 'Average True Range (ATR)',
-    load: () => import('../indicators/atr'),
-  },
-  {
     name: 'Stochastic Oscillator',
     load: () => import('../indicators/stochastic'),
   },
+  { name: 'Williams %R', load: () => import('../indicators/williamsR') },
+  {
+    name: 'Commodity Channel Index (CCI)',
+    load: () => import('../indicators/cci'),
+  },
+  { name: 'Rate of Change (ROC)', load: () => import('../indicators/roc') },
+  {
+    name: 'Average Directional Index (ADX)',
+    load: () => import('../indicators/adx'),
+  },
+  {
+    name: 'Average True Range (ATR)',
+    load: () => import('../indicators/atr'),
+  },
+  { name: 'On-Balance Volume (OBV)', load: () => import('../indicators/obv') },
   { name: 'Volume MA', load: () => import('../indicators/volumeMa') },
 ]
 
@@ -182,7 +199,8 @@ export function createChrome(
     ? createBottomToolbar(
         chart,
         { host, ranges: options.ranges ?? DATE_RANGE_PRESETS },
-        now => formatClock(now, timeZone(), chart.dateFormatters.timeWithSeconds),
+        now =>
+          formatClock(now, timeZone(), chart.dateFormatters.timeWithSeconds),
       )
     : null
   if (bottom) main.after(bottom.el)
