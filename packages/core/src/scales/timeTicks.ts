@@ -15,6 +15,8 @@
  * (PLAN §12). Daily-and-coarser bars ignore the timezone: their timestamps
  * name calendar days, which shifting would push onto the previous evening.
  */
+import type { DateFormatters } from '../chart/options'
+import { DEFAULT_DATE_FORMATTERS } from '../chart/options'
 import { toZoned } from './timezone'
 
 export interface TimeAxisLabel {
@@ -80,32 +82,18 @@ const TIME_STEPS: readonly TimeStep[] = [
   { sec: SECONDS_PER_YEAR, gran: 'year', bucket: yearBucket },
 ]
 
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-]
-
 /**
  * Pick time-axis labels for the visible bars so they sit ~`targetPx` apart at
  * the current `barWidth`, aligned to round wall-clock boundaries in `timeZone`
  * (UTC when omitted). `bars` must be ascending by index/time. Returns a
- * labeled subset, ascending.
+ * labeled subset, ascending. Label text is produced by `fmt` (PLAN §15).
  */
 export function timeAxisLabels(
   bars: readonly { index: number; time: number }[],
   barWidth: number,
   targetPx: number,
   timeZone?: string,
+  fmt: DateFormatters = DEFAULT_DATE_FORMATTERS,
 ): TimeAxisLabel[] {
   if (bars.length === 0) return []
 
@@ -124,7 +112,7 @@ export function timeAxisLabels(
     if (bucket === prevBucket) continue // same bucket → one label per boundary
     prevBucket = bucket
     const d = new Date(wall * 1000)
-    out.push({ index, time, text: formatTick(step.gran, d, prevDate) })
+    out.push({ index, time, text: formatTick(step.gran, d, prevDate, fmt) })
     prevDate = d
   }
   return out
@@ -158,34 +146,30 @@ function inferInterval(
  * label's date — so the higher-order field (date/month/year) is shown only when
  * it changes, and the finer field fills the rest.
  */
-function formatTick(gran: Granularity, d: Date, prev: Date | null): string {
+function formatTick(
+  gran: Granularity,
+  d: Date,
+  prev: Date | null,
+  fmt: DateFormatters,
+): string {
   const year = d.getUTCFullYear()
   const newYear = !prev || prev.getUTCFullYear() !== year
   const newMonth = newYear || (!!prev && prev.getUTCMonth() !== d.getUTCMonth())
   const newDay = newMonth || (!!prev && prev.getUTCDate() !== d.getUTCDate())
-  const monthDay = `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`
 
   switch (gran) {
     case 'second':
-      return newDay
-        ? monthDay
-        : `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
+      return newDay ? fmt.monthDay(d) : fmt.timeWithSeconds(d)
     case 'minute':
     case 'hour':
-      return newDay
-        ? monthDay
-        : `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
+      return newDay ? fmt.monthDay(d) : fmt.time(d)
     case 'day':
       if (newYear) return String(year)
-      if (newMonth) return MONTHS[d.getUTCMonth()]!
+      if (newMonth) return fmt.month(d)
       return String(d.getUTCDate())
     case 'month':
-      return newYear ? String(year) : MONTHS[d.getUTCMonth()]!
+      return newYear ? String(year) : fmt.month(d)
     case 'year':
       return String(year)
   }
-}
-
-function pad(n: number): string {
-  return n < 10 ? `0${n}` : String(n)
 }

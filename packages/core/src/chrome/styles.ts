@@ -21,6 +21,9 @@ const CSS = `
 }
 .lf-toolbar-top { border-bottom: 1px solid var(--lf-border); }
 .lf-toolbar-bottom { border-top: 1px solid var(--lf-border); }
+/* The fullscreen element is sized by the browser; paint the chart background
+   so the toolbars don't sit on the default black backdrop. */
+.lf-host:fullscreen { background: var(--lf-bg); }
 .lf-toolbar-left {
   flex-direction: column; padding: 6px 4px; overflow: hidden auto;
   border-right: 1px solid var(--lf-border);

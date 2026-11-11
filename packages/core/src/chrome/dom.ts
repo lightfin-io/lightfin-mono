@@ -60,6 +60,12 @@ export const ICONS = {
   calendar: svg(
     '<rect x="2.5" y="3.5" width="13" height="12" rx="1.5"/><path d="M2.5 7.5h13M6 2v3M12 2v3"/>',
   ),
+  fullscreen: svg(
+    '<path d="M3.5 7V3.5H7M11 3.5h3.5V7M14.5 11v3.5H11M7 14.5H3.5V11"/>',
+  ),
+  exitFullscreen: svg(
+    '<path d="M7 3.5V7H3.5M11 3.5V7h3.5M14.5 11H11v3.5M7 14.5V11H3.5"/>',
+  ),
   eye: svg(
     '<path d="M1.5 9s3-5.5 7.5-5.5S16.5 9 16.5 9 13.5 14.5 9 14.5 1.5 9 1.5 9z"/><circle cx="9" cy="9" r="2.25"/>',
   ),

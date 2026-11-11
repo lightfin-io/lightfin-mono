@@ -27,7 +27,12 @@ import { ChartA11y, describeBar, describeView } from './a11y'
 import type { ViewSummary } from './a11y'
 import { Emitter } from './events'
 import { IndicatorController, IndicatorInstance } from './indicators'
-import type { ChartOptions, ChartOptionsInput, CrosshairMode } from './options'
+import type {
+  ChartOptions,
+  ChartOptionsInput,
+  CrosshairMode,
+  DateFormatters,
+} from './options'
 import { resolveOptions } from './options'
 import type {
   ChartPointerEvent,
@@ -383,6 +388,14 @@ export class Chart {
 
   private minPriceDecimals(): number {
     return this.instrumentInfo?.pricePrecision ?? this.options.priceDecimals
+  }
+
+  /**
+   * The resolved date/time formatters (PLAN §15) — defaults merged with any
+   * `dateFormatters` override. Used by the chrome to format the exchange clock.
+   */
+  get dateFormatters(): DateFormatters {
+    return this.options.dateFormatters
   }
 
   /** The instrument's IANA timezone, or undefined for UTC. */
@@ -1070,7 +1083,11 @@ export class Chart {
         return
       }
       case 'Escape':
+        // Only swallow Escape when it actually dismissed the crosshair, so a
+        // bare Escape can still leave fullscreen.
+        if (this.keyboardIndex === null) return
         this.clearKeyboardCrosshair()
+        e.preventDefault()
         return
       default:
         return
@@ -1827,6 +1844,7 @@ export class Chart {
     return formatCrosshairTime(
       store.times[store.physical(index)]!,
       this.barInterval() >= 86_400 ? undefined : (this.timeZone() ?? 'UTC'),
+      this.options.dateFormatters,
     )
   }
 
@@ -1852,6 +1870,7 @@ export class Chart {
       ts.barWidth,
       TIME_LABEL_SPACING,
       this.timeZone(),
+      this.options.dateFormatters,
     ).map(l => ({
       x: ts.indexToX(l.index),
       text: l.text,
@@ -1928,13 +1947,12 @@ function formatAxisNumber(value: number, ticks: readonly number[]): string {
  * (`timeZone` given, possibly UTC) show date + time in that zone; daily and
  * coarser bars (`timeZone` undefined) show the calendar date only.
  */
-function formatCrosshairTime(timeSec: number, timeZone?: string): string {
+function formatCrosshairTime(
+  timeSec: number,
+  timeZone: string | undefined,
+  fmt: DateFormatters,
+): string {
   const intraday = timeZone !== undefined
   const d = new Date(toZoned(timeSec, timeZone) * 1000)
-  const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
-  const date = `${month} ${d.getUTCDate()}`
-  if (!intraday) return `${date} ${d.getUTCFullYear()}`
-  const hh = String(d.getUTCHours()).padStart(2, '0')
-  const mm = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${date} ${hh}:${mm}`
+  return intraday ? fmt.dateTime(d) : fmt.date(d)
 }

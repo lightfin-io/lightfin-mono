@@ -1,7 +1,7 @@
 /**
  * @lightfin/core/chrome — optional DOM widgets around the chart (PLAN §9):
  * the top-left HUD/legend, the top toolbar (interval, chart type, indicators),
- * the bottom toolbar (date ranges, go-to dialog, exchange clock), and — given
+ * the bottom toolbar (date ranges, go-to dialog, exchange clock, fullscreen), and — given
  * an annotations instance — the left drawing-tools toolbar and the selected
  * drawing's style toolbar.
  *
@@ -67,7 +67,7 @@ export interface ChromeOptions {
   hud?: boolean
   /** Interval / chart type / indicators bar above the chart. Default true. */
   topToolbar?: boolean
-  /** Date ranges / go-to / clock bar below the chart. Default true. */
+  /** Date ranges / go-to / clock / fullscreen bar below the chart. Default true. */
   bottomToolbar?: boolean
   /**
    * Interval labels for the selector, e.g. `['1m', '5m', '1H', '1D']`. The
@@ -182,7 +182,7 @@ export function createChrome(
     ? createBottomToolbar(
         chart,
         { host, ranges: options.ranges ?? DATE_RANGE_PRESETS },
-        now => formatClock(now, timeZone()),
+        now => formatClock(now, timeZone(), chart.dateFormatters.timeWithSeconds),
       )
     : null
   if (bottom) main.after(bottom.el)

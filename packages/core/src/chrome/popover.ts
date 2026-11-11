@@ -39,6 +39,7 @@ export function popover(
   }
   const onKey = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return
+    e.preventDefault()
     e.stopPropagation()
     close()
     anchor.focus()

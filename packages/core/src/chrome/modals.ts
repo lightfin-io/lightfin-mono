@@ -31,6 +31,7 @@ export function openModal(
   })
   backdrop.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+      e.preventDefault()
       e.stopPropagation()
       close()
     }

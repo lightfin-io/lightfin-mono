@@ -92,7 +92,11 @@ export class Hud {
   /** Advance the legend clock; called once a second by the chrome. */
   tick(now: Date): void {
     if (!this.ctx.showClock) return
-    this.clock.textContent = formatClock(now, this.chart.instrument()?.timezone)
+    this.clock.textContent = formatClock(
+      now,
+      this.chart.instrument()?.timezone,
+      this.chart.dateFormatters.timeWithSeconds,
+    )
   }
 
   private schedule(structure = false): void {

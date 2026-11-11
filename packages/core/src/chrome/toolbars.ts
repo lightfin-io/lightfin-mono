@@ -1,6 +1,6 @@
 import type { Chart } from '../chart/chart'
 import type { ChartType } from '../series/series'
-import { button, el, menuItem } from './dom'
+import { ICONS, button, el, menuItem } from './dom'
 import type { DateRangePreset } from './format'
 import { dateRangeStart } from './format'
 import { openGoToModal } from './modals'
@@ -133,7 +133,7 @@ export interface BottomToolbar extends Toolbar {
 
 /**
  * Bottom toolbar (PLAN §9): quick date ranges, the "Go to" date/range dialog,
- * and the exchange-local clock.
+ * the exchange-local clock, and a fullscreen toggle for the chart host.
  */
 export function createBottomToolbar(
   chart: Chart,
@@ -162,14 +162,65 @@ export function createBottomToolbar(
   clock.title = 'Exchange time'
   bar.append(clock)
 
+  // Browsers without the Fullscreen API (or that hide it) get no dead button.
+  const fullscreen =
+    typeof ctx.host.requestFullscreen === 'function'
+      ? fullscreenButton(ctx.host)
+      : null
+  if (fullscreen) bar.append(fullscreen.el)
+
   return {
     el: bar,
     sync: () => {},
     tick: now => {
       clock.textContent = formatClock(now)
     },
-    dispose: () => bar.remove(),
+    dispose: () => {
+      fullscreen?.dispose()
+      bar.remove()
+    },
   }
+}
+
+/**
+ * Toggle the chart host in and out of fullscreen. The icon follows
+ * `fullscreenchange`, including Escape and other exits the button didn't start.
+ */
+function fullscreenButton(host: HTMLElement): {
+  el: HTMLButtonElement
+  dispose(): void
+} {
+  const b = button({ icon: 'fullscreen', title: 'Fullscreen' }, () =>
+    toggleFullscreen(host),
+  )
+  const sync = () => {
+    const on = document.fullscreenElement === host
+    b.setAttribute('aria-pressed', String(on))
+    b.title = on ? 'Exit fullscreen' : 'Fullscreen'
+    b.setAttribute('aria-label', b.title)
+    b.innerHTML = ICONS[on ? 'exitFullscreen' : 'fullscreen']
+  }
+  document.addEventListener('fullscreenchange', sync)
+  sync()
+  return {
+    el: b,
+    dispose: () => {
+      document.removeEventListener('fullscreenchange', sync)
+      if (document.fullscreenElement === host) {
+        void document.exitFullscreen?.().catch(() => {})
+      }
+    },
+  }
+}
+
+function toggleFullscreen(host: HTMLElement): void {
+  const action =
+    document.fullscreenElement === host
+      ? document.exitFullscreen?.()
+      : host.requestFullscreen()
+  // A rejected request (no user gesture, or the frame disallows it) leaves
+  // the button unchanged; fullscreenchange updates it when the mode really changes.
+  void action?.catch(() => {})
 }
 
 function showRange(chart: Chart, preset: DateRangePreset): void {

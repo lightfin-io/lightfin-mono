@@ -1,4 +1,5 @@
-import { fromZoned, toZoned } from '../scales/timezone'
+import { DEFAULT_DATE_FORMATTERS } from '../chart/options'
+import { fromZoned, toZoned, tzOffsetSec } from '../scales/timezone'
 
 /** Compact volume, e.g. 1234 → "1.23K", 5_600_000 → "5.6M". */
 export function formatVolume(value: number): string {
@@ -31,29 +32,35 @@ export function formatChange(
   return `${sign}${formatPrice(Math.abs(change))} (${sign}${pct.toFixed(2)}%)`
 }
 
-const clockFormatters = new Map<string, Intl.DateTimeFormat>()
+/**
+ * Wall-clock time + "UTC±H" offset for `date` in `timeZone` (UTC when omitted),
+ * e.g. "14:30:05 UTC-5". The time digits are rendered by `formatTime` (the
+ * chart's {@link DateFormatters.timeWithSeconds}, defaulting to the 24-hour
+ * built-in), which receives a wall-clock-as-UTC Date; the offset is appended
+ * separately so it survives localization.
+ */
+export function formatClock(
+  date: Date,
+  timeZone?: string,
+  formatTime: (date: Date) => string = DEFAULT_DATE_FORMATTERS.timeWithSeconds,
+): string {
+  const offsetSec = tzOffsetSec(Math.floor(date.getTime() / 1000), timeZone)
+  const wall = new Date(date.getTime() + offsetSec * 1000)
+  return `${formatTime(wall)} ${formatOffset(offsetSec)}`
+}
 
-/** Wall-clock "HH:MM:SS UTC±H" for `date` in `timeZone` (UTC when omitted). */
-export function formatClock(date: Date, timeZone = 'UTC'): string {
-  let fmt = clockFormatters.get(timeZone)
-  if (!fmt) {
-    fmt = new Intl.DateTimeFormat('en-GB', {
-      timeZone,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23',
-      timeZoneName: 'shortOffset',
-    })
-    clockFormatters.set(timeZone, fmt)
-  }
-  let time = ''
-  let zone = ''
-  for (const p of fmt.formatToParts(date)) {
-    if (p.type === 'timeZoneName') zone = p.value
-    else if (p.type !== 'literal' || !zone) time += p.value
-  }
-  return `${time.trim()} ${zone.replace(/^GMT/, 'UTC').replace(/^UTC[+-]0$/, 'UTC')}`
+/** A UTC offset in seconds as "UTC", "UTC-5", or "UTC+5:30". */
+function formatOffset(offsetSec: number): string {
+  if (offsetSec === 0) return 'UTC'
+  const sign = offsetSec > 0 ? '+' : '-'
+  const abs = Math.abs(offsetSec)
+  const hours = Math.floor(abs / 3600)
+  const mins = Math.floor((abs % 3600) / 60)
+  return mins ? `UTC${sign}${hours}:${pad(mins)}` : `UTC${sign}${hours}`
+}
+
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : String(n)
 }
 
 /** Quick date-range presets for the bottom toolbar (PLAN §9). */

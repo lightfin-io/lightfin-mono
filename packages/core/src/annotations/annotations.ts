@@ -904,8 +904,11 @@ export class Annotations {
     } else if (e.ctrlKey && key === 'y') {
       this.redo()
     } else if (e.key === 'Escape') {
+      // A no-op Escape must not preventDefault, or the browser can't use it
+      // to leave fullscreen.
       if (this.draft || this.activeTool) this.setTool(null)
-      else this.select(null)
+      else if (this.selectedId) this.select(null)
+      else return
     } else if (
       (e.key === 'Delete' || e.key === 'Backspace') &&
       this.selectedId
