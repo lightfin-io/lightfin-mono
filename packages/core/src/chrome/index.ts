@@ -16,9 +16,14 @@
  *   onIntervalChange: iv => loadBars(iv),
  * })
  * ```
+ *
+ * The indicators menu lists {@link BUILTIN_INDICATORS} unless `indicators`
+ * replaces it. Build that list from {@link builtinIndicators}, imported
+ * indicator modules, and your own definitions.
  */
 import type { Annotations } from '../annotations'
 import type { Chart } from '../chart/chart'
+import type { IndicatorDefinition, IndicatorModule } from '../indicators/types'
 import type { ChartType } from '../series/series'
 import { el } from './dom'
 import { createDrawingToolbar } from './drawingToolbar'
@@ -28,56 +33,145 @@ import type { DateRangePreset } from './format'
 import { DATE_RANGE_PRESETS, formatClock } from './format'
 import { Hud } from './hud'
 import { acquireStyles, releaseStyles, themeVars } from './styles'
-import type { IndicatorCatalogEntry, Toolbar } from './toolbars'
+import type {
+  IndicatorCatalogEntry,
+  IndicatorSource,
+  Toolbar,
+} from './toolbars'
 import { createBottomToolbar, createTopToolbar } from './toolbars'
 
 export type { DateRangePreset } from './format'
 export { DATE_RANGE_PRESETS } from './format'
 export type { IndicatorCatalogEntry, IndicatorSource } from './toolbars'
 
+function menuEntry(
+  name: string,
+  load: IndicatorCatalogEntry['load'],
+): IndicatorCatalogEntry {
+  return { name, load }
+}
+
 /**
- * The built-in indicators for the toolbar menu. Each entry loads its module on
- * demand, so listing them costs nothing until one is picked.
+ * Built-in indicators, keyed by id, for a custom menu. Each entry loads its
+ * module when the user picks it, so listing `sma` does not download the rest.
+ *
+ * Mix these with an imported built-in (`import ema from
+ * '@lightfin/core/indicators/ema'`) and your own indicator definitions. An
+ * imported definition is labeled with its `name` ("EMA"); a built-in entry
+ * keeps the longer menu label ("Exponential Moving Average (EMA)").
+ *
+ * ```ts
+ * import { builtinIndicators } from '@lightfin/core/chrome'
+ * import myOscillator from './myOscillator'
+ *
+ * createChrome(chart, {
+ *   indicators: [builtinIndicators.sma, builtinIndicators.rsi, myOscillator],
+ * })
+ * ```
  */
-export const BUILTIN_INDICATORS: readonly IndicatorCatalogEntry[] = [
-  { name: 'Moving Average (SMA)', load: () => import('../indicators/sma') },
-  {
-    name: 'Exponential Moving Average (EMA)',
-    load: () => import('../indicators/ema'),
-  },
-  {
-    name: 'Weighted Moving Average (WMA)',
-    load: () => import('../indicators/wma'),
-  },
-  { name: 'Bollinger Bands', load: () => import('../indicators/bollinger') },
-  { name: 'Keltner Channels', load: () => import('../indicators/keltner') },
-  { name: 'VWAP', load: () => import('../indicators/vwap') },
-  {
-    name: 'Relative Strength Index (RSI)',
-    load: () => import('../indicators/rsi'),
-  },
-  { name: 'MACD', load: () => import('../indicators/macd') },
-  {
-    name: 'Stochastic Oscillator',
-    load: () => import('../indicators/stochastic'),
-  },
-  { name: 'Williams %R', load: () => import('../indicators/williamsR') },
-  {
-    name: 'Commodity Channel Index (CCI)',
-    load: () => import('../indicators/cci'),
-  },
-  { name: 'Rate of Change (ROC)', load: () => import('../indicators/roc') },
-  {
-    name: 'Average Directional Index (ADX)',
-    load: () => import('../indicators/adx'),
-  },
-  {
-    name: 'Average True Range (ATR)',
-    load: () => import('../indicators/atr'),
-  },
-  { name: 'On-Balance Volume (OBV)', load: () => import('../indicators/obv') },
-  { name: 'Volume MA', load: () => import('../indicators/volumeMa') },
-]
+export const builtinIndicators = {
+  sma: menuEntry('Moving Average (SMA)', () => import('../indicators/sma')),
+  ema: menuEntry(
+    'Exponential Moving Average (EMA)',
+    () => import('../indicators/ema'),
+  ),
+  wma: menuEntry(
+    'Weighted Moving Average (WMA)',
+    () => import('../indicators/wma'),
+  ),
+  bollinger: menuEntry(
+    'Bollinger Bands',
+    () => import('../indicators/bollinger'),
+  ),
+  keltner: menuEntry('Keltner Channels', () => import('../indicators/keltner')),
+  vwap: menuEntry('VWAP', () => import('../indicators/vwap')),
+  rsi: menuEntry(
+    'Relative Strength Index (RSI)',
+    () => import('../indicators/rsi'),
+  ),
+  macd: menuEntry('MACD', () => import('../indicators/macd')),
+  stochastic: menuEntry(
+    'Stochastic Oscillator',
+    () => import('../indicators/stochastic'),
+  ),
+  williamsR: menuEntry('Williams %R', () => import('../indicators/williamsR')),
+  cci: menuEntry(
+    'Commodity Channel Index (CCI)',
+    () => import('../indicators/cci'),
+  ),
+  roc: menuEntry('Rate of Change (ROC)', () => import('../indicators/roc')),
+  adx: menuEntry(
+    'Average Directional Index (ADX)',
+    () => import('../indicators/adx'),
+  ),
+  atr: menuEntry('Average True Range (ATR)', () => import('../indicators/atr')),
+  obv: menuEntry('On-Balance Volume (OBV)', () => import('../indicators/obv')),
+  volumeMa: menuEntry('Volume MA', () => import('../indicators/volumeMa')),
+}
+
+/**
+ * Every {@link builtinIndicators} entry, in menu order. This is the indicators
+ * menu when `indicators` is omitted. Spread it to keep the full set and add
+ * your own: `[...BUILTIN_INDICATORS, myOscillator]`.
+ */
+export const BUILTIN_INDICATORS: readonly IndicatorCatalogEntry[] =
+  Object.values(builtinIndicators)
+
+// Caller options stay opaque; the definition interprets them (PLAN §8.4).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ListedIndicator = IndicatorDefinition<any> | IndicatorModule<any>
+
+/**
+ * One indicators-menu row. A {@link IndicatorCatalogEntry} loads on demand
+ * (the built-ins). A definition or module — imported from
+ * `@lightfin/core/indicators/*`, or one you wrote — is listed under its
+ * `name`.
+ */
+export type IndicatorMenuItem = IndicatorCatalogEntry | ListedIndicator
+
+/** Catalog entries pass through; definitions and modules take their `name`. */
+function toCatalogEntry(item: IndicatorMenuItem): IndicatorCatalogEntry {
+  if (
+    typeof item === 'object' &&
+    item !== null &&
+    typeof (item as IndicatorCatalogEntry).load === 'function'
+  ) {
+    return item as IndicatorCatalogEntry
+  }
+  const name = indicatorName(item)
+  if (name !== null) return { name, load: () => item as IndicatorSource }
+  // addIndicator accepts a bare import(); the menu needs a name up front.
+  const thenable = item as unknown as { then?: unknown } | null
+  if (typeof thenable?.then === 'function') {
+    throw new Error(
+      'lightfin: an indicators menu entry cannot be a promise; use { name, load: () => import(...) } or pass the loaded definition',
+    )
+  }
+  throw new Error(
+    'lightfin: indicators menu entry must be a catalog entry, definition, or module',
+  )
+}
+
+function indicatorName(item: IndicatorMenuItem): string | null {
+  if (typeof item !== 'object' || item === null) return null
+  const record = item as {
+    name?: unknown
+    create?: unknown
+    default?: { name?: unknown; create?: unknown }
+  }
+  const embedded = record.default
+  if (
+    embedded &&
+    typeof embedded.create === 'function' &&
+    typeof embedded.name === 'string'
+  ) {
+    return embedded.name
+  }
+  if (typeof record.create === 'function' && typeof record.name === 'string') {
+    return record.name
+  }
+  return null
+}
 
 export interface ChromeOptions {
   /** Top-left legend with OHLCV and indicator rows. Default true. */
@@ -98,8 +192,12 @@ export interface ChromeOptions {
   onIntervalChange?: (interval: string) => void
   /** Chart types offered in the toolbar. Default: all four. */
   chartTypes?: readonly ChartType[]
-  /** Indicators menu entries. Default {@link BUILTIN_INDICATORS}; `[]` hides it. */
-  indicators?: readonly IndicatorCatalogEntry[]
+  /**
+   * Indicators menu. Default {@link BUILTIN_INDICATORS}; `[]` hides it.
+   * Replace it with any mix of {@link builtinIndicators}, imported built-in
+   * modules, and your own definitions.
+   */
+  indicators?: readonly IndicatorMenuItem[]
   /** Quick ranges in the bottom toolbar. Default {@link DATE_RANGE_PRESETS}. */
   ranges?: readonly DateRangePreset[]
   /**
@@ -126,6 +224,8 @@ export function createChrome(
   chart: Chart,
   options: ChromeOptions = {},
 ): Chrome {
+  // Resolve before mounting so a bad entry fails without leaving styles behind.
+  const catalog = (options.indicators ?? BUILTIN_INDICATORS).map(toCatalogEntry)
   const root = chart.element
   const host = root.parentElement
   if (!host) throw new Error('lightfin: chart element is not mounted')
@@ -174,7 +274,7 @@ export function createChrome(
             'line',
             'area',
           ],
-          catalog: options.indicators ?? BUILTIN_INDICATORS,
+          catalog,
         })
 
   // The left toolbar sits beside the chart, so the two share a row; the
