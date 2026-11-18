@@ -6,10 +6,11 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "gen": "bun run scripts/gen-reference.ts",
+    "dev": "bun run gen && astro dev",
+    "build": "bun run gen && astro build",
     "preview": "astro preview",
-    "typecheck": "astro check"
+    "typecheck": "bun run gen && astro check"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.3",

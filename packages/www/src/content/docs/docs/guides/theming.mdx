@@ -1,0 +1,82 @@
+---
+title: Theming
+description: Recolor the chart with a theme object, and the chrome follows automatically.
+---
+
+import ThemeCatalog from '../../../../generated/theme-catalog.mdx'
+
+Every color, font, and the up/down palette come from one plain object: the
+chart's `theme`. Pass a `Partial<ChartTheme>` at creation and it's merged over
+`DEFAULT_THEME`, so you only set what you want to change:
+
+```ts
+import { createChart } from '@lightfin/core'
+
+const chart = createChart(container, {
+  theme: {
+    upColor: '#2e7d32',
+    downColor: '#c62828',
+    lineColor: '#5c6bc0',
+  },
+})
+```
+
+The engine has no live option setter — to change the theme after creation,
+re-create the chart with the new `theme`.
+
+## Theme variables
+
+Every field of `ChartTheme`, its type, its default, and what it paints:
+
+<ThemeCatalog />
+
+Colors accept any CSS color string the canvas understands — `#rgb`, `#rrggbb`,
+`rgb()`/`rgba()`. The `volume*` and `area*` defaults are intentionally
+semi-transparent so the candles and gridlines read through them.
+
+## A light theme
+
+There's no separate light/dark switch — a light theme is just a theme whose
+`background` is light. The chrome reads that lightness to flip its own scheme
+(see below), so one object does both:
+
+```ts
+createChart(container, {
+  theme: {
+    background: '#ffffff',
+    gridColor: '#f0f3fa',
+    axisTextColor: '#50545e',
+    axisBorderColor: '#e0e3eb',
+    crosshairColor: '#9598a1',
+  },
+})
+```
+
+## The chrome follows the theme
+
+If you use the [chrome](/docs/api/chrome) toolbars, you don't theme them
+separately. It derives a set of `--lf-*` CSS custom properties from the chart
+theme and sets them on the host element, so the toolbars, menus, and dialogs
+stay in sync:
+
+| CSS variable       | Derived from                                  |
+| ------------------ | --------------------------------------------- |
+| `--lf-bg`          | `background`                                  |
+| `--lf-text`        | `axisTextColor`                               |
+| `--lf-text-strong` | picked from `background` lightness            |
+| `--lf-border`      | `axisBorderColor`                             |
+| `--lf-accent`      | `lineColor`                                   |
+| `--lf-up`          | `upColor`                                     |
+| `--lf-down`        | `downColor`                                   |
+| `--lf-font`        | `fontFamily`                                  |
+
+The widgets also set `color-scheme` from the same lightness check, so native
+controls (scrollbars, range sliders) match. You can override any `--lf-*`
+variable in your own CSS if you need the chrome to diverge from the plot.
+
+## Indicator colors
+
+`indicatorPalette` is handed out round-robin as you add indicators, so a fresh
+chart's indicators are distinct without any per-indicator config. An explicit
+color in an indicator's options always wins — see
+[Indicators → Colors](/docs/api/indicators#colors).

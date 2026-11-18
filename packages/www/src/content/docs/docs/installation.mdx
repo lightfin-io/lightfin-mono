@@ -67,11 +67,17 @@ The container should have a size — the chart fills it and watches for resizes.
 Pay only for what you import. The extras live behind their own entry points so
 they tree-shake out when unused:
 
-| Import                        | What it adds                         |
-| ----------------------------- | ------------------------------------ |
-| `@lightfin/core`              | Chart engine, series, axes, crosshair |
-| `@lightfin/core/annotations`  | The 21 drawing tools                  |
-| `@lightfin/core/chrome`       | HUD, legend, toolbars, clock          |
-| `@lightfin/core/price-lines`  | Order and position price lines        |
+| Import                           | What it adds                           |
+| -------------------------------- | -------------------------------------- |
+| `@lightfin/core`                 | Chart engine, series, axes, crosshair  |
+| `@lightfin/core/indicators/*`    | One indicator each, loaded on demand   |
+| `@lightfin/core/annotations`     | The [21 drawing tools](/docs/api/annotations) |
+| `@lightfin/core/annotations/schema` | JSON Schema to let an AI draw        |
+| `@lightfin/core/chrome`          | [HUD, legend, toolbars, clock](/docs/api/chrome) |
+| `@lightfin/core/price-lines`     | [Order and position price lines](/docs/api/price-lines) |
+| `@lightfin/core/event-tags`      | [Earnings / dividend tags](/docs/api/event-tags) |
+
+Indicators are imported one subpath at a time (usually via a dynamic `import()`,
+so only the ones you use ship) — see the [Indicators reference](/docs/api/indicators).
 
 Next: [your first chart](/docs/guides/first-chart).

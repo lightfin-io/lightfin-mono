@@ -1,0 +1,151 @@
+---
+title: Indicators
+description: Add technical indicators, configure them, and write your own.
+sidebar:
+  order: 3
+---
+
+import IndicatorCatalog from '../../../../generated/indicators-catalog.mdx'
+
+Indicators live behind their own subpath exports, so the core bundle never
+carries the catalog — each one loads only when you use it. Add one with
+`chart.addIndicator`, passing a **dynamic `import()`** so its code splits out:
+
+```ts
+const sma = await chart.addIndicator(
+  import('@lightfin/core/indicators/sma'),
+  { period: 20 },
+)
+```
+
+`addIndicator(source, options?)` returns a `Promise<IndicatorHandle>`. It needs
+a series first (it computes against the current bars), so add one before calling
+it. The indicator is computed once and thereafter updated incrementally — pan
+and zoom only re-slice its cache, never recompute.
+
+`source` can be a dynamic `import()` (recommended), an already-resolved module,
+or a bare definition. `options` is merged over the indicator's defaults.
+
+## The catalog
+
+Every bundled indicator, its subpath id, legend label, where it draws, and its
+tuning defaults:
+
+<IndicatorCatalog />
+
+Overlay indicators share the main pane; "own pane" indicators (RSI, MACD, …)
+get a resizable sub-pane. Volume MA draws over the volume histogram and only
+shows while that histogram does.
+
+## `IndicatorHandle`
+
+`addIndicator` resolves to a handle; `chart.indicators()` returns every handle
+in the order added.
+
+| Member               | Type                              | Notes                                             |
+| -------------------- | --------------------------------- | ------------------------------------------------- |
+| `name`               | `string`                          | Legend name, e.g. `'BB'`.                         |
+| `params`             | `readonly (string \| number)[]`   | Legend params, e.g. `[20, 2]`.                    |
+| `placement`          | `'price' \| 'volume' \| 'pane'`   | Where it draws.                                   |
+| `options`            | `Readonly<Record<string, unknown>>` | Resolved options (defaults + everything set).   |
+| `plots`              | `readonly PlotStyle[]`            | The output series it emits.                       |
+| `visible`            | `boolean`                         | —                                                 |
+| `value(key, index)`  | `number`                          | Cached output for a plot at a logical bar; `NaN` during warmup. |
+| `setVisible(v)`      | `void`                            | Hide/show without losing the cache.               |
+| `setOptions(opts)`   | `void`                            | Merge new options over the current ones and recompute. |
+| `remove()`           | `void`                            | Remove it from the chart.                         |
+
+```ts
+sma.setOptions({ period: 50 }) // recomputes in place
+sma.setVisible(false) // keeps its pane slot and cache
+sma.remove()
+```
+
+Adding, removing, showing/hiding, or reconfiguring an indicator fires the
+chart's `indicatorsChange` event — the hook a custom legend listens on.
+
+## Colors
+
+Each plot takes its color from `theme.indicatorPalette` (assigned round-robin as
+you add them) unless you pass a color in `options`. Which option keys are colors
+is part of the indicator's definition (`colorKeys`), so overriding is just:
+
+```ts
+await chart.addIndicator(import('@lightfin/core/indicators/sma'), {
+  period: 20,
+  color: '#ff9800',
+})
+```
+
+## In the toolbar
+
+The [chrome](/docs/api/chrome) indicators menu lists the whole catalog by
+default, and lets you narrow it, reorder it, or add your own definitions. See
+[`createChrome`](/docs/api/chrome#indicators-menu).
+
+## Writing your own
+
+An indicator is a module that default-exports an `IndicatorDefinition` — plain
+metadata plus a `create()` factory for the compute half. The contract lives in
+`@lightfin/core/indicators` (types only, zero runtime cost to import):
+
+```ts
+import type { IndicatorDefinition, BarReader } from '@lightfin/core/indicators'
+
+interface MomentumOptions {
+  period: number
+  color: string
+}
+
+const definition: IndicatorDefinition<MomentumOptions> = {
+  name: 'MOM',
+  overlay: false, // own sub-pane; true would draw on the price pane
+  colorKeys: ['color'],
+  defaultOptions: { period: 10, color: '#2962ff' },
+  params: o => [o.period],
+  plots: o => [{ key: 'mom', color: o.color }],
+  create: o => {
+    const out = new Map<number, number>()
+    return {
+      value: (_key, i) => out.get(i) ?? NaN,
+      calculateAll(reader: BarReader) {
+        for (let i = reader.firstIndex; i <= reader.lastIndex; i++) {
+          const prev = i - o.period
+          out.set(
+            i,
+            prev >= reader.firstIndex
+              ? reader.close(i) - reader.close(prev)
+              : NaN,
+          )
+        }
+      },
+      updateLast(reader: BarReader) {
+        const i = reader.lastIndex
+        const prev = i - o.period
+        out.set(
+          i,
+          prev >= reader.firstIndex ? reader.close(i) - reader.close(prev) : NaN,
+        )
+      },
+    }
+  },
+}
+
+export default definition
+```
+
+Then add it like any other — pass the module (or a dynamic `import()` of it):
+
+```ts
+await chart.addIndicator(import('./momentum'), { period: 10 })
+```
+
+The one hard rule: `calculateAll`/`updateLast` run **only on data change**,
+never on pan/zoom. `calculateAll` recomputes every plot over the whole dataset;
+`updateLast` recomputes just the newest bar from already-committed prior outputs,
+so it stays O(1)/O(window). `BarReader` gives columnar, allocation-free access
+to the bars by logical index (stable across history backfill).
+
+Pane indicators can also declare a `fixedRange` (e.g. RSI's 0–100), reference
+`levels` (RSI's 30/70), and `fills` between plots (Bollinger's band). See the
+full `IndicatorDefinition` type for every field.

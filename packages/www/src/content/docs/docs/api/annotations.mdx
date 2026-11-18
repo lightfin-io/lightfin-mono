@@ -1,0 +1,156 @@
+---
+title: Annotations
+description: Drawing tools — trendlines, Fibonacci, shapes, markers — and the JSON they serialize to.
+sidebar:
+  order: 4
+---
+
+import ToolCatalog from '../../../../generated/tools-catalog.mdx'
+
+Drawing tools are an opt-in subpath export, so the core bundle never includes
+them unless you import it. Attach them to a chart with `createAnnotations`:
+
+```ts
+import { createAnnotations } from '@lightfin/core/annotations'
+
+const drawings = createAnnotations(chart)
+drawings.setTool('trendline') // arm a tool; the user draws it
+```
+
+Every drawing anchors to data space (`{ time, price }` points), so it stays put
+across pan, zoom, history backfill, and interval switches. Drawings serialize to
+plain JSON for you to persist:
+
+```ts
+drawings.load(JSON.parse(localStorage.drawings ?? '[]'))
+drawings.on('change', () => {
+  localStorage.drawings = JSON.stringify(drawings.toJSON())
+})
+```
+
+To get the drawing-tool and style toolbars for free, hand `drawings` to
+[`createChrome`](/docs/api/chrome). Otherwise drive it from your own UI with the
+API below.
+
+## The tools
+
+Each tool takes a fixed number of anchor points, placed in order:
+
+<ToolCatalog />
+
+A few that aren't obvious: `regression` fits a linear regression of the closes
+between its two times (the points' prices are ignored); `longPosition` /
+`shortPosition` take entry, target, and stop and show risk/reward; `brush` is a
+freehand stroke sampled along a drag. Markers take a `shape` —
+`'arrowUp' | 'arrowDown' | 'circle' | 'flag'`.
+
+## `Annotations`
+
+### Tools & modes
+
+| Member                      | Notes                                                             |
+| --------------------------- | ----------------------------------------------------------------- |
+| `setTool(type, preset?)`    | Arm a tool (`null` for the cursor). `preset` seeds its style/shape — `setTool('trendline', { style: { extend: 'end' } })` draws rays. |
+| `tool`                      | The armed tool, or `null`.                                        |
+| `setStickyTool(on)`         | Keep the tool armed after each drawing (default: revert to cursor). |
+| `setVisible(on)` / `visible`| Show or hide every drawing.                                      |
+| `setLocked(on)` / `locked`  | Lock all drawings against moving.                                |
+| `select(id)` / `selected`   | Select a drawing (or `null`).                                    |
+
+### Reading & writing
+
+| Member                      | Returns        | Notes                                             |
+| --------------------------- | -------------- | ------------------------------------------------- |
+| `add(input)`                | `string` (id)  | Add one drawing programmatically. Throws if malformed. |
+| `load(inputs)`              | `void`         | Replace all drawings and reset undo history.      |
+| `replace(group, inputs)`    | `string[]`     | Swap one group's drawings, leaving the rest. Validates all first. |
+| `update(id, patch)`         | `void`         | Move/restyle/relabel/reshape/lock. Throws, changing nothing, if malformed. |
+| `remove(id)`                | `void`         | Remove one drawing.                               |
+| `clear(group?)`             | `void`         | Remove all drawings, or just one group's.         |
+| `clone(id)`                 | `string \| null` | Duplicate a drawing, offset and selected.       |
+| `list(group?)` / `toJSON()` | `Annotation[]` | JSON-safe copies, oldest first. `toJSON()` is every drawing. |
+| `get(id)`                   | `Annotation \| null` | One drawing.                                |
+| `effectiveStyle(id)`        | `AnnotationStyle \| null` | Its style with theme defaults filled in — for a style editor. |
+| `bringToFront(id)` / `sendToBack(id)` | `void` | Reorder draw depth.                             |
+| `editText(id)`              | `void`         | Edit a drawing's text/caption in place.           |
+
+### History
+
+`undo()` / `redo()` return `false` when there's nothing to do; `canUndo` /
+`canRedo` are the booleans. History holds the last 100 changes.
+
+### Events
+
+```ts
+const off = drawings.on('change', () => persist())
+```
+
+| Event              | Payload            | Fires when                                                   |
+| ------------------ | ------------------ | ------------------------------------------------------------ |
+| `change`           | —                  | A drawing was added, removed, moved, restyled, edited, or an undo/redo ran — the moment to persist. Once per drag; **not** on `load`. |
+| `toolChange`       | `AnnotationType \| null` | The armed tool changed.                                |
+| `selectionChange`  | `string \| null`   | The selected drawing's id.                                   |
+
+Call `drawings.dispose()` to detach from the chart and drop listeners.
+
+## The `Annotation` shape
+
+What `toJSON()` emits and `add()` / `load()` accept (on input, `id` and `style`
+are optional):
+
+```ts
+interface Annotation {
+  id: string
+  type: AnnotationType
+  points: { time: UTCTimestamp; price: number }[]
+  style: AnnotationStyle
+  text?: string // a text/callout's label; on other types, a caption
+  shape?: MarkerShape // a marker's shape; default 'circle'
+  locked?: boolean // selectable but not movable by pointer
+  group?: string // who placed it, e.g. 'ai'; the user's have none
+}
+```
+
+`AnnotationStyle` is all-optional and falls back to the theme: `color`,
+`lineWidth`, `lineStyle` (`'solid' | 'dashed' | 'dotted'`), `fillColor`,
+`fontSize`, `fontFamily`, `bold`, `italic`, `textColor`, plus `extend` and
+`arrow` (`'none' | 'start' | 'end' | 'both'`) for lines. `update()` takes an
+`AnnotationPatch` — a partial of `points`, `style`, `text`, `shape`, `locked`;
+a `style` field set to `undefined` reverts to its default.
+
+Fibonacci levels are exported as constants if you need them: `FIB_LEVELS` and
+`FIB_EXTENSION_LEVELS`.
+
+## Annotating from an AI
+
+The `group` field lets one source own a slice of the drawings. An AI replaces
+its whole set each turn, leaving the user's untouched:
+
+```ts
+drawings.replace('ai', [
+  { type: 'hline', points: [{ time, price: 64_200 }], text: 'Support' },
+  { type: 'marker', shape: 'arrowUp', points: [{ time, price: low }] },
+])
+```
+
+`@lightfin/core/annotations/schema` ships a JSON Schema describing that input,
+ready to hand a model as a tool definition — it's plain data in its own subpath,
+so the drawing code never carries it:
+
+```ts
+import { annotateChartTool } from '@lightfin/core/annotations/schema'
+
+// Anthropic: { name, description, input_schema: annotateChartTool.inputSchema }
+// OpenAI:    { type: 'function', function: { name, parameters: annotateChartTool.inputSchema } }
+// MCP:       annotateChartTool as-is
+
+// When the model calls it:
+try {
+  drawings.replace('ai', input.annotations)
+} catch (e) {
+  // Return (e as Error).message to the model so it can fix and retry.
+}
+```
+
+`annotationSchema` (the single-annotation schema) is exported too, and
+`validateAnnotation` validates one input the same way `add()` does.

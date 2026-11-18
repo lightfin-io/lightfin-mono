@@ -1,6 +1,8 @@
 ---
 title: Chart
 description: The core Chart instance returned by createChart.
+sidebar:
+  order: 1
 ---
 
 ```ts
@@ -14,23 +16,31 @@ observes it for resizes. Returns a [`Chart`](#methods).
 
 ## Options
 
-Passed once at creation (`ChartOptionsInput`). Common fields:
+Passed once at creation (`ChartOptionsInput` — every field optional; `theme` and
+`dateFormatters` are deep-partial). The engine has no live option setter; to
+change options, re-create the chart.
 
-| Option          | Type            | Notes                                  |
-| --------------- | --------------- | -------------------------------------- |
-| `theme`         | `ChartTheme`    | Colors; `DEFAULT_THEME` is the base.   |
-| `volumeVisible` | `boolean`       | Show the volume sub-pane.              |
-| `crosshairMode` | `CrosshairMode` | Normal or magnet snapping.             |
-| `rightOffset`   | `number`        | Bars of empty space kept at the right. |
+| Option              | Type                         | Notes                                              |
+| ------------------- | ---------------------------- | -------------------------------------------------- |
+| `theme`             | `Partial<ChartTheme>`        | Colors; `DEFAULT_THEME` is the base.               |
+| `crosshairMode`     | `CrosshairMode`              | `'normal'` or `'magnet'` snapping.                 |
+| `volumeVisible`     | `boolean`                    | Volume histogram in the main pane (default off).   |
+| `volumeHeightRatio` | `number`                     | Fraction of plot height it occupies.               |
+| `priceLineVisible`  | `boolean`                    | Dotted last-close line + axis badge (default on).  |
+| `rightOffset`       | `number`                     | Blank bars kept to the right of the newest bar.    |
+| `priceAxisWidth` / `timeAxisHeight` | `number`     | px reserved for the axis strips.                   |
+| `priceDecimals`     | `number`                     | Min decimals on price/crosshair labels (default 2). |
+| `priceFormatter`    | `(price, decimals) => string`| Override price formatting (locale separators, …).  |
+| `dateFormatters`    | `Partial<DateFormatters>`    | Localize axis/crosshair/clock text — see [Localization](#localization). |
 
 ## Methods
 
 ### Series
 
-| Method                     | Returns  | Notes                            |
-| -------------------------- | -------- | -------------------------------- |
-| `addCandlestickSeries()`   | `Series` | Also `addBar/Line/AreaSeries()`. |
-| `getSeries()`              | `Series \| null` | The current series.      |
+| Method                     | Returns          | Notes                            |
+| -------------------------- | ---------------- | -------------------------------- |
+| `addCandlestickSeries()`   | `Series`         | Also `addBar/Line/AreaSeries()`. |
+| `getSeries()`              | `Series \| null` | The current series.              |
 
 The series type is only the starting renderer — `series.setChartType(type)`
 switches it in place. See [`Series`](/docs/api/series).
@@ -51,21 +61,40 @@ const sma = await chart.addIndicator(
 )
 ```
 
-`addIndicator(source, options?)` loads an indicator — pass a dynamic `import()`
-so its code only ships when used. Bundled indicators: `sma`, `ema`, `bollinger`,
-`rsi`, `macd`, `atr`, `stochastic`, `volumeMa`. Returns an `IndicatorHandle`
-(show/hide, reconfigure, remove); `chart.indicators()` lists them.
+`addIndicator(source, options?)` loads an indicator (pass a dynamic `import()`
+so its code only ships when used) and returns an `IndicatorHandle`;
+`chart.indicators()` lists them. Sixteen indicators ship — see the full
+[Indicators reference](/docs/api/indicators) for the catalog, the handle, and
+how to write your own.
 
 ### Instrument & coordinates
 
-| Method                     | Notes                                           |
-| -------------------------- | ----------------------------------------------- |
-| `setInstrument(info)`      | Symbol, precision, timezone (powers the chrome). |
+| Method                     | Notes                                            |
+| -------------------------- | ------------------------------------------------ |
+| `setInstrument(info)` / `instrument()` | Symbol, precision, timezone (powers the chrome). |
 | `timeToCoordinate(t)`      | Time → x pixel (or `null` if off-screen).        |
-| `coordinateToPrice(y)`     | y pixel → price. Also `priceToCoordinate`.       |
+| `coordinateToTime(x, snap?)` | x pixel → time.                                |
+| `priceToCoordinate(p)` / `coordinateToPrice(y)` | Price ↔ y pixel.            |
 | `formatPrice(price)`       | Format using the instrument's precision.         |
+| `paneLayout()` / `plotRect()` | Current pane rectangles (for overlays).       |
 
-### Events & lifecycle
+### Viewport
+
+| Method                       | Notes                                              |
+| ---------------------------- | -------------------------------------------------- |
+| `visibleTimeRange()`         | The `{ from, to }` currently in view, or `null`.   |
+| `setVisibleTimeRange(range)` | Scroll/zoom to a time range (async).               |
+| `scrollToTime(time)`         | Bring a time into view (async).                    |
+| `crosshairMode()` / `setCrosshairMode(mode)` | Read/switch magnet snapping.       |
+
+### Extending
+
+| Method                      | Notes                                                        |
+| --------------------------- | ----------------------------------------------------------- |
+| `onOrderIntent(handler)`    | Opt into the "+" order button; fires with price/coordinate. |
+| `attachPrimitive(primitive)`| Low-level canvas hook — the basis for [price lines](/docs/api/price-lines) and [event tags](/docs/api/event-tags). |
+
+## Events & lifecycle
 
 ```ts
 const off = chart.on('crosshairMove', e => {
@@ -73,7 +102,37 @@ const off = chart.on('crosshairMove', e => {
 })
 ```
 
-`on(type, handler)` subscribes and returns an unsubscribe function. Events
-include `crosshairMove`, `dataChange`, `seriesChange`, `indicatorsChange`,
-`layoutChange` and `instrumentChange`. Call `chart.remove()` to destroy the
-instance and release its listeners.
+`on(type, handler)` subscribes and returns an unsubscribe function.
+
+| Event              | Payload                      | Fires when                         |
+| ------------------ | ---------------------------- | ---------------------------------- |
+| `crosshairMove`    | `CrosshairMoveEvent \| null` | The crosshair moved (or left).     |
+| `dataChange`       | `SeriesChange`               | The series' data or type changed.  |
+| `seriesChange`     | `Series`                     | A new series replaced the previous.|
+| `indicatorsChange` | `void`                       | An indicator was added/removed/shown/reconfigured. |
+| `layoutChange`     | `void`                       | The chart resized or panes changed.|
+| `instrumentChange` | `InstrumentInfo \| null`     | The instrument was set.            |
+
+Call `chart.remove()` to destroy the instance and release its listeners.
+
+## Localization
+
+`dateFormatters` localizes every piece of date/time text — axis tick labels, the
+crosshair's time box, and the exchange clock. Override any subset of
+`DEFAULT_DATE_FORMATTERS` (English month names, 24-hour clock):
+
+```ts
+const fmt = (opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('de-DE', { ...opts, timeZone: 'UTC' })
+
+createChart(container, {
+  dateFormatters: {
+    month: d => fmt({ month: 'short' }).format(d),
+    monthDay: d => fmt({ month: 'short', day: 'numeric' }).format(d),
+  },
+})
+```
+
+Each callback receives a **wall-clock-as-UTC** `Date` — read its `getUTC*`
+fields (or format with `timeZone: 'UTC'`), never the local-time getters. Price
+text localizes separately via `priceFormatter` / `priceDecimals`.

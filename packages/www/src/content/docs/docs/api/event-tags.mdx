@@ -1,0 +1,65 @@
+---
+title: Event tags
+description: Tags along the price pane for earnings, dividends, and other scheduled events.
+sidebar:
+  order: 6
+---
+
+Event tags are small badges along the bottom of the price pane for scheduled
+events — earnings (E), dividends (D), or anything you want to flag against a
+time. Like the order-intent hook, the library owns only the marker: a click
+fires `onSelect` with the event and its on-screen position, and **you** render
+the detail popover or card.
+
+```ts
+import { addEventTags } from '@lightfin/core/event-tags'
+
+const tags = addEventTags(chart, {
+  events: [
+    { time: 1700000000, type: 'earnings', title: 'Q3 earnings', body: 'EPS 1.24 vs 1.10 est.' },
+    { time: 1701200000, type: 'dividend', title: 'Dividend', body: '$0.24 / share' },
+  ],
+  onSelect: (event, pos) => openCard(event, pos.clientPoint),
+})
+
+tags.setEvents(next) // replace the whole set; the tags repaint
+tags.remove()
+```
+
+Tags that would overlap stack upward into rows.
+
+## `ChartEvent`
+
+| Field    | Type            | Notes                                                                 |
+| -------- | --------------- | --------------------------------------------------------------------- |
+| `time`   | `UTCTimestamp`  | Unix seconds UTC, matched to the nearest bar. Required.               |
+| `type`   | `string`        | `'earnings'` and `'dividend'` get default letters (E/D) and colors; any other string shows its first letter. Passed back on select. |
+| `label`  | `string`        | Character drawn in the tag. Defaults from `type`.                     |
+| `color`  | `string`        | Tag fill color. Defaults from `type`, then the theme.                |
+| `title`  | `string`        | Heading for your popover (not drawn by the library).                 |
+| `body`   | `string`        | Body text for your popover (not drawn by the library).               |
+| `data`   | `unknown`       | Any payload, handed back untouched on select.                        |
+
+## `EventTagsOptions` & handle
+
+`addEventTags(chart, { events, onSelect? })` returns an `EventTags` handle:
+
+- `setEvents(events)` — replace the whole set; the tags repaint.
+- `remove()` — remove the tags.
+
+`onSelect(event, pos)` fires on click/tap. `pos` is an `EventTagPosition` with
+the tag's top-center anchor in two coordinate spaces:
+
+- `pos.point` — CSS px relative to the chart element.
+- `pos.clientPoint` — client (viewport) px, e.g. for a `position: fixed` popover.
+
+```ts
+addEventTags(chart, {
+  events,
+  onSelect: (event, pos) => {
+    popover.style.left = `${pos.clientPoint.x}px`
+    popover.style.top = `${pos.clientPoint.y}px`
+    popover.textContent = event.body ?? ''
+  },
+})
+```

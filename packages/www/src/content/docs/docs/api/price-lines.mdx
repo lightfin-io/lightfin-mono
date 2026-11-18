@@ -1,0 +1,62 @@
+---
+title: Price lines
+description: Host-managed horizontal lines for orders, positions, and alerts.
+sidebar:
+  order: 5
+---
+
+Price lines are horizontal lines at a price — for orders, positions, alerts, and
+the like. The library draws the line and, when it's draggable, follows the
+pointer and reports the price; **you own the state** and decide whether to keep
+a move. It's a small subpath export built on the core primitive hook.
+
+```ts
+import { addPriceLine } from '@lightfin/core/price-lines'
+
+const order = addPriceLine(chart, {
+  price: 101.25,
+  title: 'Buy limit 1.0',
+  color: '#26a69a',
+  draggable: true,
+})
+
+order.on('dragEnd', price => api.modifyOrder(id, price))
+```
+
+`addPriceLine(chart, options)` needs only `price`; everything else has a
+default. Lines added later draw on top and are grabbed first where they overlap.
+
+## `PriceLineOptions`
+
+| Option      | Type                              | Default            | Notes                                      |
+| ----------- | --------------------------------- | ------------------ | ------------------------------------------ |
+| `price`     | `number`                          | — (required)       | Where the line sits.                       |
+| `color`     | `string`                          | theme line color   | Line, label, and axis badge color.         |
+| `title`     | `string`                          | `''`               | Label on the line at the right edge; empty for none. |
+| `lineStyle` | `'solid' \| 'dashed' \| 'dotted'` | `'dashed'`         | —                                          |
+| `lineWidth` | `number`                          | `1`                | —                                          |
+| `axisLabel` | `boolean`                         | `true`             | Show the price in a badge on the price axis. |
+| `draggable` | `boolean`                         | `false`            | Let the user drag the line vertically.     |
+
+## `PriceLine`
+
+| Member             | Notes                                                       |
+| ------------------ | ----------------------------------------------------------- |
+| `options`          | The current (readonly) options.                             |
+| `setOptions(patch)`| Merge a partial update and redraw.                          |
+| `on(type, handler)`| Subscribe to a drag event; returns an unsubscribe function. |
+| `remove()`         | Remove the line.                                            |
+
+## Drag events
+
+Only fire while `draggable` is set:
+
+| Event     | Payload  | Fires when                                                       |
+| --------- | -------- | ---------------------------------------------------------------- |
+| `drag`    | `number` | The line is being dragged; it already sits at this price. Call `setOptions({ price })` here to snap it to the tick size. |
+| `dragEnd` | `number` | A drag finished at this price — the moment to send an order update. |
+
+```ts
+order.on('drag', price => order.setOptions({ price: snapToTick(price) }))
+order.on('dragEnd', price => api.modifyOrder(id, price))
+```

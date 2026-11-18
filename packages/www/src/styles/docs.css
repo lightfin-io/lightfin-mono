@@ -8,11 +8,25 @@
      one surface. */
   --sl-color-bg: #0b0f14;
   --sl-color-bg-nav: #0b0f14;
+  --sl-color-bg-sidebar: #161b21;
+  /* Starlight's Expressive Code integration (useStarlightUiThemeColors) maps the
+     code-block background to --sl-color-gray-6/7, overriding both --code-background
+     and expressiveCode styleOverrides. Set the source variable it reads instead. */
+  --ec-frm-edBg: #1b2026;
+  --ec-brdCol: #1b2026;
+  --ec-frm-trmBg: #161b21;
+  /* Widen the prose column past Starlight's 45rem default. The right
+     "On this page" sidebar is sized from the space left over after the content
+     column, so a wider column also narrows that TOC — giving the (often wide)
+     reference tables more room without touching the layout formulas. */
+  --sl-content-width: 52rem;
 }
 :root[data-theme='light'] {
   --sl-color-accent-low: #cdeae5;
   --sl-color-accent: #2f9488;
   --sl-color-accent-high: #0f2e2a;
+  --ec-frm-edBg: #f4f6f8;
+  --ec-frm-trmBg: #f4f6f8;
 }
 
 /* Site title in the header reads as plain high-contrast text (white in dark,
@@ -26,4 +40,11 @@
 }
 .site-title img {
   height: 26px;
+}
+
+/* Keep the theme-variable table's first column (the property names) on one line
+   so it widens to fit instead of wrapping `indicatorPalette` & friends. */
+.theme-vars-table th:first-child,
+.theme-vars-table td:first-child {
+  white-space: nowrap;
 }

@@ -1,14 +1,19 @@
 export interface ChartTheme {
+  /** Pane fill behind the plot; its lightness also decides the chrome's light/dark scheme. */
   background: string
+  /** Horizontal/vertical grid line color. */
   gridColor: string
   /** Axis strip text + tick color. */
   axisTextColor: string
   /** Hairline color for axis borders. */
   axisBorderColor: string
+  /** Up (bullish) candle/bar body + wick. */
   upColor: string
+  /** Down (bearish) candle/bar body + wick. */
   downColor: string
   /** Volume histogram fill for up bars; usually semi-transparent so candles read through. */
   volumeUpColor: string
+  /** Volume histogram fill for down bars. */
   volumeDownColor: string
   /** Stroke for the line and area chart types (and their current-price line). */
   lineColor: string
@@ -19,8 +24,11 @@ export interface ChartTheme {
    */
   areaTopColor: string
   areaBottomColor: string
+  /** Crosshair hairline color. */
   crosshairColor: string
+  /** Font stack for all chart text — axis labels, crosshair, legend. */
   fontFamily: string
+  /** Base font size in px for chart text. */
   fontSize: number
   /**
    * Default colors assigned to indicator plots in the order they're added

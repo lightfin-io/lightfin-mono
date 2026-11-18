@@ -36,6 +36,49 @@ Feature components read the chart from context (via `useChartEffect`) and
 typically render `null`. They compose — add series, indicators, annotations and
 price lines as sibling children.
 
+## Live data with a DataSource
+
+The example above renders a fixed array of bars. For a chart that backfills
+history as you pan and streams the forming candle, attach a
+[`DataSource`](/docs/guides/live-data) instead. Add a price series first, then
+call `setDataSource` — it returns a teardown, which is exactly what a
+`useChartEffect` cleanup wants:
+
+```tsx
+import { LightfinChart, useChartEffect } from '@lightfin/react'
+import type { DataSource } from '@lightfin/core'
+
+function LiveCandles({ source }: { source: DataSource }) {
+  useChartEffect(
+    chart => {
+      chart.addCandlestickSeries()
+      // setDataSource backfills history and subscribes to the live stream.
+      // Its teardown detaches the source and cancels in-flight requests when
+      // the component unmounts — or when `source` changes, so swapping this
+      // prop switches interval or symbol cleanly.
+      return chart.setDataSource(source)
+    },
+    [source],
+  )
+  return null
+}
+
+export function Chart({ source }: { source: DataSource }) {
+  return (
+    <LightfinChart style={{ height: 420 }} options={{ volumeVisible: true }}>
+      <LiveCandles source={source} />
+    </LightfinChart>
+  )
+}
+```
+
+The source lives in a child component so it can react: `useChartEffect` reads
+the chart from context, which `<LightfinChart>` provides, so it has to sit below
+it — and that's what lets passing a new `source` re-run the effect and swap the
+feed live, rather than only at creation. See
+[Live data](/docs/guides/live-data) for how to build the `source` itself:
+`getBars` for history and the optional `subscribeLive` for the stream.
+
 ## Options are applied once
 
 `options` is read when the chart is created; the engine has no live option

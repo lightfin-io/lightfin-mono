@@ -1,0 +1,99 @@
+---
+title: Chrome
+description: Optional DOM widgets — HUD/legend, toolbars, indicators menu, exchange clock.
+sidebar:
+  order: 7
+---
+
+Chrome is the optional UI *around* the canvas: the top-left HUD/legend, the top
+toolbar (interval, chart type, indicators), the bottom toolbar (date ranges,
+go-to dialog, exchange clock, fullscreen), and — given an annotations instance —
+the drawing-tools and style toolbars. It's its own subpath export, so headless
+and embedded charts pay nothing for it, and hosts can build their own widgets on
+the same public chart API instead.
+
+```ts
+import { createChrome } from '@lightfin/core/chrome'
+
+const chrome = createChrome(chart, {
+  intervals: ['1m', '5m', '1H', '1D'],
+  interval: '1m',
+  onIntervalChange: iv => loadBars(iv),
+})
+```
+
+It mounts inside the chart's container: toolbars stack above and below the
+canvases (which shrink to fit) and the HUD overlays the plot. Colors follow the
+chart theme.
+
+## `ChromeOptions`
+
+| Option             | Type                          | Default               | Notes                                            |
+| ------------------ | ----------------------------- | --------------------- | ------------------------------------------------ |
+| `hud`              | `boolean`                     | `true`                | Top-left legend with OHLCV and indicator rows.   |
+| `topToolbar`       | `boolean`                     | `true`                | Interval / chart type / indicators bar.          |
+| `bottomToolbar`    | `boolean`                     | `true`                | Date ranges / go-to / clock / fullscreen bar.    |
+| `intervals`        | `readonly string[]`           | —                     | Interval labels for the selector. Omit to hide it. |
+| `interval`         | `string`                      | —                     | The active interval, shown in selector + legend. |
+| `onIntervalChange` | `(interval: string) => void`  | —                     | Called when the user picks an interval.          |
+| `chartTypes`       | `readonly ChartType[]`        | all four              | Chart types offered in the toolbar.              |
+| `indicators`       | `readonly IndicatorMenuItem[]`| `BUILTIN_INDICATORS`  | The indicators menu; `[]` hides it.              |
+| `ranges`           | `readonly DateRangePreset[]`  | `DATE_RANGE_PRESETS`  | Quick ranges in the bottom toolbar.              |
+| `annotations`      | `Annotations`                 | —                     | Shows the drawing-tools + style toolbars.        |
+
+The chart has no notion of interval — picking one just calls `onIntervalChange`
+and your host loads the matching bars (see [Live data](/docs/guides/live-data)).
+
+## `Chrome`
+
+```ts
+chrome.setInterval('5m') // reflect an interval you switched programmatically
+chrome.dispose() // remove every widget and restore the container
+```
+
+## Indicators menu
+
+By default the menu lists the whole built-in catalog, loading each indicator's
+code only when the user picks it. Pass `indicators` to change the list — mix
+three kinds of entry freely:
+
+- **`builtinIndicators.<id>`** — a built-in, kept with its full menu label
+  ("Bollinger Bands"), still loaded on demand.
+- **An imported module or definition** — `import ema from
+  '@lightfin/core/indicators/ema'`, or your own; listed under its short `name`.
+- **A `{ name, load }` catalog entry** — any label with a loader of your own.
+
+```ts
+import { builtinIndicators, BUILTIN_INDICATORS } from '@lightfin/core/chrome'
+import myOscillator from './myOscillator'
+
+// A curated subset plus your own:
+createChrome(chart, {
+  indicators: [builtinIndicators.sma, builtinIndicators.rsi, myOscillator],
+})
+
+// Or keep everything built-in and append:
+createChrome(chart, { indicators: [...BUILTIN_INDICATORS, myOscillator] })
+```
+
+`BUILTIN_INDICATORS` is every entry in menu order; `builtinIndicators` is the
+same set keyed by id. See [Indicators](/docs/api/indicators) for the catalog and
+how to write your own definition.
+
+## Drawing toolbars
+
+Pass an [annotations](/docs/api/annotations) instance to add the left
+drawing-tools toolbar and a floating style toolbar for the selected drawing —
+the annotation code stays unloaded until you do:
+
+```ts
+import { createAnnotations } from '@lightfin/core/annotations'
+
+const drawings = createAnnotations(chart)
+createChrome(chart, { annotations: drawings })
+```
+
+## Also exported
+
+`DATE_RANGE_PRESETS` and the `DateRangePreset` type (for the `ranges` option),
+and the `IndicatorCatalogEntry` / `IndicatorSource` types behind a menu entry.
