@@ -1,9 +1,55 @@
 import { LightfinChart, useChartEffect } from '@lightfin/react'
+import { DEFAULT_THEME } from '@lightfin/core'
+import type { ChartTheme } from '@lightfin/core'
 import { createAnnotations } from '@lightfin/core/annotations'
 import { createChrome } from '@lightfin/core/chrome'
+import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 import { createBinanceFeed } from './binanceFeed'
+
+// A light counterpart to core's dark `DEFAULT_THEME`, tuned to sit on the docs'
+// white reading column. Candle/volume/indicator hues are shared with the dark
+// theme (they read fine on either surface); only the chrome-ish neutrals —
+// background, grid, axis and crosshair — flip. The chart derives its light/dark
+// chrome scheme from the background's lightness, so the white background alone
+// switches the HUD, toolbar and menus to their light styling.
+const LIGHT_CHART_THEME: Partial<ChartTheme> = {
+  background: '#ffffff',
+  gridColor: '#e7ebee',
+  axisTextColor: '#5c6b74',
+  axisBorderColor: '#d7dde1',
+  crosshairColor: '#9aa4ad',
+}
+
+type DocsTheme = 'light' | 'dark'
+
+/**
+ * Tracks Starlight's current theme. Starlight stores the resolved choice as a
+ * `data-theme` attribute on `<html>` and flips it in place when the toggle is
+ * used, so we read it once and then watch that attribute for changes.
+ */
+function useDocsTheme(): DocsTheme {
+  const [theme, setTheme] = useState<DocsTheme>(() =>
+    typeof document !== 'undefined' &&
+    document.documentElement.dataset.theme === 'light'
+      ? 'light'
+      : 'dark',
+  )
+  useEffect(() => {
+    const root = document.documentElement
+    const read = () =>
+      setTheme(root.dataset.theme === 'light' ? 'light' : 'dark')
+    read()
+    const observer = new MutationObserver(read)
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    })
+    return () => observer.disconnect()
+  }, [])
+  return theme
+}
 
 // The chart has no notion of interval: the chrome's selector asks us to load
 // the matching bars. Binance spells these lowercase (1m … 1h, 4h, 1d).
@@ -17,11 +63,19 @@ const DEFAULT_INTERVAL = '1H'
  * chart-type switcher, indicators menu, HUD legend and bottom toolbar.
  */
 export default function LiveChart({ height = 420 }: LiveChartProps) {
+  const docsTheme = useDocsTheme()
+  const theme =
+    docsTheme === 'light'
+      ? { ...DEFAULT_THEME, ...LIGHT_CHART_THEME }
+      : DEFAULT_THEME
   return (
+    // The engine reads `options` only once, so re-key on the docs theme to
+    // recreate the chart with the matching palette when the toggle is flipped.
     <LightfinChart
+      key={docsTheme}
       className="live-chart"
       style={{ height, width: '100%' } satisfies CSSProperties}
-      options={{ volumeVisible: true }}
+      options={{ volumeVisible: true, theme }}
     >
       <Candles />
     </LightfinChart>

@@ -21,12 +21,27 @@
      reference tables more room without touching the layout formulas. */
   --sl-content-width: 52rem;
 }
+/* Light theme. NOTE: our custom properties above live on a bare `:root`, which
+   is *unlayered* and therefore outranks Starlight's own light values (they sit
+   inside `@layer starlight.base`). So every surface/accent we set in the dark
+   block must get a light counterpart here, or it leaks its dark value into light
+   mode and the page reads as a broken dark theme. */
 :root[data-theme='light'] {
   --sl-color-accent-low: #cdeae5;
-  --sl-color-accent: #2f9488;
-  --sl-color-accent-high: #0f2e2a;
-  --ec-frm-edBg: #f4f6f8;
-  --ec-frm-trmBg: #f4f6f8;
+  --sl-color-accent: #277f74;
+  --sl-color-accent-high: #124f47;
+  /* A subtle "old paper" cream for the reading column, with the nav and sidebar
+     a touch warmer/deeper so the chrome still reads as layered — mirroring the
+     dark theme's three surfaces. Kept low-chroma so it warms the page without
+     looking tinted. */
+  --sl-color-bg: #faf8f1;
+  --sl-color-bg-nav: #f1ede0;
+  --sl-color-bg-sidebar: #f5f1e6;
+  /* Expressive Code: a warm light code surface with a visible hairline border
+     (the dark theme deliberately hides the border by matching it to the fill). */
+  --ec-frm-edBg: #f3efe3;
+  --ec-frm-trmBg: #ebe5d6;
+  --ec-brdCol: #e4ddcb;
 }
 
 /* Site title in the header reads as plain high-contrast text (white in dark,
