@@ -1,5 +1,5 @@
 /**
- * @lightfin/react — a thin React wrapper (PLAN §8.8).
+ * @lightfin/react — a thin React wrapper.
  *
  * `<LightfinChart>` owns the chart's lifecycle; `useChartEffect` wires features
  * (series, indicators, chrome, annotations, price lines) imperatively onto it.

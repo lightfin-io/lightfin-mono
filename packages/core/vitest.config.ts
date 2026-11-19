@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 /**
  * Unit tests target pure logic (decimation, tick selection, scale math,
- * indicator equivalence — PLAN §12). Node environment by default; tests that
+ * indicator equivalence). Node environment by default; tests that
  * need the DOM can opt in per-file with a `// @vitest-environment jsdom`
  * pragma.
  */

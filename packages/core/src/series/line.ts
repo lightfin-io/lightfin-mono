@@ -15,7 +15,7 @@ const AREA_FADE_CLEARANCE = 0.18
 
 /**
  * Line renderer: one polyline through the closes of the visible window, a
- * single `stroke()` for the whole series (PLAN §9). The caller clips to `plot`.
+ * single `stroke()` for the whole series. The caller clips to `plot`.
  */
 export function drawLine(
   ctx: CanvasRenderingContext2D,

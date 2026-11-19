@@ -1,7 +1,7 @@
 /**
  * @lightfin/core — core entry point.
  *
- * Re-exports the minimal "core" surface only (PLAN §10): the chart engine plus
+ * Re-exports the minimal "core" surface only: the chart engine plus
  * the series/axes/interaction it ships with. Indicators and annotations live
  * behind their own subpath exports so consumers only pay for what they import.
  */

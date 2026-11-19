@@ -1,4 +1,4 @@
-/** Minimal typed pub/sub used for the chart's public events (PLAN §9 chrome). */
+/** Minimal typed pub/sub used for the chart's public events. */
 export class Emitter<Events extends object> {
   private readonly handlers = new Map<
     keyof Events,

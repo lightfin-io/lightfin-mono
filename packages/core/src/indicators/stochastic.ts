@@ -2,7 +2,7 @@ import { BaseCalc } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Stochastic Oscillator (PLAN §8.4). Raw %K places the close within the
+ * Stochastic Oscillator. Raw %K places the close within the
  * high/low range of the last `kPeriod` bars (0–100); %K is that smoothed over
  * `kSmooth` bars (`kSmooth: 1` is the fast stochastic), and %D is an SMA of %K
  * over `dPeriod`. A pane indicator on a fixed 0–100 scale with

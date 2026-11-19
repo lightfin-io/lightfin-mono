@@ -1,11 +1,11 @@
 /**
- * Pointer-driven pan/zoom (PLAN §8.1).
+ * Pointer-driven pan/zoom.
  *
  * Pointer Events exclusively, so mouse, touch, and pen share one code path:
  *   - drag (one pointer) = pan, reported as a horizontal pixel delta
  *   - wheel = zoom, anchored on the cursor
  *   - pinch (two pointers) = zoom, anchored on the two-pointer centroid
- *   - touch press-and-hold = crosshair (PLAN §8.2): a finger held still for
+ *   - touch press-and-hold = crosshair: a finger held still for
  *     {@link HOLD_MS} stops panning and drives the crosshair instead
  *
  * The controller only measures gestures and reports them in CSS pixels relative

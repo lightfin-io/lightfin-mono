@@ -1,5 +1,5 @@
 /**
- * The chart's screen-reader surface (PLAN §8.6). The canvases are invisible to
+ * The chart's screen-reader surface. The canvases are invisible to
  * assistive tech, so the chart element carries a label and a description of
  * what's on screen, and a polite live region announces the bar the keyboard
  * crosshair lands on.

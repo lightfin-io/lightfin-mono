@@ -1,7 +1,6 @@
 /**
  * Integer Unix seconds, UTC. The canonical time unit across the whole library
- * (scales, axes, adapters all assume seconds — see PLAN §6). Do not pass
- * milliseconds.
+ * (scales, axes, adapters all assume seconds). Do not pass milliseconds.
  */
 export type UTCTimestamp = number
 
@@ -21,7 +20,7 @@ export interface Bar {
 }
 
 /**
- * What the chart is showing (PLAN §6), for the HUD, axes, and clock. Set via
+ * What the chart is showing, for the HUD, axes, and clock. Set via
  * `chart.setInstrument(info)`.
  */
 export interface InstrumentInfo {

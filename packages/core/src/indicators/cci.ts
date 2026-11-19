@@ -2,7 +2,7 @@ import { BaseCalc, typicalPrice } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Commodity Channel Index (PLAN §8.4) — how far the typical price sits from
+ * Commodity Channel Index — how far the typical price sits from
  * its own moving average, scaled by its mean deviation. Oscillates around
  * zero; readings beyond ±100 flag unusually strong moves. A pane indicator,
  * autoscaled, with ±100 reference lines. Its own subpath module:

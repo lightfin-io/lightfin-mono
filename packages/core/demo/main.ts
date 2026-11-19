@@ -65,7 +65,7 @@ function loadInterval(interval: string): void {
 }
 loadInterval('1m')
 
-// Drawings are plain JSON (PLAN §8.5); persisting them is the host's job, here
+// Drawings are plain JSON; persisting them is the host's job, here
 // localStorage. They anchor to time + price, so they survive interval switches.
 const DRAWINGS_KEY = 'lightfin-demo-drawings'
 const drawings = createAnnotations(chart)
@@ -85,7 +85,7 @@ const chrome = createChrome(chart, {
   annotations: drawings,
 })
 
-// Indicators load on demand from their own chunks (PLAN §8.4/§10) — the core
+// Indicators load on demand from their own chunks — the core
 // bundle never includes them until used here. More can be added from the
 // toolbar's indicators menu.
 const sma = await chart.addIndicator(import('@lightfin/core/indicators/sma'), {
@@ -109,7 +109,7 @@ const volumeMa = await chart.addIndicator(
 )
 
 // The chart only draws the "+" button on the crosshair line; the order form is
-// ours to render (PLAN §8.2). This stand-in places a draggable limit-order
+// ours to render. This stand-in places a draggable limit-order
 // line, the way a trading UI would show a working order.
 const orderPopup = document.createElement('div')
 orderPopup.className = 'order-popup'
@@ -147,7 +147,7 @@ document.addEventListener('pointerdown', e => {
   if (!orderPopup.contains(e.target as Node)) orderPopup.hidden = true
 })
 
-// Event tags (PLAN §8.9): E/D markers along the bottom of the price pane. The
+// Event tags: E/D markers along the bottom of the price pane. The
 // library draws the tags and reports a click; the detail card is ours, the way
 // TradingView opens an earnings card above the tag. Real hosts feed these from
 // an earnings/dividends calendar; here we scatter a few across the first screen.
@@ -214,7 +214,7 @@ const seedEvents = () => {
 const off = chart.on('dataChange', seedEvents)
 seedEvents()
 
-// AI annotations (PLAN §8.7): a model reads the bars on screen and answers
+// AI annotations: a model reads the bars on screen and answers
 // with the `annotate_chart` tool; its drawings form the 'ai' group, which
 // each answer replaces without touching the user's drawings. The mock
 // analyst stands in for the model.

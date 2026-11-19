@@ -9,7 +9,7 @@ import type { IndexWindow } from './series'
  * OHLC bar renderer: a vertical high–low stem with the open as a tick to the
  * left and the close as a tick to the right, colored by direction. Like the
  * candles, every stem and tick is a `rect()` subpath in one of two paths
- * (up/down), so the whole series is two fills (PLAN §9). The caller clips to
+ * (up/down), so the whole series is two fills. The caller clips to
  * `plot`.
  */
 export function drawOhlcBars(
@@ -62,7 +62,7 @@ export function drawOhlcBars(
   ctx.fill(down)
 }
 
-/** Snap a CSS-px coordinate to a whole device pixel for crisp edges (PLAN §9). */
+/** Snap a CSS-px coordinate to a whole device pixel for crisp edges. */
 function snap(cssPx: number, dpr: number): number {
   return Math.round(cssPx * dpr) / dpr
 }

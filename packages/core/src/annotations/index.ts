@@ -1,5 +1,5 @@
 /**
- * @lightfin/core/annotations — opt-in drawing tools (PLAN §8.5): lines,
+ * @lightfin/core/annotations — opt-in drawing tools: lines,
  * channels, Fibonacci tools, shapes, labels, and measurements.
  *
  * Its own subpath export, so the core bundle never includes annotation code
@@ -18,7 +18,7 @@
  *
  * A program — say an AI — annotates through the same JSON, as a group it
  * replaces wholesale; `@lightfin/core/annotations/schema` describes the
- * JSON for a model (PLAN §8.7):
+ * JSON for a model:
  *
  * ```ts
  * drawings.replace('ai', [

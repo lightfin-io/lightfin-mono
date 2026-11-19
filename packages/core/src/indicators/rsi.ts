@@ -2,7 +2,7 @@ import { BaseCalc } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Relative Strength Index (PLAN §8.4), Wilder's smoothing. A pane indicator on
+ * Relative Strength Index, Wilder's smoothing. A pane indicator on
  * a fixed 0–100 scale with overbought/oversold reference lines. Its own subpath
  * module: `import('@lightfin/core/indicators/rsi')`.
  */

@@ -1,5 +1,5 @@
 /**
- * Crosshair hover tracking (PLAN §8.2).
+ * Crosshair hover tracking.
  *
  * Reports the pointer's CSS-px position relative to the element, or `null`
  * when it leaves. Mouse/pen only: a touch drag pans, so the touch crosshair

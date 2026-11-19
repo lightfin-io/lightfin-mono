@@ -2,7 +2,7 @@ import type { Bar, UTCTimestamp } from './types'
 
 /**
  * Result of pushing a bar at the live edge: whether it extended the series with
- * a new bar or mutated the existing last bar in place (PLAN §8.3).
+ * a new bar or mutated the existing last bar in place.
  */
 export interface PushResult {
   index: number
@@ -12,11 +12,11 @@ export interface PushResult {
 const MIN_CAPACITY = 64
 
 /**
- * Columnar, gap-buffer-backed bar store (PLAN §6).
+ * Columnar, gap-buffer-backed bar store.
  *
  * Internal storage is parallel typed-array columns (times/opens/highs/…), not
  * an array of objects, to all but eliminate per-point allocation and GC
- * pressure (PLAN §9). The backing arrays carry headroom at *both* ends so the
+ * pressure. The backing arrays carry headroom at *both* ends so the
  * two ways data grows are O(1) amortized and zero-copy:
  *   - append to the back  → live bars (newest)
  *   - prepend to the front → backfill from panning left (oldest)
@@ -78,7 +78,7 @@ export class ColumnStore {
 
   /**
    * Replace all data. Accepts the familiar Bar object array, sorts by time,
-   * and transforms once into columns (PLAN §6). Logical indexing resets so the
+   * and transforms once into columns. Logical indexing resets so the
    * oldest bar becomes index 0.
    */
   setData(bars: readonly Bar[]): void {

@@ -1,5 +1,5 @@
 /**
- * IANA timezone offsets via `Intl.DateTimeFormat` (PLAN §6) — no tz database
+ * IANA timezone offsets via `Intl.DateTimeFormat` — no tz database
  * shipped. Used to render axis/crosshair labels and the exchange clock in the
  * instrument's timezone.
  *

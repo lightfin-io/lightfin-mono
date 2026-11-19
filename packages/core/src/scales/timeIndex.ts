@@ -1,8 +1,8 @@
 import type { ColumnStore } from '../data/store'
 
 /**
- * Fractional logical index of `time` (Unix seconds) on the index-based axis
- * (PLAN §3), for anchoring drawings by time. Inside the data it interpolates
+ * Fractional logical index of `time` (Unix seconds) on the index-based axis,
+ * for anchoring drawings by time. Inside the data it interpolates
  * between the bars either side, so a time between bars (e.g. drawn on a finer
  * interval) lands proportionally between them; past either end it
  * extrapolates at `interval` seconds per bar. NaN when the store is empty.

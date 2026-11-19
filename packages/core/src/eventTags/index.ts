@@ -1,10 +1,10 @@
 /**
  * @lightfin/core/event-tags — small tags along the bottom of the price pane
- * for scheduled events (PLAN §8.9): earnings (E), dividends (D), or anything
+ * for scheduled events: earnings (E), dividends (D), or anything
  * the host wants to flag against a time. Built on the core primitive hook,
  * sibling to `/price-lines`.
  *
- * Like the order-intent hook (§8.2), the library owns only the marker: a
+ * Like the order-intent hook, the library owns only the marker: a
  * click fires `onSelect` with the event and its on-screen position, and the
  * host renders whatever detail popover or modal it likes — TradingView opens
  * an earnings card centered above the tag.

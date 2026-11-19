@@ -2,7 +2,7 @@ import type { Bar, DataSource } from '@lightfin/core'
 
 /**
  * A deterministic mock market feed for the e2e tests and offline work,
- * implementing the library's {@link DataSource} contract (PLAN §6). Price is
+ * implementing the library's {@link DataSource} contract. Price is
  * a pure, smooth function of time, so history (`getBars`, panning left) and
  * the live stream (`subscribeLive`) stay perfectly continuous and
  * reproducible.

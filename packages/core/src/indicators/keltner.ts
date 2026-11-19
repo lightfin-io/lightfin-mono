@@ -2,7 +2,7 @@ import { BaseCalc, meanClose, trueRange } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Keltner Channels (PLAN §8.4): an EMA(`period`) middle line with bands set
+ * Keltner Channels: an EMA(`period`) middle line with bands set
  * `mult` × ATR(`atrPeriod`) above and below it, plus a translucent fill. Like
  * Bollinger Bands but volatility-scaled by ATR rather than standard deviation.
  * Overlay on the main pane. Its own subpath module:

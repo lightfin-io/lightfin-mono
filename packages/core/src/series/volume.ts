@@ -13,12 +13,12 @@ export interface VolumeStyle {
 }
 
 /**
- * Volume histogram on a hidden, pane-local scale (PLAN §7). Bars are anchored
+ * Volume histogram on a hidden, pane-local scale. Bars are anchored
  * to the bottom of the plot and occupy the bottom `heightRatio` slice, scaled
  * so the tallest visible bar fills the region (0 → `max`). It is *not* an axis:
  * no labels, no gridlines — exactly TradingView's hidden volume scale.
  *
- * Drawn behind the candles with the §9 batching rule: bucket into up vs down by
+ * Drawn behind the candles with the batching rule: bucket into up vs down by
  * candle direction, accumulate every bar as a `rect()` subpath in one of two
  * paths, and `fill()` each once — two draw calls regardless of bar count.
  */
@@ -65,7 +65,7 @@ export function drawVolume(
   ctx.restore()
 }
 
-/** Snap a CSS-px coordinate to a whole device pixel for crisp edges (PLAN §9). */
+/** Snap a CSS-px coordinate to a whole device pixel for crisp edges. */
 function snap(cssPx: number, dpr: number): number {
   return Math.round(cssPx * dpr) / dpr
 }

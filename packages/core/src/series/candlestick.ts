@@ -6,7 +6,7 @@ import type { TimeScale } from '../scales/timeScale'
 import type { IndexWindow } from './series'
 
 /**
- * Candlestick renderer (PLAN §5 layer 2, §9 batching rules).
+ * Candlestick renderer.
  *
  * Walks the visible window once, buckets bars into up vs down, accumulates
  * every up body *and* wick as `rect()` subpaths in a single path, sets
@@ -66,7 +66,7 @@ export function drawCandles(
   ctx.fill(down)
 }
 
-/** Snap a CSS-px coordinate to a whole device pixel for crisp edges (PLAN §9). */
+/** Snap a CSS-px coordinate to a whole device pixel for crisp edges. */
 function snap(cssPx: number, dpr: number): number {
   return Math.round(cssPx * dpr) / dpr
 }

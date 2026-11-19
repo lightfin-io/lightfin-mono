@@ -43,7 +43,7 @@ export interface Toolbar {
 }
 
 /**
- * Top toolbar (PLAN §9): interval selector, chart-type selector, and the
+ * Top toolbar: interval selector, chart-type selector, and the
  * indicators menu. Symbol search is left to the host.
  */
 export function createTopToolbar(
@@ -177,7 +177,7 @@ export interface BottomToolbar extends Toolbar {
 }
 
 /**
- * Bottom toolbar (PLAN §9): quick date ranges, the "Go to" date/range dialog,
+ * Bottom toolbar: quick date ranges, the "Go to" date/range dialog,
  * the exchange-local clock, and a fullscreen toggle for the chart host.
  */
 export function createBottomToolbar(

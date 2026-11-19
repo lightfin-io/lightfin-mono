@@ -10,7 +10,7 @@ import { useChart, useChartEffect } from './index'
 
 // Construct no real chart — jsdom has no canvas 2D context or ResizeObserver.
 // We own the wrapper logic (lifecycle, event latching, context); the real
-// engine is covered by the core package's Playwright suite (PLAN §12).
+// engine is covered by the core package's Playwright suite.
 vi.mock('@lightfin/core', () => ({ createChart: vi.fn() }))
 
 /** A fake chart that records subscriptions and can emit to them. */

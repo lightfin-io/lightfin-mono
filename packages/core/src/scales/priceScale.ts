@@ -1,5 +1,5 @@
 /**
- * Linear price scale (PLAN §7). Maps a price domain `[min, max]` to vertical
+ * Linear price scale. Maps a price domain `[min, max]` to vertical
  * pixels, y growing downward so the higher price sits at the top (y = 0).
  *
  * Autoscaling to the visible range's min/max (with margin) is a separate step
@@ -14,8 +14,8 @@ export class PriceScale {
   /**
    * Pixel-space insets (fraction of plot height) reserved at the top and bottom
    * of the plot, so the price domain maps only into the band between them. The
-   * chart uses the bottom inset to lift candles clear of the volume histogram
-   * (PLAN §7) — it occupies the bottom slice, so prices shouldn't draw over it.
+   * chart uses the bottom inset to lift candles clear of the volume histogram —
+   * it occupies the bottom slice, so prices shouldn't draw over it.
    * Both default to 0 (domain fills the full height).
    */
   topMargin = 0

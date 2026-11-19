@@ -1,15 +1,15 @@
 /**
- * @lightfin/core indicator contract (PLAN §8.4).
+ * @lightfin/core indicator contract.
  *
  * These are **types only** — importing them into the core costs zero runtime
  * bytes (erased under `verbatimModuleSyntax`). Each concrete indicator (SMA,
  * EMA, …) ships as its own dynamically-importable subpath module so the core
- * never carries the indicator catalog (PLAN §10).
+ * never carries the indicator catalog.
  */
 
 /**
  * Columnar, allocation-free read access to the bar data an indicator computes
- * against. Indexed by *logical* bar index (stable across backfill, PLAN §6),
+ * against. Indexed by *logical* bar index (stable across backfill),
  * valid for `firstIndex..lastIndex`.
  */
 export interface BarReader {
@@ -62,7 +62,7 @@ export interface BandFill {
 }
 
 /**
- * The compute half of a live indicator instance. The one hard rule (PLAN §8.4):
+ * The compute half of a live indicator instance. The one hard rule:
  * panning/zooming must never call these — they only run on data change.
  *   - `calculateAll` recomputes every plot over the whole dataset (on reset /
  *     backfill).

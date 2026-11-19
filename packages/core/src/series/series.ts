@@ -15,7 +15,7 @@ export interface IndexWindow {
 }
 
 /**
- * How the series renders its bars (PLAN §5 Phase 5). All four read the same
+ * How the series renders its bars. All four read the same
  * OHLC store, so switching is a repaint, never a data reload:
  *   - `candlestick` — filled bodies + wicks (default).
  *   - `bar`         — OHLC bars: high–low stem, open tick left, close tick right.
@@ -28,11 +28,11 @@ export type ChartType = 'candlestick' | 'bar' | 'line' | 'area'
  * How a series changed, so the chart can respond appropriately:
  *   - `reset`   — full replacement via `setData`; the chart refits the viewport.
  *   - `new-bar` — `update` appended a newer bar; the chart advances the viewport
- *                 when it's following the live edge (PLAN §8.3 follow-mode).
+ *                 when it's following the live edge.
  *   - `tick`    — `update` mutated the last bar in place; only a repaint is
  *                 needed, the scroll bounds are unchanged.
  *   - `prepend` — older bars were backfilled at the front; logical indices stay
- *                 bound to their bars (PLAN §6), so the view holds still and
+ *                 bound to their bars, so the view holds still and
  *                 only a repaint is needed.
  *   - `style`   — `setChartType` switched the renderer; the data is untouched,
  *                 so indicators keep their caches and only a repaint (with a
@@ -43,7 +43,7 @@ export type SeriesChange = 'reset' | 'new-bar' | 'tick' | 'prepend' | 'style'
 /**
  * The chart's price series. Owns a {@link ColumnStore} and draws it as
  * candlesticks, OHLC bars, a line, or an area depending on {@link chartType}.
- * Every renderer follows the PLAN §9 batching rule — a handful of fills/strokes
+ * Every renderer follows the batching rule — a handful of fills/strokes
  * for the whole visible window regardless of bar count.
  */
 export class Series {
@@ -154,7 +154,7 @@ export class Series {
   /**
    * The price of bar `index` nearest to `price` — the closest of its
    * open/high/low/close, or its close for line/area — for the crosshair's
-   * magnet mode (PLAN §8.2).
+   * magnet mode.
    */
   snapPrice(index: number, price: number): number {
     const { store } = this
@@ -169,8 +169,8 @@ export class Series {
   }
 
   /**
-   * Max volume across an inclusive index window, for the hidden volume scale
-   * (PLAN §7). Returns 0 when the window is empty or no bar carries volume.
+   * Max volume across an inclusive index window, for the hidden volume scale.
+   * Returns 0 when the window is empty or no bar carries volume.
    */
   volumeMax(window: IndexWindow): number {
     const { store } = this

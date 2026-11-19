@@ -1,7 +1,7 @@
 import type { UTCTimestamp } from '../data/types'
 
 /**
- * The drawing tools (PLAN §8.5). Points are placed in order; the count each
+ * The drawing tools. Points are placed in order; the count each
  * takes is in brackets.
  *
  * Lines:
@@ -113,7 +113,7 @@ export interface AnnotationStyle {
 }
 
 /**
- * One drawing, as plain JSON for the host to persist (PLAN §8.5). See
+ * One drawing, as plain JSON for the host to persist. See
  * {@link AnnotationType} for how many points each type takes.
  */
 export interface Annotation {

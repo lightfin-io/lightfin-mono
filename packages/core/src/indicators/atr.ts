@@ -2,7 +2,7 @@ import { BaseCalc, trueRange } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Average True Range (PLAN §8.4), Wilder's smoothing — a volatility measure in
+ * Average True Range, Wilder's smoothing — a volatility measure in
  * price units. True Range is the greatest of the current bar's range and its
  * gaps from the prior close; ATR is the Wilder-smoothed mean of that over
  * `period` bars. A pane indicator, autoscaled to its own values (no fixed

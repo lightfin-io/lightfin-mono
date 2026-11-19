@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 const PORT = 4174
 
 /**
- * Browser tests against the /demo playground (PLAN §12): real pointer input
+ * Browser tests against the /demo playground: real pointer input
  * through pan, zoom, crosshair, pane resizing, and resize. Unit-level logic
  * stays in Vitest.
  */

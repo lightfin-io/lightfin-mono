@@ -21,7 +21,7 @@ export interface HudContext {
 }
 
 /**
- * Top-left legend (PLAN §9): instrument line + OHLCV for the hovered bar (the
+ * Top-left legend: instrument line + OHLCV for the hovered bar (the
  * last bar when not hovering), then one row per indicator with its values and
  * show/hide, settings, and remove controls. Price/volume overlays list under
  * the legend; pane indicators get their row at the top of their own pane.

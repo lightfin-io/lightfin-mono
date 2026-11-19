@@ -117,7 +117,6 @@ function jsdocSummary(node: ts.Node): string {
       typeof comment === 'string' ? comment : ts.getTextOfJSDocComment(comment)
     if (text)
       return text
-        .replace(/\s*\(PLAN[^)]*\)/g, '') // drop internal plan cross-refs
         .replace(/\s+/g, ' ')
         .trim()
   }

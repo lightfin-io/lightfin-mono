@@ -24,7 +24,7 @@ export interface BarsRequest {
 }
 
 /**
- * Pull-based data adapter (PLAN §6). Attach it with `chart.setDataSource()`
+ * Pull-based data adapter. Attach it with `chart.setDataSource()`
  * and the chart drives loading: it asks for the newest screen of bars, then
  * for older pages as the view nears the oldest loaded bar, one request at a
  * time, and merges live bars at the right edge. `series.setData()` covers

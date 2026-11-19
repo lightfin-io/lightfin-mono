@@ -4,7 +4,7 @@ import { createChrome } from '@lightfin/core/chrome'
 import './style.css'
 
 /**
- * 500k-candle stress page (PLAN §13 Phase 8). Loads a large synthetic 1m
+ * 500k-candle stress page. Loads a large synthetic 1m
  * series with the demo's indicator set, then measures what scales with data
  * size: ingest, indicator calc, backfill recompute, and per-frame paint cost
  * while panning, zooming, and streaming live ticks. `?bars=N` overrides the

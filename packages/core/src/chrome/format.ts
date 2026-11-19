@@ -63,7 +63,7 @@ function pad(n: number): string {
   return n < 10 ? `0${n}` : String(n)
 }
 
-/** Quick date-range presets for the bottom toolbar (PLAN §9). */
+/** Quick date-range presets for the bottom toolbar. */
 export type DateRangePreset =
   '1D' | '5D' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | '5Y' | 'All'
 

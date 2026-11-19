@@ -1,5 +1,5 @@
 /**
- * The layered canvas stack (PLAN §5). Each layer is an absolutely-positioned
+ * The layered canvas stack. Each layer is an absolutely-positioned
  * <canvas> in a stack so a crosshair move never repaints candles and a candle
  * redraw never repaints the static grid. Transparent layers composite
  * naturally — every layer except the background clears to transparent.

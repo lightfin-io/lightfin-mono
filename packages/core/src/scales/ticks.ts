@@ -1,5 +1,5 @@
 /**
- * "Nice" tick selection for the price axis (PLAN §7). Same family as D3's
+ * "Nice" tick selection for the price axis. Same family as D3's
  * `ticks()`: pick a round step (1/2/2.5/5 × 10ⁿ) near the target density and
  * emit the round values inside the domain.
  *

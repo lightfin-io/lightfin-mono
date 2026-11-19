@@ -2,7 +2,7 @@ import { BaseCalc, meanClose, stdDevClose } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Bollinger Bands (PLAN §8.4): an SMA(`period`) middle line with upper/lower
+ * Bollinger Bands: an SMA(`period`) middle line with upper/lower
  * bands at ±`mult` population standard deviations, plus a translucent fill
  * between them. Overlay on the main pane. Its own subpath module:
  * `import('@lightfin/core/indicators/bollinger')`.

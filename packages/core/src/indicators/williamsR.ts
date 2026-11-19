@@ -2,7 +2,7 @@ import { BaseCalc, highestHigh, lowestLow } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Williams %R (PLAN §8.4) — where the close sits within the high/low range of
+ * Williams %R — where the close sits within the high/low range of
  * the last `period` bars, expressed on a 0 to −100 scale (0 at the top of the
  * range, −100 at the bottom). A momentum pane indicator with overbought
  * (−20) / oversold (−80) reference lines. Its own subpath module:

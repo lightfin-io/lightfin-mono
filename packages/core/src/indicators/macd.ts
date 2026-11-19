@@ -2,7 +2,7 @@ import { BaseCalc, meanClose } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * MACD (PLAN §8.4): the difference of a fast and slow EMA of close, a signal
+ * MACD: the difference of a fast and slow EMA of close, a signal
  * EMA of that difference, and their histogram. A pane indicator (autoscaled,
  * with a zero line). Its own subpath module:
  * `import('@lightfin/core/indicators/macd')`.

@@ -2,7 +2,7 @@ import { BaseCalc } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * On-Balance Volume (PLAN §8.4) — a running total that adds the bar's volume
+ * On-Balance Volume — a running total that adds the bar's volume
  * on up closes and subtracts it on down closes, so it accumulates buying vs
  * selling pressure. A pane indicator, autoscaled to its own (unbounded)
  * values. Its own subpath module: `import('@lightfin/core/indicators/obv')`.

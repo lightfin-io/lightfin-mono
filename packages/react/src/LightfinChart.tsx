@@ -34,7 +34,7 @@ export interface LightfinChartProps {
    */
   options?: ChartOptionsInput
   /**
-   * Instrument metadata (PLAN §6). Re-applied whenever it changes; pass `null`
+   * Instrument metadata. Re-applied whenever it changes; pass `null`
    * to clear, or omit to leave whatever was set imperatively untouched.
    */
   instrument?: InstrumentInfo | null
@@ -49,7 +49,7 @@ export interface LightfinChartProps {
   onLayoutChange?: () => void
   onInstrumentChange?: (info: InstrumentInfo | null) => void
   /**
-   * Opt in to the order-intent "+" button (PLAN §8.2). The button only shows
+   * Opt in to the order-intent "+" button. The button only shows
    * while this handler is set.
    */
   onOrderIntent?: (event: OrderIntentEvent) => void

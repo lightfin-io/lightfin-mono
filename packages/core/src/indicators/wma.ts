@@ -2,7 +2,7 @@ import { BaseCalc } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Weighted Moving Average (PLAN §8.4) — like SMA, but the most recent close
+ * Weighted Moving Average — like SMA, but the most recent close
  * carries the most weight (linear weights `1..period`), so it tracks price
  * more closely than a plain SMA. One overlay line on the main pane. Its own
  * subpath module: `import('@lightfin/core/indicators/wma')`.

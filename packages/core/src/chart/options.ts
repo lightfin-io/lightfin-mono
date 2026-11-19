@@ -31,8 +31,8 @@ export interface ChartTheme {
   /** Base font size in px for chart text. */
   fontSize: number
   /**
-   * Default colors assigned to indicator plots in the order they're added
-   * (PLAN §14), cycled when more indicators are added than colors in the
+   * Default colors assigned to indicator plots in the order they're added,
+   * cycled when more indicators are added than colors in the
    * list. Only applies to a plot whose indicator didn't receive an explicit
    * color in its options — an explicit `color`/`macdColor`/etc. always wins.
    */
@@ -48,9 +48,8 @@ export type CrosshairMode = 'normal' | 'magnet'
 
 /**
  * Formats the date/time pieces the chart renders — axis tick labels, the
- * crosshair's time box, and the exchange clock (PLAN §15 "Date locale"). The
- * defaults produce English month names and a 24-hour clock; override any
- * subset to localize.
+ * crosshair's time box, and the exchange clock. The defaults produce English
+ * month names and a 24-hour clock; override any subset to localize.
  *
  * IMPORTANT: every callback receives a **wall-clock-as-UTC** `Date` — the
  * instrument's local time already shifted into the Date's UTC fields. Read it
@@ -115,18 +114,18 @@ export interface ChartOptions {
   /** Blank bars of room kept to the right of the newest bar (TradingView-style). */
   rightOffset: number
   /**
-   * Draw the dotted horizontal line + price-axis badge at the last bar's close
-   * (PLAN §8.3). On by default; set false for charts that don't want it.
+   * Draw the dotted horizontal line + price-axis badge at the last bar's close.
+   * On by default; set false for charts that don't want it.
    */
   priceLineVisible: boolean
   /**
    * Draw a volume histogram in the bottom slice of the main pane on a hidden,
-   * auto-scaled volume scale (PLAN §7). Off by default (opt-in, lightweight);
+   * auto-scaled volume scale. Off by default (opt-in, lightweight);
    * only renders when the series actually carries volume. Colored by candle
    * direction, drawn behind the candles.
    */
   volumeVisible: boolean
-  /** Fraction of the plot height the volume histogram occupies (PLAN §7: ~15–20%). */
+  /** Fraction of the plot height the volume histogram occupies (~15–20%). */
   volumeHeightRatio: number
   /**
    * Minimum decimal places shown on price axis & crosshair labels (default 2,

@@ -1,5 +1,5 @@
 /**
- * Index-based time scale (PLAN §3, §8.1).
+ * Index-based time scale.
  *
  * The X axis is uniform bar spacing: time is a label mapped per index, never a
  * continuous time axis, so weekend/overnight gaps vanish for free and panning
@@ -57,7 +57,7 @@ export class TimeScale {
 
   /**
    * Zoom by scaling `barWidth` by `factor`, keeping the bar under `anchorX`
-   * pinned to that pixel (PLAN §8.1). This is what makes wheel/pinch zoom feel
+   * pinned to that pixel. This is what makes wheel/pinch zoom feel
    * anchored instead of sliding the data sideways.
    */
   zoom(factor: number, anchorX: number): void {

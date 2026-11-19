@@ -6,7 +6,7 @@ const RETRY_MIN_MS = 1000
 const RETRY_MAX_MS = 30_000
 
 /**
- * Loads one {@link DataSource} into the chart's series (PLAN §6): the initial
+ * Loads one {@link DataSource} into the chart's series: the initial
  * page, older pages on request, and live bars, kept as one contiguous run of
  * bars. History only ever extends the left edge and live bars the right, so
  * logical indices stay stable.

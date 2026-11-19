@@ -1,5 +1,5 @@
 /**
- * @lightfin/core/chrome — optional DOM widgets around the chart (PLAN §9):
+ * @lightfin/core/chrome — optional DOM widgets around the chart:
  * the top-left HUD/legend, the top toolbar (interval, chart type, indicators),
  * the bottom toolbar (date ranges, go-to dialog, exchange clock, fullscreen), and — given
  * an annotations instance — the left drawing-tools toolbar and the selected
@@ -117,7 +117,7 @@ export const builtinIndicators = {
 export const BUILTIN_INDICATORS: readonly IndicatorCatalogEntry[] =
   Object.values(builtinIndicators)
 
-// Caller options stay opaque; the definition interprets them (PLAN §8.4).
+// Caller options stay opaque; the definition interprets them.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ListedIndicator = IndicatorDefinition<any> | IndicatorModule<any>
 

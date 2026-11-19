@@ -2,7 +2,7 @@ import { BaseCalc } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Rate of Change (PLAN §8.4) — the percent change in close over the last
+ * Rate of Change — the percent change in close over the last
  * `period` bars, a simple momentum oscillator swinging either side of zero. A
  * pane indicator, autoscaled, with a zero line. Its own subpath module:
  * `import('@lightfin/core/indicators/roc')`.

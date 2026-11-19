@@ -1,7 +1,7 @@
 import type { UTCTimestamp } from '../data/types'
 
 /**
- * Fired when the user clicks the crosshair's "+" order button (PLAN §8.2).
+ * Fired when the user clicks the crosshair's "+" order button.
  * The chart owns only the button; the host renders any order form.
  */
 export interface OrderIntentEvent {

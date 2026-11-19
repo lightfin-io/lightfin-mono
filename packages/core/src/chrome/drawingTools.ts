@@ -102,7 +102,7 @@ const CHEVRON =
   '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10.5 5.5v5h-5z" fill="currentColor"/></svg>'
 
 /**
- * Left toolbar (PLAN §9): the cursor, the drawing tools in groups (each
+ * Left toolbar: the cursor, the drawing tools in groups (each
  * button arms its group's last-used tool; the corner arrow opens the
  * group), then the magnet, stay-in-drawing-mode, lock-all, and hide-all
  * toggles, and "remove all drawings". Picking the armed tool again disarms

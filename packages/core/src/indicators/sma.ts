@@ -2,7 +2,7 @@ import { BaseCalc, meanClose } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Simple Moving Average (PLAN §8.4) — the mean of the last `period` closes,
+ * Simple Moving Average — the mean of the last `period` closes,
  * drawn as one overlay line on the main pane. Ships as its own subpath module
  * so it only loads when used: `import('@lightfin/core/indicators/sma')`.
  */

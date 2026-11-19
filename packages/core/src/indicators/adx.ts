@@ -2,7 +2,7 @@ import { BaseCalc, trueRange } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Average Directional Index (PLAN §8.4), Wilder's method. Measures trend
+ * Average Directional Index, Wilder's method. Measures trend
  * *strength* (ADX) regardless of direction, alongside the +DI / −DI
  * directional lines whose crossovers hint at direction. A pane indicator
  * (values 0–100, autoscaled) with a 25 "trend" reference line. Its own subpath

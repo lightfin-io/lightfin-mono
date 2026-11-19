@@ -1,5 +1,5 @@
 /**
- * A single requestAnimationFrame-batched invalidation scheduler (PLAN §5).
+ * A single requestAnimationFrame-batched invalidation scheduler.
  *
  * Anything that wants to repaint marks a layer dirty; one rAF tick repaints
  * exactly the dirty layers, so rapid pan/zoom/live-tick bursts coalesce into

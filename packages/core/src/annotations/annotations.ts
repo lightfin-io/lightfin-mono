@@ -76,7 +76,7 @@ const nextId = () =>
   `a${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 /**
- * Drawing tools on a chart (PLAN §8.5): lines, channels, Fibonacci tools,
+ * Drawing tools on a chart: lines, channels, Fibonacci tools,
  * shapes, labels, and measurements (see {@link AnnotationType}). Pick a tool
  * with {@link setTool}, then drag or click out its points on the price pane;
  * select a drawing to drag it or its handles. Delete/Backspace removes the

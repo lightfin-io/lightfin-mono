@@ -113,7 +113,7 @@ export class IndicatorInstance {
 }
 
 /**
- * Owns the chart's indicators and the generic plot renderer (PLAN §8.4). This
+ * Owns the chart's indicators and the generic plot renderer. This
  * is the fixed "host" that stays in core; the unbounded indicator *catalog*
  * (SMA, EMA, …) loads lazily from its own subpath chunks, so the core bundle
  * never carries it.
@@ -291,7 +291,7 @@ export class IndicatorController {
 /**
  * Stroke one plot as a polyline over the visible window, lifting the pen across
  * NaN gaps (warmup) so the line doesn't connect through undefined regions.
- * One `beginPath`/`stroke` for the whole plot (PLAN §9 batching).
+ * One `beginPath`/`stroke` for the whole plot.
  */
 function drawLinePlot(
   ctx: CanvasRenderingContext2D,
@@ -379,8 +379,8 @@ function drawBandFill(
 
 /**
  * Draw a histogram plot (e.g. MACD) as columns from the pane's zero baseline,
- * bucketed into positive vs negative so each color is one batched `fill()`
- * (PLAN §9). Columns fill ~80% of the bar slot.
+ * bucketed into positive vs negative so each color is one batched `fill()`.
+ * Columns fill ~80% of the bar slot.
  */
 function drawHistogramPlot(
   ctx: CanvasRenderingContext2D,
@@ -414,7 +414,7 @@ function drawHistogramPlot(
   ctx.fill(neg)
 }
 
-/** Snap a CSS-px coordinate to a whole device pixel for crisp edges (PLAN §9). */
+/** Snap a CSS-px coordinate to a whole device pixel for crisp edges. */
 function snapPx(cssPx: number, dpr: number): number {
   return Math.round(cssPx * dpr) / dpr
 }

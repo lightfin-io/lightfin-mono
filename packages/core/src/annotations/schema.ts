@@ -1,6 +1,6 @@
 /**
  * @lightfin/core/annotations/schema — JSON Schema for annotations, for
- * handing to an AI model as a tool definition (PLAN §8.7).
+ * handing to an AI model as a tool definition.
  *
  * Plain data in its own subpath, so the drawing code never carries it:
  *

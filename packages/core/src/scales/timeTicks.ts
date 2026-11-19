@@ -1,5 +1,5 @@
 /**
- * Interval-aware, index-based time-axis labels (PLAN §7, §14).
+ * Interval-aware, index-based time-axis labels.
  *
  * The X axis is index-based (uniform bar spacing), so this never sees a
  * continuous time domain — only the (index, time) pairs actually in view. From
@@ -10,9 +10,9 @@
  * for free. Label text adapts to the step: time-of-day within a day, the date at
  * day boundaries, month at month boundaries, year at year boundaries.
  *
- * Formatting is UTC unless a `timeZone` is given (the instrument's, PLAN §7),
- * so headless rendering stays deterministic for tests and screenshot diffing
- * (PLAN §12). Daily-and-coarser bars ignore the timezone: their timestamps
+ * Formatting is UTC unless a `timeZone` is given (the instrument's),
+ * so headless rendering stays deterministic for tests and screenshot diffing.
+ * Daily-and-coarser bars ignore the timezone: their timestamps
  * name calendar days, which shifting would push onto the previous evening.
  */
 import type { DateFormatters } from '../chart/options'
@@ -86,7 +86,7 @@ const TIME_STEPS: readonly TimeStep[] = [
  * Pick time-axis labels for the visible bars so they sit ~`targetPx` apart at
  * the current `barWidth`, aligned to round wall-clock boundaries in `timeZone`
  * (UTC when omitted). `bars` must be ascending by index/time. Returns a
- * labeled subset, ascending. Label text is produced by `fmt` (PLAN §15).
+ * labeled subset, ascending. Label text is produced by `fmt`.
  */
 export function timeAxisLabels(
   bars: readonly { index: number; time: number }[],

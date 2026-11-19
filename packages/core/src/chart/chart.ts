@@ -123,12 +123,12 @@ const CHART_TYPE_NAMES: Record<ChartType, string> = {
 const VOLUME_PRICE_MARGIN = 0.6
 
 /**
- * The root chart object (PLAN §4 `chart/`). Owns the layered canvas stack, the
+ * The root chart object. Owns the layered canvas stack, the
  * frame scheduler, the time/price scales, the pan/zoom controller, the series,
  * and the indicators. Supports one price series (candlestick, OHLC bar, line,
  * or area — switchable in place) on an index-based time axis with an
  * autoscaled price axis, anchored pan/zoom, a crosshair and live
- * data/follow-mode, plus overlay and own-pane indicators (PLAN §8.4).
+ * data/follow-mode, plus overlay and own-pane indicators.
  */
 export class Chart {
   private readonly options: ChartOptions
@@ -140,13 +140,13 @@ export class Chart {
   private crosshairPoint: { x: number; y: number } | null = null
   // Last index emitted as `crosshairMove`, to skip no-op viewport re-emits.
   private crosshairIndex: number | null = null
-  // The bar the keyboard crosshair is on (PLAN §8.6); null when the pointer
+  // The bar the keyboard crosshair is on; null when the pointer
   // drives the crosshair or there is none.
   private keyboardIndex: number | null = null
   private readonly a11y: ChartA11y
   // Keyboard focus is on the chart, so the overlay draws a focus ring.
   private focusRing = false
-  // Order-intent listeners (PLAN §8.2); the "+" button shows only while there
+  // Order-intent listeners; the "+" button shows only while there
   // is at least one.
   private readonly orderHandlers = new Set<(e: OrderIntentEvent) => void>()
   // A pointerdown landed on the button; it fires on a pointerup there too.
@@ -180,17 +180,17 @@ export class Chart {
   // Public handles, keyed by the instance currently backing each (setOptions
   // swaps the instance but keeps the handle).
   private readonly handleOf = new Map<IndicatorInstance, IndicatorHandle>()
-  // Rotates default indicator colors through the theme palette (PLAN §14):
+  // Rotates default indicator colors through the theme palette:
   // each `addIndicator` call claims the next slot.
   private nextIndicatorColorSlot = 0
   private readonly events = new Emitter<ChartEventMap>()
   private instrumentInfo: InstrumentInfo | null = null
   // Whether the viewport is pinned to the live edge, so new bars scroll it
-  // along (PLAN §8.3 follow-mode). On by default; turns off when the user pans
+  // along. On by default; turns off when the user pans
   // away from the right edge and back on when they return to it.
   private following = true
 
-  // Loads the attached DataSource (PLAN §6): initial page, history, live bars.
+  // Loads the attached DataSource: initial page, history, live bars.
   private feed: DataFeed | null = null
   // Spins over the main pane while the feed's initial page is in flight.
   private readonly loading: LoadingIndicator
@@ -270,7 +270,7 @@ export class Chart {
   }
 
   /**
-   * Describe the instrument on screen (PLAN §6): drives the HUD, renders
+   * Describe the instrument on screen: drives the HUD, renders
    * intraday axis/crosshair times in `timezone`, and sets price label
    * precision from `pricePrecision`. Pass null to clear.
    */
@@ -286,7 +286,7 @@ export class Chart {
   }
 
   /**
-   * Opt in to the order-intent hook (PLAN §8.2): while any handler is
+   * Opt in to the order-intent hook: while any handler is
    * registered, a "+" button rides the crosshair line at the price-axis edge of
    * the price pane, and clicking it calls `handler` with the price and
    * position. The chart owns only the button — the host renders its own order
@@ -391,7 +391,7 @@ export class Chart {
   }
 
   /**
-   * The resolved date/time formatters (PLAN §15) — defaults merged with any
+   * The resolved date/time formatters — defaults merged with any
    * `dateFormatters` override. Used by the chrome to format the exchange clock.
    */
   get dateFormatters(): DateFormatters {
@@ -442,8 +442,8 @@ export class Chart {
   }
 
   /**
-   * Add an indicator (PLAN §8.4). Pass a dynamically-imported module so the
-   * indicator's code only loads when used (keeping the core lean, PLAN §10):
+   * Add an indicator. Pass a dynamically-imported module so the
+   * indicator's code only loads when used (keeping the core lean):
    *
    * ```ts
    * const sma = await chart.addIndicator(
@@ -542,7 +542,7 @@ export class Chart {
   }
 
   private onSeriesChange(change: SeriesChange): void {
-    // Keep indicator caches in step with the data (PLAN §8.4). A reset or
+    // Keep indicator caches in step with the data. A reset or
     // backfill shifts the index space, so recompute from scratch; a live tick or
     // new bar only needs the tail recomputed. Pan/zoom and a chart-type switch
     // never land here.
@@ -583,7 +583,7 @@ export class Chart {
   }
 
   /**
-   * Load the price series from a {@link DataSource} (PLAN §6): the series is
+   * Load the price series from a {@link DataSource}: the series is
    * cleared and the chart requests a screen of the newest bars, then older
    * pages as the view nears the oldest loaded bar, and merges live bars.
    * Replaces any previous source, cancelling its requests (attach a new
@@ -619,7 +619,7 @@ export class Chart {
     return Math.max(MIN_PAGE_BARS, Math.ceil(bars))
   }
 
-  /** The time scale, for programmatic pan/zoom (PLAN §11). */
+  /** The time scale, for programmatic pan/zoom. */
   timeScale(): TimeScale {
     return this.timeScaleModel
   }
@@ -956,7 +956,7 @@ export class Chart {
 
   /**
    * After a user-driven pan/zoom, re-arm follow-mode when the view is sitting at
-   * the live edge and disarm it once they scroll back into history (PLAN §8.3).
+   * the live edge and disarm it once they scroll back into history.
    * The half-bar tolerance keeps it armed through sub-bar fractional offsets.
    */
   private syncFollowing(): void {
@@ -1040,7 +1040,7 @@ export class Chart {
   }
 
   /**
-   * Keyboard control (PLAN §8.6) while the chart element has focus: arrows
+   * Keyboard control while the chart element has focus: arrows
    * walk the crosshair bar by bar (Shift: 10), Home/End jump to the ends,
    * +/- zoom, Escape drops the crosshair.
    */
@@ -1197,7 +1197,7 @@ export class Chart {
   private autoScalePrice(): void {
     if (!this.series) return
     // Lift the price domain clear of the volume histogram's bottom slice so
-    // candles don't draw over it (PLAN §7).
+    // candles don't draw over it.
     this.priceScale.bottomMargin =
       this.options.volumeVisible && this.series.store.hasVolumeData
         ? this.options.volumeHeightRatio * VOLUME_PRICE_MARGIN
@@ -1460,7 +1460,7 @@ export class Chart {
   }
 
   /**
-   * Overlay layer (PLAN §5 layers 3–4): the always-on current-price line plus
+   * Overlay layer: the always-on current-price line plus
    * the pointer-following crosshair. Cheap by construction — redrawn on every
    * pointer move and every live tick without touching the series layer.
    */
@@ -1514,8 +1514,8 @@ export class Chart {
   }
 
   /**
-   * Dotted horizontal line + filled price-axis badge at the last bar's close
-   * (PLAN §8.3), colored by the last candle's direction like TradingView — or
+   * Dotted horizontal line + filled price-axis badge at the last bar's close,
+   * colored by the last candle's direction like TradingView — or
    * in the line color for line/area charts, which carry no direction. Drawn
    * only when that price sits within the autoscaled visible range.
    */
@@ -1766,9 +1766,9 @@ export class Chart {
   }
 
   /**
-   * Dotted crosshair lines + axis value labels, following the pointer (PLAN
-   * §8.2), plus the order button when enabled. Returns whether the pointer is
-   * over that button.
+   * Dotted crosshair lines + axis value labels, following the pointer, plus
+   * the order button when enabled. Returns whether the pointer is over that
+   * button.
    */
   private paintCrosshair(point: { x: number; y: number }): boolean {
     const { width, height } = this.layers.getSize()
@@ -1850,8 +1850,8 @@ export class Chart {
 
   /**
    * Interval-aware time-axis ticks (x position + label text) for the visible
-   * range — labels land on round wall-clock boundaries and skip data gaps
-   * (PLAN §7). Shared by the gridlines (x only) and the axis strip (x + text).
+   * range — labels land on round wall-clock boundaries and skip data gaps.
+   * Shared by the gridlines (x only) and the axis strip (x + text).
    */
   private timeTicks(plot: PlotRect): { x: number; text: string }[] {
     const store = this.series?.store

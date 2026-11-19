@@ -74,7 +74,7 @@ function actions(
 }
 
 /**
- * "Go to" dialog (PLAN §9): jump to a date (centered at the current zoom) or
+ * "Go to" dialog: jump to a date (centered at the current zoom) or
  * show a custom date range. Dates are entered on the instrument's wall clock.
  */
 export function openGoToModal(host: HTMLElement, chart: Chart): void {

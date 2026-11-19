@@ -2,9 +2,9 @@ import { BaseCalc, typicalPrice } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
- * Volume-Weighted Average Price (PLAN §8.4) — the average price weighted by
+ * Volume-Weighted Average Price — the average price weighted by
  * volume, accumulated from the start of each session. It re-anchors on every
- * new UTC day (times are Unix seconds, PLAN §6), the usual intraday
+ * new UTC day (times are Unix seconds), the usual intraday
  * convention. An overlay line on the main price pane; it needs volume, so it
  * stays blank on volumeless data. Its own subpath module:
  * `import('@lightfin/core/indicators/vwap')`.

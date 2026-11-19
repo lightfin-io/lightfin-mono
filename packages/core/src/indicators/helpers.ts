@@ -5,7 +5,7 @@ import type { BarReader, IndicatorCalc } from './types'
  * number column aligned to a logical base index, and drives both full and
  * incremental computation through a **single** {@link BaseCalc.computeAt} path
  * — so incremental updates are equivalent to a from-scratch recompute by
- * construction (the PLAN §8.4 hard requirement, verified in tests).
+ * construction (the hard requirement, verified in tests).
  *
  * `computeAt(reader, index)` must only read *prior* outputs (index-1 and
  * earlier, via {@link BaseCalc.prior}) and bar values, never later ones; then
