@@ -1,0 +1,27 @@
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/www/**
+      - packages/core/**
+      - packages/react/**
+      - bun.lock
+      - package.json
+      - .github/workflows/deploy-www.yml
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      # Builds core, react, and the Astro site, then `wrangler deploy`.
+      # CLOUDFLARE_API_TOKEN needs Workers Scripts edit on this account and
+      # Workers Routes write on the lightfin.io zone. The account id lives in
+      # packages/www/wrangler.jsonc.
+      - run: bun run deploy:www
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

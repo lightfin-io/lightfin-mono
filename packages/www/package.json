@@ -10,6 +10,8 @@
     "dev": "bun run gen && astro dev",
     "build": "bun run gen && astro build",
     "preview": "astro preview",
+    "preview:cf": "wrangler dev",
+    "deploy": "wrangler deploy",
     "typecheck": "bun run gen && astro check"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
     "@astrojs/check": "^0.9.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "wrangler": "^4.165.0"
   }
 }

@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "lightfin",
+  "account_id": "69e209e6ce93057ab687ad3a01db4b64",
+  "compatibility_date": "2026-11-19",
+  // Production is the custom domains below. A routes entry already turns
+  // workers.dev off; set it so a later deploy cannot turn the subdomain back on.
+  "workers_dev": false,
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true,
+    },
+  },
+  // Astro's static build. Directory pages keep a trailing slash; a missing
+  // path serves the nearest 404.html. No Worker script: asset requests stay
+  // on the static-assets path.
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+  },
+  "routes": [
+    { "pattern": "lightfin.io", "custom_domain": true },
+    { "pattern": "www.lightfin.io", "custom_domain": true },
+  ],
+}

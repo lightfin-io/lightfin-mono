@@ -12,6 +12,7 @@
     "www": "bun run --filter @lightfin/www dev",
     "build": "bun run --filter @lightfin/core build && bun run --filter @lightfin/react build",
     "build:www": "bun run --filter @lightfin/core build && bun run --filter @lightfin/react build && bun run --filter @lightfin/www build",
+    "deploy:www": "bun run build:www && bun run --filter @lightfin/www deploy",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun run --filter '*' test",
     "test:e2e": "bun run --filter @lightfin/core test:e2e",

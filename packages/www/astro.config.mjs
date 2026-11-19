@@ -7,7 +7,7 @@ import { defineConfig } from 'astro/config'
 // owns every /docs/* route. Docs content is nested under content/docs/docs/ so
 // its slugs carry the `docs/` prefix, leaving the root free for marketing.
 export default defineConfig({
-  site: 'https://lightfin.dev',
+  site: 'https://lightfin.io',
   integrations: [
     react(),
     starlight({
