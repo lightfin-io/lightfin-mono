@@ -23,7 +23,7 @@ export default defineConfig({
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/lightfin/lightfin-web-chart',
+          href: 'https://github.com/lightfin-io/lightfin-mono',
         },
       ],
       customCss: ['./src/styles/docs.css'],
