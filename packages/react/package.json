@@ -1,9 +1,12 @@
 {
   "name": "@lightfin/react",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "React bindings for @lightfin/core: <LightfinChart> plus hooks.",
   "type": "module",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false,
   "files": [
     "dist"
@@ -20,6 +23,7 @@
   },
   "scripts": {
     "build": "rm -rf dist && vite build && tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "size": "size-limit"

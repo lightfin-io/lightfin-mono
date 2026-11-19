@@ -1,9 +1,12 @@
 {
   "name": "@lightfin/core",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A powerful, lightweight, dependency-free financial charting library for the web.",
   "type": "module",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false,
   "files": [
     "dist"
@@ -49,6 +52,7 @@
   "scripts": {
     "dev": "vite --config vite.demo.config.ts",
     "build": "rm -rf dist && vite build && tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build",
     "build:demo": "vite build --config vite.demo.config.ts",
     "preview": "vite preview --config vite.demo.config.ts",
     "typecheck": "tsc --noEmit",
