@@ -10,8 +10,9 @@ persistence, and the trading UI stay with the host. It is not a backtesting
 engine, a data service, or an order-entry UI — `onOrderIntent` fires
 price and coordinates so the host can open its own form.
 
-Part of the [Lightfin monorepo](../../README.md). Open work is in
-[ROADMAP.md](../../ROADMAP.md).
+Part of the [Lightfin monorepo](https://github.com/lightfin-io/lightfin-mono/).
+Open work is in
+[ROADMAP.md](https://github.com/lightfin-io/lightfin-mono/blob/main/ROADMAP.md).
 
 ## Install
 
@@ -85,19 +86,20 @@ const sma = await chart.addIndicator(import('@lightfin/core/indicators/sma'), {
 The package entry is the chart engine, series, axes, and crosshair. Everything
 else is opt-in:
 
-| Import | What it adds |
-| --- | --- |
-| `@lightfin/core` | Chart engine, series, axes, crosshair, pan/zoom |
-| `@lightfin/core/indicators/<id>` | One indicator, usually via dynamic `import()` |
-| `@lightfin/core/annotations` | Drawing tools |
-| `@lightfin/core/annotations/schema` | JSON Schema for AI-driven drawings |
-| `@lightfin/core/chrome` | HUD, legend, toolbars, clock |
-| `@lightfin/core/price-lines` | Order and position price lines |
-| `@lightfin/core/event-tags` | Earnings and dividend tags |
+| Import                              | What it adds                                    |
+| ----------------------------------- | ----------------------------------------------- |
+| `@lightfin/core`                    | Chart engine, series, axes, crosshair, pan/zoom |
+| `@lightfin/core/indicators/<id>`    | One indicator, usually via dynamic `import()`   |
+| `@lightfin/core/annotations`        | Drawing tools                                   |
+| `@lightfin/core/annotations/schema` | JSON Schema for AI-driven drawings              |
+| `@lightfin/core/chrome`             | HUD, legend, toolbars, clock                    |
+| `@lightfin/core/price-lines`        | Order and position price lines                  |
+| `@lightfin/core/event-tags`         | Earnings and dividend tags                      |
 
 ## Development
 
-From the monorepo root (see the [root README](../../README.md)):
+From the monorepo root (see the
+[root README](https://github.com/lightfin-io/lightfin-mono/)):
 
 ```sh
 bun run dev                      # this package's /demo playground
