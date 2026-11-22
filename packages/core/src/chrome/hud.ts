@@ -216,7 +216,7 @@ export class Hud {
     const close = store.closes[p]!
     const prevClose =
       index > store.firstIndex ? store.closes[store.physical(index - 1)]! : open
-    const color = close >= open ? 'var(--lf-up)' : 'var(--lf-down)'
+    const color = close >= open ? 'var(--lf-upColor)' : 'var(--lf-downColor)'
     const fmt = (price: number) => this.chart.formatPrice(price)
 
     this.ohlc.o.textContent = fmt(open)
@@ -228,7 +228,7 @@ export class Hud {
       this.ohlc[key].style.color = color
     }
     this.ohlc.chg.style.color =
-      close >= prevClose ? 'var(--lf-up)' : 'var(--lf-down)'
+      close >= prevClose ? 'var(--lf-upColor)' : 'var(--lf-downColor)'
 
     this.volumeValue.textContent = formatVolume(store.volumes[p]!)
     this.volumeValue.style.color = color

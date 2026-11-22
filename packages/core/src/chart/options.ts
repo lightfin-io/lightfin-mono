@@ -1,5 +1,5 @@
 export interface ChartTheme {
-  /** Pane fill behind the plot; its lightness also decides the chrome's light/dark scheme. */
+  /** Pane fill behind the plot. */
   background: string
   /** Horizontal/vertical grid line color. */
   gridColor: string
@@ -37,6 +37,16 @@ export interface ChartTheme {
    * color in its options — an explicit `color`/`macdColor`/etc. always wins.
    */
   indicatorPalette: string[]
+  /** Emphasized text in chrome buttons, inputs, dialogs, and the HUD. */
+  textStrong: string
+  /** Background for hovered chrome buttons. */
+  hover: string
+  /** Background for hovered or focused indicator rows in the HUD. */
+  hudHover: string
+  /** Background for chrome menus, dialogs, and the floating drawing toolbar. */
+  panel: string
+  /** Color scheme for the chrome's native browser controls. */
+  colorScheme: 'dark' | 'light'
 }
 
 /**
@@ -180,6 +190,11 @@ export const DEFAULT_THEME: ChartTheme = {
     '#ec407a',
     '#9ccc65',
   ],
+  textStrong: '#d1d4dc',
+  hover: 'rgba(157, 178, 189, 0.16)',
+  hudHover: 'rgba(19, 23, 34, 0.7)',
+  panel: '#262a34',
+  colorScheme: 'dark',
 }
 
 export const DEFAULT_OPTIONS: ChartOptions = {

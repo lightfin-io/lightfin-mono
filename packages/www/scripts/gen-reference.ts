@@ -152,7 +152,7 @@ async function genTheme(): Promise<void> {
       (DEFAULT_THEME as unknown as Record<string, unknown>)[name],
     )
     rows.push(
-      `| \`${name}\` | \`${type}\` | ${def} | ${cell(jsdocSummary(member))} |`,
+      `| \`${name}\` | \`${cell(type)}\` | ${def} | ${cell(jsdocSummary(member))} |`,
     )
   }
 

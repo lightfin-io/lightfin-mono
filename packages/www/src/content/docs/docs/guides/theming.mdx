@@ -36,9 +36,8 @@ semi-transparent so the candles and gridlines read through them.
 
 ## A light theme
 
-There's no separate light/dark switch — a light theme is just a theme whose
-`background` is light. The chrome reads that lightness to flip its own scheme
-(see below), so one object does both:
+Set the chart and chrome colors together for a light theme. `colorScheme`
+controls the appearance of native browser controls, such as range sliders.
 
 ```ts
 createChart(container, {
@@ -48,31 +47,24 @@ createChart(container, {
     axisTextColor: '#50545e',
     axisBorderColor: '#e0e3eb',
     crosshairColor: '#9598a1',
+    textStrong: '#131722',
+    hover: 'rgba(80, 84, 94, 0.16)',
+    hudHover: 'rgba(255, 255, 255, 0.7)',
+    panel: '#ebebeb',
+    colorScheme: 'light',
   },
 })
 ```
 
 ## The chrome follows the theme
 
-If you use the [chrome](/docs/api/chrome) toolbars, you don't theme them
-separately. It derives a set of `--lf-*` CSS custom properties from the chart
-theme and sets them on the host element, so the toolbars, menus, and dialogs
-stay in sync:
+The [chrome](/docs/api/chrome) copies the theme values it uses to CSS custom
+properties on the host element. Each name is `--lf-` followed by the exact
+theme property name, including its capitalization. For example, `lineColor`
+becomes `--lf-lineColor`, and `hudHover` becomes `--lf-hudHover`.
 
-| CSS variable       | Derived from                                  |
-| ------------------ | --------------------------------------------- |
-| `--lf-bg`          | `background`                                  |
-| `--lf-text`        | `axisTextColor`                               |
-| `--lf-text-strong` | picked from `background` lightness            |
-| `--lf-border`      | `axisBorderColor`                             |
-| `--lf-accent`      | `lineColor`                                   |
-| `--lf-up`          | `upColor`                                     |
-| `--lf-down`        | `downColor`                                   |
-| `--lf-font`        | `fontFamily`                                  |
-
-The widgets also set `color-scheme` from the same lightness check, so native
-controls (scrollbars, range sliders) match. You can override any `--lf-*`
-variable in your own CSS if you need the chrome to diverge from the plot.
+`textStrong`, `hover`, `hudHover`, and `panel` each have their own defaults.
+Set them in `theme` to customize the chrome independently of `background`.
 
 ## Indicator colors
 

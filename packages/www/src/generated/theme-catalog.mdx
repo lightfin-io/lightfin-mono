@@ -2,7 +2,7 @@
 
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `background` | `string` | `#131722` | Pane fill behind the plot; its lightness also decides the chrome's light/dark scheme. |
+| `background` | `string` | `#131722` | Pane fill behind the plot. |
 | `gridColor` | `string` | `#1f2733` | Horizontal/vertical grid line color. |
 | `axisTextColor` | `string` | `#9db2bd` | Axis strip text + tick color. |
 | `axisBorderColor` | `string` | `#2a2e39` | Hairline color for axis borders. |
@@ -17,5 +17,10 @@
 | `fontFamily` | `string` | `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` | Font stack for all chart text — axis labels, crosshair, legend. |
 | `fontSize` | `number` | `11` | Base font size in px for chart text. |
 | `indicatorPalette` | `string[]` | `#2962ff` `#ff6d00` `#7e57c2` `#26a69a` `#ec407a` `#9ccc65` | Default colors assigned to indicator plots in the order they're added, cycled when more indicators are added than colors in the list. Only applies to a plot whose indicator didn't receive an explicit color in its options — an explicit `color`/`macdColor`/etc. always wins. |
+| `textStrong` | `string` | `#d1d4dc` | Emphasized text in chrome buttons, inputs, dialogs, and the HUD. |
+| `hover` | `string` | `rgba(157, 178, 189, 0.16)` | Background for hovered chrome buttons. |
+| `hudHover` | `string` | `rgba(19, 23, 34, 0.7)` | Background for hovered or focused indicator rows in the HUD. |
+| `panel` | `string` | `#262a34` | Background for chrome menus, dialogs, and the floating drawing toolbar. |
+| `colorScheme` | `'dark' \| 'light'` | `dark` | Color scheme for the chrome's native browser controls. |
 
-15 theme properties. Defaults are from `DEFAULT_THEME`; pass any subset as `theme` and the rest fall back to it.
+20 theme properties. Defaults are from `DEFAULT_THEME`; pass any subset as `theme` and the rest fall back to it.

@@ -10,16 +10,18 @@ import { createBinanceFeed } from './binanceFeed'
 
 // A light counterpart to core's dark `DEFAULT_THEME`, tuned to sit on the docs'
 // white reading column. Candle/volume/indicator hues are shared with the dark
-// theme (they read fine on either surface); only the chrome-ish neutrals —
-// background, grid, axis and crosshair — flip. The chart derives its light/dark
-// chrome scheme from the background's lightness, so the white background alone
-// switches the HUD, toolbar and menus to their light styling.
+// theme. The light theme sets the chart neutrals and chrome colors explicitly.
 const LIGHT_CHART_THEME: Partial<ChartTheme> = {
   background: '#ffffff',
   gridColor: '#e7ebee',
   axisTextColor: '#5c6b74',
   axisBorderColor: '#d7dde1',
   crosshairColor: '#9aa4ad',
+  textStrong: '#131722',
+  hover: 'rgba(92, 107, 116, 0.16)',
+  hudHover: 'rgba(255, 255, 255, 0.7)',
+  panel: '#ebebeb',
+  colorScheme: 'light',
 }
 
 type DocsTheme = 'light' | 'dark'
