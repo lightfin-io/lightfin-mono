@@ -1175,7 +1175,6 @@ export class Chart {
     const dpr = window.devicePixelRatio || 1
     if (this.layers.resize({ width, height }, dpr)) {
       this.panzoom.refreshRect()
-      this.crosshair.refreshRect()
       this.clampScroll()
       this.scheduler.invalidate('background', 'series', 'overlay', 'axes')
       this.events.emit('layoutChange', undefined)

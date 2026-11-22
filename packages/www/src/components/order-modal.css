@@ -1,0 +1,97 @@
+.order-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-block: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.75rem;
+  background: var(--sl-color-bg-sidebar);
+  font-size: 0.875rem;
+}
+
+.order-demo .order-chart {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.4rem;
+}
+
+.order-demo button,
+.order-demo input,
+.order-demo select {
+  min-height: 2.75rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  font: inherit;
+}
+
+.order-demo button {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.order-demo :is(button, input, select):focus-visible {
+  outline: 2px solid var(--sl-color-accent-high);
+  outline-offset: 2px;
+}
+
+.order-demo .order-dialog {
+  inset: 0;
+  width: min(26rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  margin: auto;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  background: var(--sl-color-bg-sidebar);
+  color: var(--sl-color-text);
+  box-shadow: 0 1rem 3rem #0003;
+}
+
+.order-demo .order-dialog::backdrop {
+  background: rgb(5 10 15 / 65%);
+}
+
+.order-demo .order-dialog form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.order-demo .order-dialog h3 {
+  color: var(--sl-color-white);
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.order-demo .order-dialog h3,
+.order-demo .order-dialog label:first-of-type,
+.order-demo .order-actions {
+  grid-column: 1 / -1;
+}
+
+.order-demo .order-dialog label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.order-demo .order-dialog :is(input, select) {
+  width: 100%;
+}
+
+.order-demo .order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.order-demo button[type='submit'] {
+  border-color: var(--sl-color-accent);
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-accent-high);
+}

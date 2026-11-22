@@ -1,0 +1,147 @@
+---
+title: Custom order modal
+description: Open your own order form from the chart’s crosshair in TypeScript or React.
+---
+
+import { Code } from '@astrojs/starlight/components'
+
+import orderChartSource from '../../../../components/OrderChart.tsx?raw'
+import OrderModalDemo from '../../../../components/OrderModalDemo.tsx'
+
+Subscribe to `chart.onOrderIntent()` or pass `onOrderIntent` to `<LightfinChart>`
+to enable the **+** button beside the crosshair’s price label. When the user
+presses it, use the event’s `price` to prefill your app’s order form. Your app
+owns the form fields, validation, and what happens on submit.
+
+## Try it
+
+Move the pointer near the right edge of the chart and click **+** at the price
+you want. On touch, press and hold the chart to show the crosshair, then tap
+**+**. You can also use **New order at last close** with the keyboard.
+
+Change the price, side, or quantity and select **Place order** to see the values
+returned to the demo. The candles are sample data and the order request lives in the page.
+
+<OrderModalDemo client:only="react" />
+
+## Plain TypeScript
+
+Place a native `<dialog>` next to the chart. `showModal()` moves focus into the
+form and allows Escape to dismiss it. The separate button gives keyboard users
+a way to open the same form.
+
+```html
+<div id="chart" style="height: 320px"></div>
+<button id="new-order" type="button" aria-haspopup="dialog">
+  New order at last close
+</button>
+
+<dialog id="order-dialog" aria-labelledby="order-title">
+  <form>
+    <h2 id="order-title">Limit order</h2>
+    <label>
+      Limit price
+      <input name="price" type="number" min="0.01" step="0.01" required />
+    </label>
+    <label>
+      Side
+      <select name="side">
+        <option value="buy">Buy</option>
+        <option value="sell">Sell</option>
+      </select>
+    </label>
+    <label>
+      Quantity
+      <input
+        name="quantity"
+        type="number"
+        min="1"
+        step="1"
+        value="1"
+        required
+      />
+    </label>
+    <button id="cancel-order" type="button">Cancel</button>
+    <button type="submit">Place order</button>
+  </form>
+</dialog>
+```
+
+Create the chart with your bars and pass in a callback to receive each order request.
+Call the returned cleanup function when your app removes the chart.
+
+```ts
+import { createChart } from '@lightfin/core'
+import type { Bar } from '@lightfin/core'
+
+type OrderRequest = { price: number; side: 'buy' | 'sell'; quantity: number }
+
+export function mountOrderChart(
+  bars: readonly Bar[],
+  onOrderRequest: (orderRequest: OrderRequest) => void,
+) {
+  const chart = createChart(document.querySelector<HTMLElement>('#chart')!)
+  chart.addCandlestickSeries().setData(bars)
+
+  const dialog = document.querySelector<HTMLDialogElement>('#order-dialog')!
+  const form = dialog.querySelector('form')!
+  const priceInput = form.querySelector<HTMLInputElement>('[name="price"]')!
+  const newOrder = document.querySelector<HTMLButtonElement>('#new-order')!
+  const cancel = document.querySelector<HTMLButtonElement>('#cancel-order')!
+  const lastClose = bars.at(-1)?.close
+  const listeners = new AbortController()
+  const { signal } = listeners
+
+  function openOrder(price: number) {
+    form.reset()
+    priceInput.value = price.toFixed(2)
+    dialog.showModal()
+  }
+
+  const unsubscribe = chart.onOrderIntent(({ price }) => openOrder(price))
+  newOrder.disabled = lastClose === undefined
+  newOrder.addEventListener(
+    'click',
+    () => {
+      if (lastClose !== undefined) openOrder(lastClose)
+    },
+    { signal },
+  )
+  cancel.addEventListener('click', () => dialog.close(), { signal })
+  form.addEventListener(
+    'submit',
+    event => {
+      event.preventDefault()
+      const fields = new FormData(form)
+      dialog.close()
+      onOrderRequest({
+        price: Number(fields.get('price')),
+        side: fields.get('side') === 'sell' ? 'sell' : 'buy',
+        quantity: Number(fields.get('quantity')),
+      })
+    },
+    { signal },
+  )
+
+  return () => {
+    dialog.close()
+    listeners.abort()
+    unsubscribe()
+    chart.remove()
+  }
+}
+```
+
+## React
+
+Pass `onOrderIntent` to `<LightfinChart>` and use a ref to open the dialog.
+`useChartEffect` supplies the candles after the chart is created. The demo
+above uses this component with sample bars and displays the order request from `onOrderRequest`.
+
+<Code code={orderChartSource} lang="tsx" title="OrderChart.tsx" />
+
+Both examples use two decimal places for price and whole units for quantity.
+Set the input steps and price formatting to suit your instrument. If you’re
+positioning a popup beside the chart button, `clientPoint` gives you viewport
+coordinates for fixed positioning, and `point` gives you chart-relative
+coordinates. [Chart reference](/docs/api/chart#extending)

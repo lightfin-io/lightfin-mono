@@ -12,28 +12,23 @@ export interface CrosshairHandlers {
 export class CrosshairController {
   private readonly el: HTMLElement
   private readonly handlers: CrosshairHandlers
-  private rect: DOMRect
 
   constructor(el: HTMLElement, handlers: CrosshairHandlers) {
     this.el = el
     this.handlers = handlers
-    this.rect = el.getBoundingClientRect()
 
     el.addEventListener('pointermove', this.onPointerMove)
     el.addEventListener('pointerleave', this.onPointerLeave)
     el.addEventListener('pointercancel', this.onPointerLeave)
   }
 
-  /** Re-measure the element rect; call when the container moves or resizes. */
-  refreshRect(): void {
-    this.rect = this.el.getBoundingClientRect()
-  }
-
   private onPointerMove = (e: PointerEvent): void => {
     if (e.pointerType === 'touch') return
+    // Scrolling can move the chart in the viewport without resizing it.
+    const rect = this.el.getBoundingClientRect()
     this.handlers.onMove({
-      x: e.clientX - this.rect.left,
-      y: e.clientY - this.rect.top,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     })
   }
 
