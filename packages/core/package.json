@@ -1,6 +1,6 @@
 {
   "name": "@lightfin/core",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A powerful, lightweight, dependency-free financial charting library for the web.",
   "type": "module",
   "license": "MIT",
