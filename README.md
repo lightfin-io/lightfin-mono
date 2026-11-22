@@ -1,5 +1,8 @@
 # Lightfin
 
+[![npm @lightfin/core](https://img.shields.io/npm/v/%40lightfin%2Fcore?label=%40lightfin%2Fcore)](https://www.npmjs.com/package/@lightfin/core)
+[![npm @lightfin/react](https://img.shields.io/npm/v/%40lightfin%2Freact?label=%40lightfin%2Freact)](https://www.npmjs.com/package/@lightfin/react)
+
 Monorepo for [Lightfin](./packages/core), a lightweight, dependency-free
 financial charting library for the web — candlesticks, volume, indicators,
 drawing tools, smooth pan/zoom, and live data, rendered on HTML5 Canvas2D.
