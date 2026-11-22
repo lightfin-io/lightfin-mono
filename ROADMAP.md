@@ -15,7 +15,6 @@ Also unbuilt:
 
 - A per-drawing settings dialog for exact coordinates and per-level Fibonacci toggles. The floating style toolbar covers color, line, and text.
 - Per-drawing visibility. `setVisible()` hides every drawing at once.
-- Undo and redo buttons on the toolbar. The shortcuts and `undo()` / `redo()` already work.
 - Gann, Elliott, and pattern tools.
 
 ## Indicators

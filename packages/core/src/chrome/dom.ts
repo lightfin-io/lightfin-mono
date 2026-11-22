@@ -97,6 +97,8 @@ export const ICONS = {
   trash: svg(
     '<path d="M3 5h12M7 5V3.5h4V5M4.5 5l.75 10h7.5l.75-10M7.5 8v4.5M10.5 8v4.5"/>',
   ),
+  undo: svg('<path d="M6.5 4L3 7.5 6.5 11M3 7.5h7a4 4 0 010 8H8"/>'),
+  redo: svg('<path d="M11.5 4L15 7.5 11.5 11M15 7.5H8a4 4 0 000 8h2"/>'),
   ray: svg(
     '<path d="M5 13l2.75-2.75M10.25 7.75L16.5 1.5"/><circle cx="3.75" cy="14.25" r="1.75"/><circle cx="9" cy="9" r="1.75"/>',
   ),

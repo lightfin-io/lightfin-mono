@@ -39,6 +39,8 @@ const CSS = `
   white-space: nowrap; cursor: pointer;
 }
 .lf-btn:hover { background: var(--lf-hover); color: var(--lf-text-strong); }
+.lf-btn:disabled { opacity: 0.4; cursor: default; }
+.lf-btn:disabled:hover { background: transparent; color: inherit; }
 .lf-btn:focus-visible { outline: 1px solid var(--lf-accent); outline-offset: -1px; }
 .lf-btn[aria-pressed='true'] { color: var(--lf-accent); }
 .lf-btn-icon { padding: 4px; }

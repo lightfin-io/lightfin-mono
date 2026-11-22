@@ -105,7 +105,7 @@ const CHEVRON =
  * Left toolbar: the cursor, the drawing tools in groups (each
  * button arms its group's last-used tool; the corner arrow opens the
  * group), then the magnet, stay-in-drawing-mode, lock-all, and hide-all
- * toggles, and "remove all drawings". Picking the armed tool again disarms
+ * toggles, undo/redo, and "remove all drawings". Picking the armed tool again disarms
  * it.
  */
 export function createLeftToolbar(
@@ -190,6 +190,9 @@ export function createLeftToolbar(
     return b
   }
 
+  const undo = button({ icon: 'undo', title: 'Undo' }, () => annotations.undo())
+  const redo = button({ icon: 'redo', title: 'Redo' }, () => annotations.redo())
+
   bar.append(
     cursor,
     ...groups.map(g => g.wrap),
@@ -219,6 +222,8 @@ export function createLeftToolbar(
       on => annotations.setVisible(!on),
     ),
     el('div', 'lf-sep'),
+    undo,
+    redo,
     button({ icon: 'trash', title: 'Remove all drawings' }, () =>
       annotations.clear(),
     ),
@@ -231,7 +236,10 @@ export function createLeftToolbar(
       g.main.setAttribute('aria-pressed', String(pressed))
     }
     for (const t of toggles) t.b.setAttribute('aria-pressed', String(t.on()))
+    undo.disabled = !annotations.canUndo
+    redo.disabled = !annotations.canRedo
   }
+  const offChange = annotations.on('change', sync)
   const offTool = annotations.on('toolChange', tool => {
     if (!tool) armed = null
     else if (armed?.tool !== tool) {
@@ -251,6 +259,7 @@ export function createLeftToolbar(
     sync,
     dispose: () => {
       offTool()
+      offChange()
       for (const g of groups) g.flyout.close()
       bar.remove()
     },
