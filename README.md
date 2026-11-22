@@ -6,6 +6,8 @@ drawing tools, smooth pan/zoom, and live data, rendered on HTML5 Canvas2D.
 The core is framework-agnostic vanilla TypeScript; framework bindings and the
 docs site live beside it.
 
+<img width="1057" height="530" alt="Chart Screenshot" src="https://github.com/user-attachments/assets/76cb6b7a-6b97-42a5-bfc7-eb8891c3a8a4" />
+
 Open work is in [ROADMAP.md](./ROADMAP.md). Library usage is in
 [`packages/core/README.md`](./packages/core/README.md).
 
