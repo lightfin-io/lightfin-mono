@@ -13,6 +13,7 @@ const FIELDS = [
   'text',
   'shape',
   'locked',
+  'hidden',
   'group',
 ]
 const STYLE_FIELDS = [
@@ -40,7 +41,7 @@ const MAX_SECONDS = 1e11
 export function validateAnnotation(input: unknown): string[] {
   if (!isObject(input)) return ['an annotation must be an object']
   const errors: string[] = []
-  const { type, points, style, text, shape, id, group, locked } = input
+  const { type, points, style, text, shape, id, group, locked, hidden } = input
   const spec =
     typeof type === 'string' && Object.hasOwn(TOOLS, type)
       ? TOOLS[type as AnnotationType]
@@ -97,6 +98,9 @@ export function validateAnnotation(input: unknown): string[] {
   }
   if (locked !== undefined && typeof locked !== 'boolean') {
     errors.push('locked must be a boolean')
+  }
+  if (hidden !== undefined && typeof hidden !== 'boolean') {
+    errors.push('hidden must be a boolean')
   }
   if (style !== undefined) {
     if (isObject(style)) errors.push(...validateStyle(style))

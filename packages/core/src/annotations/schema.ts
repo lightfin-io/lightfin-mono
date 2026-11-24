@@ -105,6 +105,10 @@ export const annotationSchema = {
       type: 'boolean',
       description: 'Keep the user from moving it by accident.',
     },
+    hidden: {
+      type: 'boolean',
+      description: 'Hide the drawing while keeping it in the saved drawings.',
+    },
     id: {
       type: 'string',
       description:

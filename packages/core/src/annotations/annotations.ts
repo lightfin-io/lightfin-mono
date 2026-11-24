@@ -30,9 +30,9 @@ import { validateAnnotation } from './validate'
 /** Payloads of the events {@link Annotations.on} can subscribe to. */
 export interface AnnotationsEventMap {
   /**
-   * A drawing was added, removed, moved, restyled, or edited, or an undo or
-   * redo ran — the moment to persist {@link Annotations.toJSON}. Fires once
-   * at the end of a drag, and not for {@link Annotations.load}.
+   * Persist {@link Annotations.toJSON} when the drawings change, including
+   * visibility edits and undo or redo. Fires once at the end of a drag and
+   * skips {@link Annotations.load}.
    */
   change: void
   /** The active drawing tool changed (null: back to the cursor). */
@@ -43,7 +43,7 @@ export interface AnnotationsEventMap {
 
 /** What {@link Annotations.update} can change. */
 export type AnnotationPatch = Partial<
-  Pick<Annotation, 'points' | 'style' | 'text' | 'shape' | 'locked'>
+  Pick<Annotation, 'points' | 'style' | 'text' | 'shape' | 'locked' | 'hidden'>
 >
 
 const HANDLE_RADIUS = 5
@@ -196,12 +196,12 @@ export class Annotations {
     this.handle.redraw('overlay')
   }
 
-  /** Whether drawings are shown. */
+  /** Whether drawings are shown globally. Individual drawings may still be hidden. */
   get visible(): boolean {
     return this.shown
   }
 
-  /** Show or hide every drawing (hidden ones can't be selected; arming a tool shows them). */
+  /** Toggle global visibility. Arming a tool restores it. */
   setVisible(on: boolean): void {
     if (on === this.shown) return
     this.shown = on
@@ -218,8 +218,10 @@ export class Annotations {
     return this.selectedId
   }
 
+  /** Select a drawing, or clear the selection with null. Hidden ids are ignored. */
   select(id: string | null): void {
     if (id === this.selectedId) return
+    if (id !== null && this.find(id)?.hidden) return
     this.selectedId = id
     this.handle.redraw()
     this.events.emit('selectionChange', id)
@@ -294,40 +296,32 @@ export class Annotations {
     const kept = this.items.filter(a => a.group !== group)
     const added = createAll(inputs, kept, group)
     if (this.editor && this.editor.ann.group === group) this.closeEditor()
+    if (this.drag?.ann.group === group) this.drag = null
     this.items = [...kept, ...added]
-    if (this.selectedId !== null && !this.find(this.selectedId)) {
-      this.select(null)
-    }
+    this.clearUnavailableSelection()
     this.changed()
     return added.map(a => a.id)
   }
 
   /**
-   * Move, restyle (merged over the current style; an `undefined` field
-   * reverts to its default), relabel, reshape, or lock a drawing. Throws,
-   * changing nothing, if the result is malformed.
+   * Move, restyle, relabel, reshape, lock, or hide a drawing. Style is merged
+   * over the current style; an `undefined` field reverts to its default.
+   * Throws, changing nothing, if the result is malformed.
    */
   update(id: string, patch: AnnotationPatch): void {
-    if (this.editor?.ann.id === id) this.closeEditor()
-    const current = this.find(id)
+    let current = this.find(id)
     if (!current) return
-    // Patches may come straight from JSON, so they can't retarget the drawing.
-    const [next] = createAll(
-      [
-        {
-          ...current,
-          ...patch,
-          id: current.id,
-          type: current.type,
-          group: current.group,
-          style: { ...current.style, ...patch.style },
-        },
-      ],
-      [],
-    )
+    let next = applyPatch(current, patch)
+    if (this.editor?.ann === current) {
+      this.closeEditor()
+      current = this.find(id)
+      if (!current) return
+      next = applyPatch(current, patch)
+    }
     const i = this.items.indexOf(current)
     if (this.drag?.ann === current) this.drag = null
-    this.items[i] = next!
+    this.items[i] = next
+    if (next.hidden && this.selectedId === id) this.select(null)
     this.changed()
   }
 
@@ -354,9 +348,9 @@ export class Annotations {
   }
 
   /**
-   * Copy a drawing (as the user's, unlocked) a little right of and below
-   * the original, on top, and select it. Returns its id, or null for an
-   * unknown id.
+   * Copy a drawing a little right of and below the original and select it.
+   * The copy is on top, unlocked, visible, and owned by the user. Returns
+   * its id, or null for an unknown id.
    */
   clone(id: string): string | null {
     const ann = this.find(id)
@@ -416,9 +410,9 @@ export class Annotations {
   /** Edit a drawing's text (a caption, for types that aren't text) in place. */
   editText(id: string): void {
     const ann = this.find(id)
-    if (!ann || !this.shown) return
+    if (!ann || ann.hidden || !this.shown) return
     this.select(id)
-    this.openEditor(ann, false)
+    if (this.selectedId === id) this.openEditor(ann, false)
   }
 
   /** Detach from the chart and drop all listeners. */
@@ -439,6 +433,12 @@ export class Annotations {
     return this.items.find(a => a.id === id)
   }
 
+  private clearUnavailableSelection(): void {
+    if (this.selectedId === null) return
+    const selected = this.find(this.selectedId)
+    if (!selected || selected.hidden) this.select(null)
+  }
+
   private changed(): void {
     this.past.push(this.snapshot)
     if (this.past.length > HISTORY_LIMIT) this.past.shift()
@@ -452,9 +452,7 @@ export class Annotations {
     this.drag = null
     this.snapshot = state
     this.items = state.map(copy)
-    if (this.selectedId !== null && !this.find(this.selectedId)) {
-      this.select(null)
-    }
+    this.clearUnavailableSelection()
     this.handle.redraw()
     this.events.emit('change', undefined)
   }
@@ -490,8 +488,9 @@ export class Annotations {
     }
   }
 
-  /** Map an annotation's points to CSS px, or null with no data to anchor to. */
+  /** Map a visible annotation's points to CSS px, or null when it can't be drawn. */
   private resolve(ann: Annotation): Resolved | null {
+    if (ann.hidden) return null
     const px: Px[] = []
     for (const p of ann.points) {
       const x = this.chart.timeToCoordinate(p.time)
@@ -573,7 +572,8 @@ export class Annotations {
     if (this.draft) this.paint(ctx, env, this.draft.ann)
     ctx.restore()
     for (const ann of this.items) {
-      if (TOOLS[ann.type].badge) this.paintPriceBadge(ctx, ann, env)
+      if (!ann.hidden && TOOLS[ann.type].badge)
+        this.paintPriceBadge(ctx, ann, env)
     }
   }
 
@@ -696,6 +696,7 @@ export class Annotations {
       return false
     }
     this.select(hit.ann.id)
+    if (this.selectedId !== hit.ann.id) return false
     if (this.isLocked(hit.ann)) return this.claim(e)
     this.drag = hit.handle
       ? { kind: 'handle', ann: hit.ann, handle: hit.handle, moved: false }
@@ -1034,6 +1035,24 @@ export class Annotations {
   }
 }
 
+function applyPatch(ann: Annotation, patch: AnnotationPatch): Annotation {
+  // A patch from JSON can't change the identity, type, or group of a drawing.
+  const [next] = createAll(
+    [
+      {
+        ...ann,
+        ...patch,
+        id: ann.id,
+        type: ann.type,
+        group: ann.group,
+        style: { ...ann.style, ...patch.style },
+      },
+    ],
+    [],
+  )
+  return next!
+}
+
 /**
  * Validate and build drawings, ids unique among themselves and `existing`,
  * tagged with `group` when given. Throws with every problem, prefixed by the
@@ -1078,6 +1097,7 @@ function build(input: AnnotationInput): Annotation {
   if (input.text !== undefined) ann.text = input.text
   if (input.shape !== undefined) ann.shape = input.shape
   if (input.locked) ann.locked = true
+  if (input.hidden) ann.hidden = true
   if (input.group !== undefined) ann.group = input.group
   return ann
 }

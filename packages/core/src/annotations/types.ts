@@ -127,6 +127,8 @@ export interface Annotation {
   shape?: MarkerShape
   /** Locked drawings can be selected but not moved or reshaped by pointer. */
   locked?: boolean
+  /** Hide this drawing from the chart and keep it in saved drawings. Default false. */
+  hidden?: boolean
   /**
    * Who placed the drawing, e.g. `'ai'`, so the host can replace or clear one
    * source's drawings without touching the rest. The user's have none.

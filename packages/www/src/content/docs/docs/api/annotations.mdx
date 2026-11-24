@@ -53,9 +53,9 @@ freehand stroke sampled along a drag. Markers take a `shape` —
 | `setTool(type, preset?)`    | Arm a tool (`null` for the cursor). `preset` seeds its style/shape — `setTool('trendline', { style: { extend: 'end' } })` draws rays. |
 | `tool`                      | The armed tool, or `null`.                                        |
 | `setStickyTool(on)`         | Keep the tool armed after each drawing (default: revert to cursor). |
-| `setVisible(on)` / `visible`| Show or hide every drawing.                                      |
+| `setVisible(on)` / `visible`| Control global drawing visibility. Each drawing keeps its own `hidden` setting. |
 | `setLocked(on)` / `locked`  | Lock all drawings against moving.                                |
-| `select(id)` / `selected`   | Select a drawing (or `null`).                                    |
+| `select(id)` / `selected`   | Select a drawing or pass `null` to clear the selection. Hidden ids are ignored. |
 
 ### Reading & writing
 
@@ -64,10 +64,10 @@ freehand stroke sampled along a drag. Markers take a `shape` —
 | `add(input)`                | `string` (id)  | Add one drawing programmatically. Throws if malformed. |
 | `load(inputs)`              | `void`         | Replace all drawings and reset undo history.      |
 | `replace(group, inputs)`    | `string[]`     | Swap one group's drawings, leaving the rest. Validates all first. |
-| `update(id, patch)`         | `void`         | Move/restyle/relabel/reshape/lock. Throws, changing nothing, if malformed. |
+| `update(id, patch)`         | `void`         | Edit a drawing. Set `patch.hidden` to `true` to hide it or `false` to show it. Throws, changing nothing, if malformed. |
 | `remove(id)`                | `void`         | Remove one drawing.                               |
 | `clear(group?)`             | `void`         | Remove all drawings, or just one group's.         |
-| `clone(id)`                 | `string \| null` | Duplicate a drawing, offset and selected.       |
+| `clone(id)`                 | `string \| null` | Duplicate a drawing, offset, visible, and selected. |
 | `list(group?)` / `toJSON()` | `Annotation[]` | JSON-safe copies, oldest first. `toJSON()` is every drawing. |
 | `get(id)`                   | `Annotation \| null` | One drawing.                                |
 | `effectiveStyle(id)`        | `AnnotationStyle \| null` | Its style with theme defaults filled in — for a style editor. |
@@ -87,7 +87,7 @@ const off = drawings.on('change', () => persist())
 
 | Event              | Payload            | Fires when                                                   |
 | ------------------ | ------------------ | ------------------------------------------------------------ |
-| `change`           | —                  | A drawing was added, removed, moved, restyled, edited, or an undo/redo ran — the moment to persist. Once per drag; **not** on `load`. |
+| `change`           | —                  | The drawings changed, including visibility edits and undo/redo. Persist here. Fires once per drag and skips `load`. |
 | `toolChange`       | `AnnotationType \| null` | The armed tool changed.                                |
 | `selectionChange`  | `string \| null`   | The selected drawing's id.                                   |
 
@@ -95,8 +95,8 @@ Call `drawings.dispose()` to detach from the chart and drop listeners.
 
 ## The `Annotation` shape
 
-What `toJSON()` emits and `add()` / `load()` accept (on input, `id` and `style`
-are optional):
+`toJSON()` returns an array of `Annotation` objects. `add()`, `load()`, and
+`replace()` accept `AnnotationInput`, which makes `id` and `style` optional.
 
 ```ts
 interface Annotation {
@@ -107,6 +107,7 @@ interface Annotation {
   text?: string // a text/callout's label; on other types, a caption
   shape?: MarkerShape // a marker's shape; default 'circle'
   locked?: boolean // selectable but not movable by pointer
+  hidden?: boolean // true hides this drawing. Defaults to false.
   group?: string // who placed it, e.g. 'ai'; the user's have none
 }
 ```
@@ -115,8 +116,13 @@ interface Annotation {
 `lineWidth`, `lineStyle` (`'solid' | 'dashed' | 'dotted'`), `fillColor`,
 `fontSize`, `fontFamily`, `bold`, `italic`, `textColor`, plus `extend` and
 `arrow` (`'none' | 'start' | 'end' | 'both'`) for lines. `update()` takes an
-`AnnotationPatch` — a partial of `points`, `style`, `text`, `shape`, `locked`;
-a `style` field set to `undefined` reverts to its default.
+`AnnotationPatch` with optional `points`, `style`, `text`, `shape`, `locked`, and
+`hidden` fields. Set a `style` field to `undefined` to restore its default.
+
+Hide or show an individual drawing with `drawings.update(id, { hidden: true })`
+or `drawings.update(id, { hidden: false })`. Hiding a selected drawing clears
+the selection. Hidden drawings stay in `list()` and `toJSON()`, and visibility
+changes can be undone and redone.
 
 Fibonacci levels are exported as constants if you need them: `FIB_LEVELS` and
 `FIB_EXTENSION_LEVELS`.

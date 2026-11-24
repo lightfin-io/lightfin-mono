@@ -61,6 +61,11 @@ function setup(bars: Bar[] = []) {
       p().pointerMove!(pointer(x, y), dragging),
     up: (x: number, y: number) => p().pointerUp!(pointer(x, y)),
     cursor: (x: number, y: number) => p().cursor!(pointer(x, y)),
+    draw: (ctx: CanvasRenderingContext2D) => {
+      const view = { pane: chart.paneLayout().main, dpr: 1 }
+      p().draw!(ctx, view)
+      p().drawOverlay!(ctx, view)
+    },
     detached: () => primitive === null,
   }
 }
@@ -553,6 +558,105 @@ describe('Annotations: editing', () => {
     expect(t.down(150, 450)).toBe(false)
     t.drawings.setTool('hline')
     expect(t.drawings.visible).toBe(true)
+  })
+
+  it('hides only the chosen drawing, including its price badge and hit area', () => {
+    const t = setup()
+    const { drawings } = t
+    const id = drawings.add({
+      type: 'hline',
+      points: [{ time: 600, price: 50 }],
+    })
+    const other = drawings.add({
+      type: 'hline',
+      points: [{ time: 600, price: 60 }],
+    })
+    drawings.select(id)
+    t.changes.mockClear()
+    drawings.update(id, { hidden: true })
+    expect(drawings.selected).toBeNull()
+    expect(t.changes).toHaveBeenCalledTimes(1)
+    drawings.select(id)
+    drawings.editText(id)
+    expect(drawings.selected).toBeNull()
+    expect(t.element.querySelector('textarea')).toBeNull()
+
+    drawings.setVisible(false)
+    drawings.setVisible(true)
+    const canvas = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      rect: vi.fn(),
+      clip: vi.fn(),
+      setLineDash: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      fillRect: vi.fn(),
+      fillText: vi.fn(),
+    }
+    t.draw(canvas as unknown as CanvasRenderingContext2D)
+    expect(canvas.stroke).toHaveBeenCalledTimes(1)
+    expect(canvas.fillText).toHaveBeenCalledExactlyOnceWith('60.00', 2006, 400)
+    expect(t.cursor(150, 500)).toBeNull()
+    expect(t.down(150, 500)).toBe(false)
+    expect(t.down(150, 400)).toBe(true)
+    expect(drawings.selected).toBe(other)
+  })
+
+  it('restores individual visibility from JSON and through undo and redo', () => {
+    const t = setup()
+    const { drawings } = t
+    const id = drawings.add({ ...trendline([600, 50, 1200, 60]), hidden: true })
+    drawings.load(JSON.parse(JSON.stringify(drawings.toJSON())))
+    expect(drawings.get(id)?.hidden).toBe(true)
+
+    drawings.update(id, { hidden: false })
+    expect(drawings.get(id)?.hidden).toBeUndefined()
+    expect(t.down(150, 450)).toBe(true)
+    expect(drawings.selected).toBe(id)
+    expect(drawings.undo()).toBe(true)
+    expect(drawings.selected).toBeNull()
+    expect(drawings.get(id)?.hidden).toBe(true)
+    expect(drawings.redo()).toBe(true)
+    expect(t.cursor(150, 450)).toBe('pointer')
+  })
+
+  it('clears the selection when a group replaces it with a hidden drawing', () => {
+    const t = setup()
+    const { drawings } = t
+    const line = { ...trendline([600, 50, 1200, 60]), id: 'line' }
+    drawings.replace('ai', [line])
+    t.down(150, 450)
+    t.move(160, 440)
+    t.changes.mockClear()
+    drawings.replace('ai', [{ ...line, hidden: true }])
+    expect(drawings.selected).toBeNull()
+    t.up(160, 440)
+    expect(t.changes).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects an invalid visibility patch while a caption edit is open', () => {
+    const t = setup()
+    const id = t.drawings.add(trendline([600, 50, 1200, 60]))
+    t.drawings.editText(id)
+    const input = t.element.querySelector('textarea')!
+    input.value = 'In progress'
+    t.changes.mockClear()
+
+    expect(() => t.drawings.update(id, JSON.parse('{"hidden":"yes"}'))).toThrow(
+      'hidden must be a boolean',
+    )
+    expect(t.changes).not.toHaveBeenCalled()
+    expect(t.element.querySelector('textarea')).toBe(input)
+
+    t.drawings.update(id, { hidden: true })
+    expect(t.element.querySelector('textarea')).toBeNull()
+    expect(t.drawings.get(id)).toMatchObject({
+      hidden: true,
+      text: 'In progress',
+    })
   })
 
   it('reverts a style field to its default when patched with undefined', () => {

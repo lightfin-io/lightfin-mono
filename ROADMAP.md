@@ -13,7 +13,6 @@ Drawings already serialize to JSON (`toJSON` / `load`). Persisting them is the h
 Also unbuilt:
 
 - A per-drawing settings dialog for exact coordinates and per-level Fibonacci toggles. The floating style toolbar covers color, line, and text.
-- Per-drawing visibility. `setVisible()` hides every drawing at once.
 - Gann, Elliott, and pattern tools.
 
 ## Indicators
