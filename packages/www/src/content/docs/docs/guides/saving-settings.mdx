@@ -92,6 +92,7 @@ function mountChart(container: HTMLElement, bars: readonly Bar[]) {
 
   const chrome = createChrome(chart, {
     annotations: drawings,
+    onResetChartOptions: resetPreferences,
     drawingPersistence: {
       save() {
         localStorage.setItem(backupKey, JSON.stringify(drawings.toJSON()))
@@ -128,8 +129,9 @@ explicitly for the next page load.
 
 ## Apply or reset preferences
 
-With your chart container and bars, mount the chart and wire these functions to
-your settings UI.
+Mount the chart with your container and bars. Chrome's **Reset settings**
+dialog calls `resetPreferences` through `onResetChartOptions`. Wire
+`applyPreferences` to your settings UI.
 
 ```ts
 let view = mountChart(container, bars)
@@ -159,10 +161,10 @@ made using chrome's **Magnet** button.
 
 ## Reset drawing tools or clear drawings
 
-Chrome remembers the styles you pick for new drawings for the lifetime of
-the toolbar. Recreating chrome resets those styles. If you keep the same
-annotations instance, call `drawings.setTool(null)` before recreating chrome
-to return to the cursor and drop the active tool's preset.
+Choose **Reset drawing-tool defaults** in Chrome's **Reset settings** dialog,
+or call `chrome.resetDrawingToolDefaults()`. This clears the remembered styles
+for new drawings and returns to the cursor. Existing drawings and their undo
+history are preserved.
 
 To reset a color on an existing drawing, use
 `drawings.update(id, { style: { color: undefined } })`. The drawing inherits

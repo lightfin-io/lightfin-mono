@@ -41,6 +41,8 @@ chart.setInstrument(
       },
 )
 const candles = chart.addCandlestickSeries()
+const defaultCrosshairMode = chart.crosshairMode()
+const defaultChartType = candles.chartType
 
 // The chart has no notion of interval: the chrome's selector asks us to load
 // the matching bars, by attaching a data source at that bar period. The chart
@@ -85,6 +87,10 @@ const chrome = createChrome(chart, {
   interval: '1m',
   onIntervalChange: loadInterval,
   annotations: drawings,
+  onResetChartOptions: () => {
+    chart.setCrosshairMode(defaultCrosshairMode)
+    candles.setChartType(defaultChartType)
+  },
   drawingPersistence: {
     save: () => {
       localStorage.setItem(

@@ -3,7 +3,7 @@ import type { ChartType } from '../series/series'
 import { ICONS, button, el, menuItem } from './dom'
 import type { DateRangePreset } from './format'
 import { dateRangeStart } from './format'
-import { openGoToModal } from './modals'
+import { createResetSettingsButton, openGoToModal } from './modals'
 import { popover } from './popover'
 
 /** Anything `chart.addIndicator` accepts: a module, definition, or a promise of one. */
@@ -33,6 +33,8 @@ export interface TopToolbarContext {
   selectInterval(interval: string): void
   chartTypes: readonly ChartType[]
   catalog: readonly IndicatorCatalogEntry[]
+  resetChartOptions?: () => void | Promise<void>
+  resetDrawingToolDefaults?: () => void
 }
 
 export interface Toolbar {
@@ -85,6 +87,20 @@ export function createTopToolbar(
   )
   if (ctx.catalog.length > 0) groups.push([indicatorsButton])
 
+  const resets = createResetSettingsButton(ctx.host, [
+    ctx.resetChartOptions && {
+      label: 'Reset chart options',
+      run: ctx.resetChartOptions,
+      success: 'Chart options reset.',
+    },
+    ctx.resetDrawingToolDefaults && {
+      label: 'Reset drawing-tool defaults',
+      run: ctx.resetDrawingToolDefaults,
+      success: 'Drawing-tool defaults reset.',
+    },
+  ])
+  if (resets) groups.push([resets.el])
+
   groups.forEach((group, i) => {
     if (i > 0) bar.append(el('div', 'lf-sep'))
     bar.append(...group)
@@ -113,6 +129,7 @@ export function createTopToolbar(
     sync,
     dispose: () => {
       menu.close()
+      resets?.dispose()
       for (const off of offs) off()
       bar.remove()
     },

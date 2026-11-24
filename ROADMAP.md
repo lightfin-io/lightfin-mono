@@ -2,10 +2,6 @@
 
 Pre-1.0. Rendering, live data, the indicator framework, chrome, drawing tools, price lines, event tags, the React binding, and the docs site are in the repo. This file is the work that is not.
 
-## Chart settings
-
-- Reset chart options and drawing-tool defaults.
-
 ## Annotations
 
 - Gann, Elliott, and pattern tools.

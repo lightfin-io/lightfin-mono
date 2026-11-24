@@ -166,6 +166,7 @@ const CSS = `
 .lf-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .lf-actions .lf-btn { border: 1px solid var(--lf-axisBorderColor); padding: 5px 14px; }
 .lf-actions .lf-btn-primary { background: var(--lf-lineColor); border-color: var(--lf-lineColor); color: #fff; }
+.lf-reset-actions { display: grid; grid-template-columns: 1fr; margin-bottom: 8px; }
 `
 
 let refCount = 0

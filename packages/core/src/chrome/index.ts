@@ -210,11 +210,15 @@ export interface ChromeOptions {
   annotations?: Annotations
   /** Host callbacks for the drawing toolbar's backup dialog. Requires annotations. */
   drawingPersistence?: DrawingPersistence
+  /** Restore the host's chart options from the top toolbar's reset dialog. Throw or reject to report a failure. */
+  onResetChartOptions?: () => void | Promise<void>
 }
 
 export interface Chrome {
   /** Set the active interval (e.g. after the host switched it programmatically). */
   setInterval(interval: string | null): void
+  /** Forget styles remembered for new drawings and return to the cursor. */
+  resetDrawingToolDefaults(): void
   /** Remove every widget and restore the container. */
   dispose(): void
 }
@@ -260,6 +264,24 @@ export function createChrome(
           showClock: !showBottom,
         })
 
+  // The left toolbar and the selected drawing's style toolbar share defaults.
+  const drawings = options.annotations
+  const toolStyles: ToolStyles = new Map()
+  const left = drawings
+    ? createLeftToolbar(
+        chart,
+        drawings,
+        host,
+        toolStyles,
+        options.drawingPersistence,
+      )
+    : null
+  function resetDrawingToolDefaults(): void {
+    toolStyles.clear()
+    drawings?.setTool(null)
+  }
+
+  const resetChartOptions = options.onResetChartOptions
   const top =
     options.topToolbar === false
       ? null
@@ -279,21 +301,20 @@ export function createChrome(
             'area',
           ],
           catalog,
+          resetChartOptions:
+            resetChartOptions &&
+            (async () => {
+              try {
+                await resetChartOptions()
+              } finally {
+                if (left?.el.isConnected) left.sync()
+              }
+            }),
+          resetDrawingToolDefaults: drawings && resetDrawingToolDefaults,
         })
 
   // The left toolbar sits beside the chart, so the two share a row; the
   // selected drawing's style toolbar floats over the plot.
-  const drawings = options.annotations
-  const toolStyles: ToolStyles = new Map()
-  const left = drawings
-    ? createLeftToolbar(
-        chart,
-        drawings,
-        host,
-        toolStyles,
-        options.drawingPersistence,
-      )
-    : null
   const styleBar = drawings
     ? createDrawingToolbar(chart, drawings, host, toolStyles)
     : null
@@ -337,6 +358,7 @@ export function createChrome(
 
   return {
     setInterval: applyInterval,
+    resetDrawingToolDefaults,
     dispose: () => {
       clearTimeout(clockTimer)
       offInstrument()

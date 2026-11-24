@@ -95,6 +95,74 @@ test("the floating toolbar restyles a text label's font, size, and color", async
   ).toMatchObject({ fontSize: 24, bold: true, color: '#ff9800' })
 })
 
+test('chart options and drawing-tool defaults reset independently', async ({
+  page,
+}) => {
+  await openDemo(page)
+  await page.evaluate(() => {
+    const { from, to } = window.chart.visibleTimeRange()!
+    const id = window.drawings.add({
+      type: 'trendline',
+      points: [
+        { time: from, price: 100 },
+        { time: to, price: 101 },
+      ],
+    })
+    window.drawings.select(id)
+  })
+  await page.getByRole('button', { name: 'Line width' }).click()
+  await page.getByRole('menuitemradio', { name: '4px' }).click()
+  const drawings = await page.evaluate(() => window.drawings.toJSON())
+
+  const magnet = page.getByRole('button', { name: 'Magnet' })
+  const line = page.getByRole('button', { name: 'Line', exact: true })
+  const trigger = page.getByRole('button', { name: 'Reset settings' })
+  const dialog = page.getByRole('dialog', { name: 'Reset settings' })
+  const preset = () => page.evaluate(() => window.drawings.toolPreset?.style)
+  await magnet.click()
+  await line.click()
+  await page.getByRole('button', { name: 'More lines' }).click()
+  await page.getByRole('menuitem', { name: 'Ray', exact: true }).click()
+  expect(await preset()).toEqual({ extend: 'end', lineWidth: 4 })
+
+  await trigger.click()
+  await dialog.getByRole('button', { name: 'Reset chart options' }).click()
+  await expect(dialog.getByRole('status')).toHaveText('Chart options reset.')
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  await expect(magnet).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByRole('button', { name: 'Candles' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(await preset()).toEqual({ extend: 'end', lineWidth: 4 })
+
+  await magnet.click()
+  await line.click()
+  await trigger.click()
+  await dialog
+    .getByRole('button', { name: 'Reset drawing-tool defaults' })
+    .click()
+  await expect(dialog.getByRole('status')).toHaveText(
+    'Drawing-tool defaults reset.',
+  )
+  await page.keyboard.press('Escape')
+  await expect(trigger).toBeFocused()
+  await expect(magnet).toHaveAttribute('aria-pressed', 'true')
+  await expect(line).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'Cursor' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(await preset()).toBeUndefined()
+  expect(await page.evaluate(() => window.drawings.toJSON())).toEqual(drawings)
+  await expect(
+    page.getByRole('button', { name: 'Undo', exact: true }),
+  ).toBeEnabled()
+
+  await page.getByRole('button', { name: 'Ray', exact: true }).click()
+  expect(await preset()).toEqual({ extend: 'end' })
+})
+
 test('clone, undo, and redo from the toolbar and keyboard', async ({
   page,
 }) => {

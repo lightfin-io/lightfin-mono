@@ -41,6 +41,7 @@ chart theme.
 | `ranges`           | `readonly DateRangePreset[]`  | `DATE_RANGE_PRESETS`  | Quick ranges in the bottom toolbar.              |
 | `annotations`      | `Annotations`                 | —                     | Shows the drawing-tools + style toolbars.        |
 | `drawingPersistence` | `DrawingPersistence`        | —                     | Enables drawing backups when `annotations` is supplied. |
+| `onResetChartOptions` | `() => void \| Promise<void>` | —                  | Enables chart option reset in the top toolbar.   |
 
 The chart has no notion of interval — picking one just calls `onIntervalChange`
 and your host loads the matching bars (see [Live data](/docs/guides/live-data)).
@@ -49,8 +50,22 @@ and your host loads the matching bars (see [Live data](/docs/guides/live-data)).
 
 ```ts
 chrome.setInterval('5m') // reflect an interval you switched programmatically
+chrome.resetDrawingToolDefaults() // forget remembered styles and return to the cursor
 chrome.dispose() // remove every widget and restore the container
 ```
+
+## Reset settings
+
+The top toolbar shows **Reset settings** when you supply `onResetChartOptions`
+or an `annotations` instance. **Reset chart options** calls the host callback,
+which can clear saved preferences and recreate the chart with the host's
+defaults. Throw or reject with an `Error` to show its message in the dialog.
+See [Saving and resetting settings](/docs/guides/saving-settings) for an example.
+
+**Reset drawing-tool defaults** clears the styles Chrome remembers for new
+drawings and switches to the cursor, canceling any drawing in progress.
+Existing drawings and their undo history are preserved. Call
+`chrome.resetDrawingToolDefaults()` to perform the same reset from your own UI.
 
 ## Indicators menu
 
