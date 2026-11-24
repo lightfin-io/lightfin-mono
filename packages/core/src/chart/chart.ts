@@ -391,7 +391,7 @@ export class Chart {
   }
 
   /**
-   * The resolved date/time formatters — defaults merged with any
+   * The resolved date/time formatters — locale defaults merged with any
    * `dateFormatters` override. Used by the chrome to format the exchange clock.
    */
   get dateFormatters(): DateFormatters {

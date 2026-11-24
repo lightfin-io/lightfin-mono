@@ -18,4 +18,31 @@ describe('resolveOptions', () => {
     expect(resolved.theme.upColor).toBe('#fff')
     expect(resolved.theme.downColor).toBe(DEFAULT_THEME.downColor)
   })
+
+  it('uses Gregorian dates and lets a custom formatter override the locale', () => {
+    const date = new Date(Date.UTC(2024, 0, 5, 14, 30))
+    const { dateFormatters } = resolveOptions({
+      locale: 'th-TH',
+      dateFormatters: { month: d => `month ${d.getUTCMonth() + 1}` },
+    })
+    const intl = (options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat('th-TH', {
+        ...options,
+        calendar: 'gregory',
+        timeZone: 'UTC',
+      }).format(date)
+
+    expect(dateFormatters.month(date)).toBe('month 1')
+    expect(dateFormatters.date(date)).toBe(
+      intl({ month: 'short', day: 'numeric', year: 'numeric' }),
+    )
+    expect(dateFormatters.dateTime(date)).toBe(
+      intl({
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      }),
+    )
+  })
 })

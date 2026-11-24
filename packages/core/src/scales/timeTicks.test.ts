@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { resolveOptions } from '../chart/options'
 import { timeAxisLabels } from './timeTicks'
 
 const HOUR = 3600
@@ -98,5 +99,38 @@ describe('timeAxisLabels', () => {
     const utc = timeAxisLabels(bars(10, 86400), 90, 90)
     const ny = timeAxisLabels(bars(10, 86400), 90, 90, 'America/New_York')
     expect(ny).toEqual(utc)
+  })
+
+  it('formats intraday labels in the locale and the instrument timezone', () => {
+    const { dateFormatters } = resolveOptions({ locale: 'en-US' })
+    const labels = timeAxisLabels(
+      bars(6, HOUR),
+      90,
+      90,
+      'America/New_York',
+      dateFormatters,
+    )
+
+    expect(labels.map(l => l.text)).toEqual([
+      'Dec 31',
+      '8:00 PM',
+      '9:00 PM',
+      '10:00 PM',
+      '11:00 PM',
+      'Jan 1',
+    ])
+  })
+
+  it('localizes standalone days and years on the daily axis', () => {
+    const { dateFormatters } = resolveOptions({ locale: 'ar-EG-u-nu-arab' })
+    const labels = timeAxisLabels(
+      bars(2, 86400),
+      90,
+      90,
+      'America/New_York',
+      dateFormatters,
+    )
+
+    expect(labels.map(l => l.text)).toEqual(['٢٠٢٤', '٢'])
   })
 })

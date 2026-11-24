@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { resolveOptions } from '../chart/options'
 import {
   dateRangeStart,
   formatChange,
@@ -38,6 +39,14 @@ describe('formatClock', () => {
     expect(formatClock(d)).toBe('14:30:00 UTC')
     expect(formatClock(d, 'America/New_York')).toBe('09:30:00 UTC-5')
     expect(formatClock(d, 'Asia/Kolkata')).toBe('20:00:00 UTC+5:30')
+  })
+
+  it('uses the chart locale for the wall-clock time', () => {
+    const d = new Date(Date.UTC(2024, 0, 2, 19, 30, 5))
+    const { dateFormatters } = resolveOptions({ locale: 'en-US' })
+    expect(
+      formatClock(d, 'America/New_York', dateFormatters.timeWithSeconds),
+    ).toBe('2:30:05 PM UTC-5')
   })
 })
 

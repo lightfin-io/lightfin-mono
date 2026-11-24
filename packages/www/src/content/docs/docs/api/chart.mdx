@@ -31,7 +31,8 @@ change options, re-create the chart.
 | `priceAxisWidth` / `timeAxisHeight` | `number`     | px reserved for the axis strips.                   |
 | `priceDecimals`     | `number`                     | Min decimals on price/crosshair labels (default 2). |
 | `priceFormatter`    | `(price, decimals) => string`| Override price formatting (locale separators, …).  |
-| `dateFormatters`    | `Partial<DateFormatters>`    | Localize axis/crosshair/clock text — see [Localization](#localization). |
+| `locale`            | `string`                     | BCP 47 locale for dates and times. See [Localization](#localization). |
+| `dateFormatters`    | `Partial<DateFormatters>`    | Override individual date and time formats.         |
 
 ## Methods
 
@@ -120,22 +121,31 @@ Call `chart.remove()` to destroy the instance and release its listeners.
 
 ## Localization
 
-`dateFormatters` localizes every piece of date/time text — axis tick labels, the
-crosshair's time box, and the exchange clock. Override any subset of
-`DEFAULT_DATE_FORMATTERS` (English month names, 24-hour clock):
+Set `locale` to format the time axis, crosshair time box, and exchange clock
+with `Intl.DateTimeFormat`. Omit it for English month names and a 24-hour clock.
 
 ```ts
-const fmt = (opts: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('de-DE', { ...opts, timeZone: 'UTC' })
+createChart(container, { locale: 'de-DE' })
+```
 
+React accepts the same setting through its `options` prop. Dates use the
+Gregorian calendar. Intraday labels and the clock use the instrument's
+timezone, which defaults to UTC. Daily and coarser bars use their UTC calendar
+date. Price labels use `priceFormatter` and `priceDecimals`.
+
+Use `dateFormatters` to override individual formats for the selected locale.
+
+```ts
 createChart(container, {
+  locale: 'de-DE',
   dateFormatters: {
-    month: d => fmt({ month: 'short' }).format(d),
-    monthDay: d => fmt({ month: 'short', day: 'numeric' }).format(d),
+    month: new Intl.DateTimeFormat('de-DE', {
+      month: 'long',
+      timeZone: 'UTC',
+    }).format,
   },
 })
 ```
 
-Each callback receives a **wall-clock-as-UTC** `Date` — read its `getUTC*`
-fields (or format with `timeZone: 'UTC'`), never the local-time getters. Price
-text localizes separately via `priceFormatter` / `priceDecimals`.
+Each callback receives a **wall-clock-as-UTC** `Date`. Read its `getUTC*`
+fields or format it with `timeZone: 'UTC'`.

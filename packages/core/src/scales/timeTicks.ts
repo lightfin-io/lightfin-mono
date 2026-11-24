@@ -164,12 +164,12 @@ function formatTick(
     case 'hour':
       return newDay ? fmt.monthDay(d) : fmt.time(d)
     case 'day':
-      if (newYear) return String(year)
+      if (newYear) return fmt.year?.(d) ?? String(year)
       if (newMonth) return fmt.month(d)
-      return String(d.getUTCDate())
+      return fmt.day?.(d) ?? String(d.getUTCDate())
     case 'month':
-      return newYear ? String(year) : fmt.month(d)
+      return newYear ? (fmt.year?.(d) ?? String(year)) : fmt.month(d)
     case 'year':
-      return String(year)
+      return fmt.year?.(d) ?? String(year)
   }
 }

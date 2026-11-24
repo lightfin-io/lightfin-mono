@@ -4,7 +4,6 @@ Pre-1.0. Rendering, live data, the indicator framework, chrome, drawing tools, p
 
 ## Chart settings
 
-- A chart settings modal for theme and chart options. Options apply at `createChart()` time today; indicator settings already have their own dialog.
 - Reset chart options and drawing-tool defaults.
 
 ## Annotations
@@ -20,9 +19,3 @@ Also unbuilt:
 ## Indicators
 
 Sixteen built-ins ship (SMA, EMA, WMA, Bollinger, Keltner, VWAP, RSI, MACD, Stochastic, Williams %R, CCI, ROC, ADX, ATR, OBV, Volume MA). No specific next one is chosen. A new indicator is a module under `packages/core/src/indicators/` on the existing contract, plus a size-limit entry.
-
-## Date locale
-
-Axis and crosshair month names are English, and the exchange clock is 24-hour `en-GB`. Prices already go through `priceFormatter`. A `locale` option would format dates with `Intl.DateTimeFormat` too.
-
-`DateFormatters` is the override point today. Each callback receives a wall-clock-as-UTC `Date`: read it with the `getUTC*` accessors, and pass `timeZone: 'UTC'` when delegating to `Intl`.

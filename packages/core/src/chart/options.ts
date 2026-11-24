@@ -58,8 +58,8 @@ export type CrosshairMode = 'normal' | 'magnet'
 
 /**
  * Formats the date/time pieces the chart renders — axis tick labels, the
- * crosshair's time box, and the exchange clock. The defaults produce English
- * month names and a 24-hour clock; override any subset to localize.
+ * crosshair's time box, and the exchange clock. These functions can override
+ * the chart's locale or the English, 24-hour defaults.
  *
  * IMPORTANT: every callback receives a **wall-clock-as-UTC** `Date` — the
  * instrument's local time already shifted into the Date's UTC fields. Read it
@@ -70,7 +70,7 @@ export type CrosshairMode = 'normal' | 'magnet'
  * `{ month: new Intl.DateTimeFormat('de-DE', { month: 'short', timeZone: 'UTC' }).format }`.
  */
 export interface DateFormatters {
-  /** Time of day, e.g. "14:30" — intraday axis labels and the crosshair. */
+  /** Time of day, e.g. "14:30" — intraday axis labels. */
   time(date: Date): string
   /** Time of day with seconds, e.g. "14:30:05" — second-granularity axis labels and the clock. */
   timeWithSeconds(date: Date): string
@@ -82,6 +82,10 @@ export interface DateFormatters {
   date(date: Date): string
   /** Full date and time, e.g. "Jan 5 14:30" — the crosshair box on intraday bars. */
   dateTime(date: Date): string
+  /** Day of the month, e.g. "5" — day-granularity axis labels. */
+  day?(date: Date): string
+  /** Calendar year, e.g. "2024" — year boundaries and year-granularity axis labels. */
+  year?(date: Date): string
 }
 
 const MONTHS = [
@@ -108,9 +112,32 @@ export const DEFAULT_DATE_FORMATTERS: DateFormatters = {
     `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`,
   month: d => MONTHS[d.getUTCMonth()]!,
   monthDay: d => `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`,
-  date: d => `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} ${d.getUTCFullYear()}`,
+  date: d =>
+    `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} ${d.getUTCFullYear()}`,
   dateTime: d =>
     `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`,
+}
+
+function localeDateFormatters(locale: string): DateFormatters {
+  const format = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat(locale, {
+      ...options,
+      calendar: 'gregory',
+      timeZone: 'UTC',
+    }).format
+
+  const time = { hour: 'numeric', minute: '2-digit' } as const
+  const monthDay = { month: 'short', day: 'numeric' } as const
+  return {
+    time: format(time),
+    timeWithSeconds: format({ ...time, second: '2-digit' }),
+    month: format({ month: 'short' }),
+    monthDay: format(monthDay),
+    date: format({ ...monthDay, year: 'numeric' }),
+    dateTime: format({ ...monthDay, ...time }),
+    day: format({ day: 'numeric' }),
+    year: format({ year: 'numeric' }),
+  }
 }
 
 export interface ChartOptions {
@@ -151,9 +178,14 @@ export interface ChartOptions {
    */
   priceFormatter?: (price: number, decimals: number) => string
   /**
-   * Localizes the date/time text on axis labels, the crosshair, and the clock.
-   * Any subset overrides the English/24-hour {@link DEFAULT_DATE_FORMATTERS};
-   * see {@link DateFormatters} for the wall-clock-as-UTC contract.
+   * BCP 47 locale for Gregorian dates and times on the axis, crosshair, and
+   * exchange clock. Omit for English month names and a 24-hour clock.
+   */
+  locale?: string
+  /**
+   * Overrides individual date/time formatters for the chosen locale or the
+   * English/24-hour defaults. See {@link DateFormatters} for the
+   * wall-clock-as-UTC contract.
    */
   dateFormatters: DateFormatters
 }
@@ -211,10 +243,14 @@ export const DEFAULT_OPTIONS: ChartOptions = {
 }
 
 export function resolveOptions(partial: ChartOptionsInput): ChartOptions {
+  const dateFormatters =
+    partial.locale === undefined
+      ? DEFAULT_DATE_FORMATTERS
+      : localeDateFormatters(partial.locale)
   return {
     ...DEFAULT_OPTIONS,
     ...partial,
     theme: { ...DEFAULT_THEME, ...partial.theme },
-    dateFormatters: { ...DEFAULT_DATE_FORMATTERS, ...partial.dateFormatters },
+    dateFormatters: { ...dateFormatters, ...partial.dateFormatters },
   }
 }
