@@ -101,7 +101,28 @@ chart.addCandlestickSeries().setData(bars)`
       <nav class="nav__links">
         <a href="/docs/getting-started">Docs</a>
         <a href="/docs/api/chart">Reference</a>
-        <a href="https://github.com/lightfin-io/lightfin-mono">GitHub</a>
+        <a
+          class="nav__github"
+          href="https://github.com/lightfin-io/lightfin-mono"
+          target="_blank"
+          rel="noopener"
+          aria-label="GitHub (opens in a new tab)"
+        >
+          GitHub
+          <svg
+            aria-hidden="true"
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M9 3h4v4m0-4L7 9M7 4H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V9" />
+          </svg>
+        </a>
       </nav>
     </header>
 
@@ -298,6 +319,11 @@ chart.addCandlestickSeries().setData(bars)`
       }
       .nav__links a:hover {
         color: var(--fg);
+      }
+      .nav__github {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
       }
 
       main {
@@ -636,7 +662,7 @@ chart.addCandlestickSeries().setData(bars)`
         .perf__grid {
           grid-template-columns: 1fr;
         }
-        .nav__links a[href='https://github.com/lightfin-io/lightfin-mono'] {
+        .nav__github {
           display: none;
         }
       }
