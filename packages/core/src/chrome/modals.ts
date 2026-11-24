@@ -182,7 +182,7 @@ export function createResetSettingsButton(
 
   let close: (() => void) | undefined
   let busy = false
-  const trigger = button({ icon: 'settings', title: 'Reset settings' }, () => {
+  const trigger = button({ icon: 'resetSettings', title: 'Reset settings' }, () => {
     if (close || busy) return
     close = openModal(
       host,
