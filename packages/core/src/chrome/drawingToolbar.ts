@@ -11,6 +11,7 @@ import { colorPicker } from './colorPicker'
 import type { IconName } from './dom'
 import { ICONS, button, el, menuItem } from './dom'
 import type { ToolStyles } from './drawingTools'
+import { openDrawingSettingsModal } from './modals'
 import type { Popover } from './popover'
 import { popover } from './popover'
 
@@ -138,6 +139,7 @@ export function createDrawingToolbar(
   let layout = ''
   let syncers: (() => void)[] = []
   let popovers: Popover[] = []
+  let closeSettings: (() => void) | undefined
   // Where the user dragged it, relative to the chart element.
   let placed: { x: number; y: number } | null = null
 
@@ -421,6 +423,17 @@ export function createDrawingToolbar(
     if (c.ends) bar.append(endsButton(c.ends))
 
     bar.append(el('div', 'lf-sep'))
+    const settings = button(
+      { icon: 'settings', title: 'Drawing settings' },
+      () => {
+        const sel = id()
+        if (!sel || closeSettings) return
+        closeSettings = openDrawingSettingsModal(host, annotations, sel, () => {
+          closeSettings = undefined
+        })
+      },
+    )
+    settings.setAttribute('aria-haspopup', 'dialog')
     const lock = button({ icon: 'unlock', title: 'Lock' }, () =>
       apply({ locked: !current()?.locked }),
     )
@@ -462,7 +475,7 @@ export function createDrawingToolbar(
       annotations.remove(sel)
       chart.element.focus({ preventScroll: true })
     })
-    bar.append(lock, more, remove)
+    bar.append(settings, lock, more, remove)
   }
 
   function position(): void {
@@ -524,7 +537,10 @@ export function createDrawingToolbar(
   }
 
   const offs = [
-    annotations.on('selectionChange', sync),
+    annotations.on('selectionChange', () => {
+      closeSettings?.()
+      sync()
+    }),
     annotations.on('change', sync),
     chart.on('layoutChange', position),
   ]
@@ -533,6 +549,7 @@ export function createDrawingToolbar(
   return {
     dispose: () => {
       for (const off of offs) off()
+      closeSettings?.()
       for (const p of popovers) p.close()
       bar.remove()
     },

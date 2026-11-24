@@ -159,6 +159,9 @@ const CSS = `
 .lf-input[type='color'] { width: 48px; height: 26px; padding: 1px 2px; }
 .lf-input[type='checkbox'] { width: auto; }
 .lf-input:focus { outline: 1px solid var(--lf-lineColor); outline-offset: -1px; }
+.lf-fib-levels { margin: 12px 0 8px; border: 1px solid var(--lf-axisBorderColor); border-radius: 4px; }
+.lf-fib-levels div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 8px; }
+.lf-fib-levels label { display: flex; align-items: center; gap: 4px; }
 .lf-error { min-height: 18px; color: var(--lf-downColor); font-size: 12px; }
 .lf-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .lf-actions .lf-btn { border: 1px solid var(--lf-axisBorderColor); padding: 5px 14px; }

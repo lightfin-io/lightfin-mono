@@ -7,6 +7,12 @@ export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const
 export const FIB_EXTENSION_LEVELS = [
   0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2, 2.618,
 ] as const
+
+export function fibLevels(type: unknown): readonly number[] | undefined {
+  if (type === 'fib') return FIB_LEVELS
+  if (type === 'fibExtension') return FIB_EXTENSION_LEVELS
+}
+
 const FIB_COLORS = [
   '#787b86',
   '#f23645',
@@ -39,16 +45,25 @@ function drawLevels(
 ): void {
   const color = (i: number) =>
     ann.style.color ?? FIB_COLORS[i % FIB_COLORS.length]!
-  const ys = levels.map(y)
+  const ys = levels.map(level =>
+    ann.hiddenLevels?.includes(level) ? undefined : y(level),
+  )
   ctx.save()
   ctx.globalAlpha = 0.08
-  for (let i = 1; i < ys.length; i++) {
-    ctx.fillStyle = color(i)
-    ctx.fillRect(left, ys[i - 1]!, right - left, ys[i]! - ys[i - 1]!)
-  }
+  let previousY: number | undefined
+  ys.forEach((levelY, i) => {
+    if (levelY === undefined) return
+    if (previousY !== undefined) {
+      ctx.fillStyle = color(i)
+      ctx.fillRect(left, previousY, right - left, levelY - previousY)
+    }
+    previousY = levelY
+  })
   ctx.restore()
   levels.forEach((level, i) => {
-    const ly = crisp(ys[i]!, style.lineWidth, dpr)
+    const levelY = ys[i]
+    if (levelY === undefined) return
+    const ly = crisp(levelY, style.lineWidth, dpr)
     stroke(ctx, { ...style, color: color(i) })
     line(ctx, { x: left, y: ly }, { x: right, y: ly })
     fillText(
@@ -64,9 +79,13 @@ function drawLevels(
 function hitLevels(
   p: Px,
   { levels, y, left, right }: Omit<Levels, 'price'>,
+  hiddenLevels: readonly number[] | undefined,
 ): boolean {
   if (p.x < left - HIT_SLOP || p.x > right + HIT_SLOP) return false
-  return levels.some(level => Math.abs(p.y - y(level)) <= HIT_SLOP)
+  return levels.some(
+    level =>
+      !hiddenLevels?.includes(level) && Math.abs(p.y - y(level)) <= HIT_SLOP,
+  )
 }
 
 /**
@@ -116,7 +135,8 @@ export const FIB_TOOLS = {
       drawLevels(ctx, r, env, retracement(r))
     },
     hit: (r, p) =>
-      distToPolyline(p, r.px) <= HIT_SLOP || hitLevels(p, retracement(r)),
+      distToPolyline(p, r.px) <= HIT_SLOP ||
+      hitLevels(p, retracement(r), r.ann.hiddenLevels),
     caption: ({ px: [a, b] }) => ({
       x: Math.max(a!.x, b!.x) - 4,
       y: Math.min(a!.y, b!.y) - 3,
@@ -144,10 +164,14 @@ export const FIB_TOOLS = {
       drawLevels(ctx, r, env, extension(r))
     },
     hit: (r, p) =>
-      distToPolyline(p, r.px) <= HIT_SLOP || hitLevels(p, extension(r)),
+      distToPolyline(p, r.px) <= HIT_SLOP ||
+      hitLevels(p, extension(r), r.ann.hiddenLevels),
     caption: r => {
       const { y, right, levels } = extension(r)
-      const top = Math.min(...levels.map(y))
+      const visible = levels.filter(
+        level => !r.ann.hiddenLevels?.includes(level),
+      )
+      const top = visible.length ? Math.min(...visible.map(y)) : y(0)
       return { x: right - 4, y: top - 3, align: 'right', baseline: 'bottom' }
     },
   },

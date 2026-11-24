@@ -623,6 +623,29 @@ describe('Annotations: editing', () => {
     expect(t.cursor(150, 450)).toBe('pointer')
   })
 
+  it('validates and preserves hidden Fibonacci ratios across copies and saves', () => {
+    const { drawings } = setup()
+    const id = drawings.add({ ...trendline([600, 10, 1200, 50]), type: 'fib' })
+    const hiddenLevels = [0.5]
+    drawings.update(id, { hiddenLevels })
+    hiddenLevels.push(0.618)
+    expect(() =>
+      drawings.update(id, { hiddenLevels: [1.618, 0.5, 0.5] }),
+    ).toThrow(/hiddenLevels\[0\].*hiddenLevels\[2\]/)
+    expect(drawings.get(id)?.hiddenLevels).toEqual([0.5])
+    const clone = drawings.clone(id)!
+    expect(drawings.get(clone)?.hiddenLevels).toEqual([0.5])
+
+    const saved = drawings.toJSON()
+    expect(saved[0]?.hiddenLevels).not.toBe(drawings.get(id)?.hiddenLevels)
+    drawings.load(JSON.parse(JSON.stringify(saved)))
+    expect(drawings.get(id)?.hiddenLevels).toEqual([0.5])
+    drawings.update(id, { hiddenLevels: [] })
+    expect(drawings.get(id)?.hiddenLevels).toBeUndefined()
+    expect(drawings.undo()).toBe(true)
+    expect(drawings.get(id)?.hiddenLevels).toEqual([0.5])
+  })
+
   it('clears the selection when a group replaces it with a hidden drawing', () => {
     const t = setup()
     const { drawings } = t
@@ -912,6 +935,43 @@ describe('tool hit-testing', () => {
     // Midway between the 0.236 (y 23.6) and 0.382 (y 38.2) levels.
     expect(TOOLS.fib.hit(r, { x: 80, y: 31 })).toBe(false)
     expect(TOOLS.fib.hit(r, { x: 140, y: 50 })).toBe(false)
+  })
+
+  it('omits hidden Fibonacci levels from labels and hit-testing', () => {
+    const r = resolved('fibExtension', [
+      { x: 0, y: 100 },
+      { x: 100, y: 0 },
+      { x: 100, y: 300 },
+    ])
+    const point = { x: 180, y: 138.2 }
+    expect(TOOLS.fibExtension.hit(r, point)).toBe(true)
+    r.ann.hiddenLevels = [1.618]
+    expect(TOOLS.fibExtension.hit(r, point)).toBe(false)
+
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      setLineDash: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      fillRect: vi.fn(),
+      fillText: vi.fn(),
+    }
+    TOOLS.fibExtension.draw(ctx as unknown as CanvasRenderingContext2D, r, {
+      pane: { left: 0, top: 0, width: 500, height: 300 },
+      dpr: 1,
+      theme: DEFAULT_THEME,
+      barWidth: 10,
+      formatPrice: String,
+    })
+    expect(ctx.fillText.mock.calls.map(([text]) => text)).toContain('2 (0)')
+    expect(ctx.fillText.mock.calls.map(([text]) => text)).not.toContain(
+      '1.618 (0)',
+    )
+    expect(ctx.stroke).toHaveBeenCalledTimes(12) // ten levels and two anchor segments
+    expect(ctx.fillRect).toHaveBeenCalledTimes(9)
   })
 
   it('grabs a channel on either line or between them', () => {

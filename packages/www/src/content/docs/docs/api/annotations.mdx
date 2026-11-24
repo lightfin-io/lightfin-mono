@@ -70,6 +70,7 @@ freehand stroke sampled along a drag. Markers take a `shape` —
 | `clone(id)`                 | `string \| null` | Duplicate a drawing, offset, visible, and selected. |
 | `list(group?)` / `toJSON()` | `Annotation[]` | JSON-safe copies, oldest first. `toJSON()` is every drawing. |
 | `get(id)`                   | `Annotation \| null` | One drawing.                                |
+| `fibLevels(id)`             | `readonly number[] \| null` | Supported Fibonacci ratios for the drawing. |
 | `effectiveStyle(id)`        | `AnnotationStyle \| null` | Its style with theme defaults filled in — for a style editor. |
 | `bringToFront(id)` / `sendToBack(id)` | `void` | Reorder draw depth.                             |
 | `editText(id)`              | `void`         | Edit a drawing's text/caption in place.           |
@@ -108,6 +109,7 @@ interface Annotation {
   shape?: MarkerShape // a marker's shape; default 'circle'
   locked?: boolean // selectable but not movable by pointer
   hidden?: boolean // true hides this drawing. Defaults to false.
+  hiddenLevels?: readonly number[] // Fibonacci ratios to hide
   group?: string // who placed it, e.g. 'ai'; the user's have none
 }
 ```
@@ -117,15 +119,19 @@ interface Annotation {
 `fontSize`, `fontFamily`, `bold`, `italic`, `textColor`, plus `extend` and
 `arrow` (`'none' | 'start' | 'end' | 'both'`) for lines. `update()` takes an
 `AnnotationPatch` with optional `points`, `style`, `text`, `shape`, `locked`, and
-`hidden` fields. Set a `style` field to `undefined` to restore its default.
+`hidden` fields, plus `hiddenLevels` for Fibonacci drawings. Set a `style`
+field to `undefined` to restore its default.
 
 Hide or show an individual drawing with `drawings.update(id, { hidden: true })`
 or `drawings.update(id, { hidden: false })`. Hiding a selected drawing clears
 the selection. Hidden drawings stay in `list()` and `toJSON()`, and visibility
 changes can be undone and redone.
 
-Fibonacci levels are exported as constants if you need them: `FIB_LEVELS` and
-`FIB_EXTENSION_LEVELS`.
+Use `drawings.fibLevels(id)` to get the available levels for a drawing, or use
+the exported `FIB_LEVELS` and `FIB_EXTENSION_LEVELS` constants. Set
+`drawings.update(id, { hiddenLevels: [0.5] })` to hide the `0.5` level, or pass
+an empty array to show all levels. The hidden ratios are saved with the
+drawing in `toJSON()`.
 
 ## Annotating from an AI
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { annotateChartTool, annotationSchema } from './schema'
-import { TOOLS } from './tools'
+import { FIB_EXTENSION_LEVELS, TOOLS } from './tools'
 import {
   LINE_ENDS,
   LINE_STYLES,
@@ -14,9 +14,10 @@ import {
 describe('annotationSchema', () => {
   const { properties } = annotationSchema
 
-  it('lists every annotation type, marker shape, line style, and line end', () => {
+  it('lists the supported annotation types, shapes, styles, and Fibonacci ratios', () => {
     expect([...properties.type.enum].sort()).toEqual(Object.keys(TOOLS).sort())
     expect(properties.shape.enum).toEqual(MARKER_SHAPES)
+    expect(properties.hiddenLevels.items.enum).toEqual(FIB_EXTENSION_LEVELS)
     const style = properties.style.properties
     expect(style.lineStyle.enum).toEqual(LINE_STYLES)
     expect(style.extend.enum).toEqual(LINE_ENDS)

@@ -109,6 +109,16 @@ export const annotationSchema = {
       type: 'boolean',
       description: 'Hide the drawing while keeping it in the saved drawings.',
     },
+    hiddenLevels: {
+      type: 'array',
+      items: {
+        type: 'number',
+        enum: [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2, 2.618],
+      },
+      uniqueItems: true,
+      description:
+        'Fibonacci ratios to hide. For fib use ratios through 1; fibExtension supports all listed ratios.',
+    },
     id: {
       type: 'string',
       description:

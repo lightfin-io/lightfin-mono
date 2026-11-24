@@ -132,3 +132,71 @@ test('clone, undo, and redo from the toolbar and keyboard', async ({
   await page.getByRole('button', { name: 'Delete' }).click()
   expect(await count()).toBe(1)
 })
+
+test('drawing settings save exact anchors and Fibonacci levels together', async ({
+  page,
+}) => {
+  await openDemo(page)
+  const original = await page.evaluate(() => {
+    const { from, to } = window.chart.visibleTimeRange()!
+    const id = window.drawings.add({
+      type: 'fib',
+      points: [
+        { time: from, price: 100 },
+        { time: to, price: 101 },
+      ],
+    })
+    window.drawings.select(id)
+    return window.drawings.get(id)!
+  })
+  const settings = page.getByRole('button', { name: 'Drawing settings' })
+  const dialog = page.getByRole('dialog', { name: 'Drawing settings' })
+  const time = dialog.getByRole('spinbutton', { name: 'Time (Unix seconds)' })
+  const price = dialog.getByRole('spinbutton', { name: 'Price' })
+  const level = dialog.getByRole('checkbox', { name: '0.5', exact: true })
+  const anchor = dialog.getByRole('combobox', { name: 'Anchor' })
+  const apply = dialog.getByRole('button', { name: 'Apply' })
+  const read = () => page.evaluate(id => window.drawings.get(id), original.id)
+
+  await settings.click()
+  await expect(anchor).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(apply).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(anchor).toBeFocused()
+  await expect(level).toBeChecked()
+  await price.fill('100.125')
+  await anchor.selectOption('1')
+  const secondTime = original.points[1]!.time - 17
+  await time.fill(String(secondTime * 1000))
+  await level.uncheck()
+  await apply.click()
+  await expect(dialog.getByRole('alert')).toContainText(
+    'looks like milliseconds',
+  )
+  expect(await read()).toEqual(original)
+
+  await time.fill(String(secondTime))
+  await apply.click()
+  await expect(settings).toBeFocused()
+  const edited = {
+    ...original,
+    points: [
+      { ...original.points[0], price: 100.125 },
+      { ...original.points[1], time: secondTime },
+    ],
+    hiddenLevels: [0.5],
+  }
+  expect(await read()).toEqual(edited)
+  await settings.click()
+  await expect(level).not.toBeChecked()
+  await level.check()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  expect(await read()).toEqual(edited)
+
+  await page.evaluate(() => window.drawings.undo())
+  expect(await read()).toEqual(original)
+  await page.evaluate(() => window.drawings.redo())
+  expect(await read()).toEqual(edited)
+})

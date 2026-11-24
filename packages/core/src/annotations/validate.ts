@@ -1,3 +1,4 @@
+import { fibLevels } from './fib'
 import { TOOLS } from './tools'
 import type { AnnotationType } from './types'
 
@@ -14,6 +15,7 @@ const FIELDS = [
   'shape',
   'locked',
   'hidden',
+  'hiddenLevels',
   'group',
 ]
 const STYLE_FIELDS = [
@@ -41,7 +43,18 @@ const MAX_SECONDS = 1e11
 export function validateAnnotation(input: unknown): string[] {
   if (!isObject(input)) return ['an annotation must be an object']
   const errors: string[] = []
-  const { type, points, style, text, shape, id, group, locked, hidden } = input
+  const {
+    type,
+    points,
+    style,
+    text,
+    shape,
+    id,
+    group,
+    locked,
+    hidden,
+    hiddenLevels,
+  } = input
   const spec =
     typeof type === 'string' && Object.hasOwn(TOOLS, type)
       ? TOOLS[type as AnnotationType]
@@ -101,6 +114,24 @@ export function validateAnnotation(input: unknown): string[] {
   }
   if (hidden !== undefined && typeof hidden !== 'boolean') {
     errors.push('hidden must be a boolean')
+  }
+  if (hiddenLevels !== undefined) {
+    const levels = fibLevels(type)
+    if (!levels) {
+      errors.push('hiddenLevels is only supported for fib and fibExtension')
+    } else if (!Array.isArray(hiddenLevels)) {
+      errors.push('hiddenLevels must be an array of Fibonacci ratios')
+    } else {
+      const seen = new Set<number>()
+      for (const [i, level] of hiddenLevels.entries()) {
+        if (!levels.includes(level)) {
+          errors.push(`hiddenLevels[${i}] must be one of ${levels.join(', ')}`)
+        } else if (seen.has(level)) {
+          errors.push(`hiddenLevels[${i}] repeats the ratio ${level}`)
+        }
+        seen.add(level)
+      }
+    }
   }
   if (style !== undefined) {
     if (isObject(style)) errors.push(...validateStyle(style))

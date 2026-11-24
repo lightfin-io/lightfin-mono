@@ -1,3 +1,8 @@
+import type {
+  AnnotationPatch,
+  AnnotationPoint,
+  Annotations,
+} from '../annotations'
 import type { Chart } from '../chart/chart'
 import type { IndicatorHandle } from '../indicators/types'
 import { button, el } from './dom'
@@ -12,6 +17,7 @@ export function openModal(
   host: HTMLElement,
   title: string,
   build: (close: () => void) => HTMLElement[],
+  onClose?: () => void,
 ): () => void {
   const previousFocus = document.activeElement as HTMLElement | null
   const backdrop = el('div', 'lf-backdrop')
@@ -21,7 +27,9 @@ export function openModal(
   dialog.setAttribute('aria-label', title)
 
   const close = () => {
+    if (!backdrop.parentNode) return
     backdrop.remove()
+    onClose?.()
     previousFocus?.focus?.()
   }
   dialog.append(el('h2', '', title), ...build(close))
@@ -35,10 +43,27 @@ export function openModal(
       e.stopPropagation()
       close()
     }
+    if (e.key === 'Tab') {
+      const controls = Array.from(
+        dialog.querySelectorAll<HTMLElement>('button, input, select'),
+      ).filter(
+        node =>
+          node.tabIndex >= 0 &&
+          !node.matches(':disabled') &&
+          node.getClientRects().length > 0,
+      )
+      const first = controls[0]
+      const last = controls.at(-1)
+      const edge = e.shiftKey ? first : last
+      if (document.activeElement === edge) {
+        e.preventDefault()
+        ;(e.shiftKey ? last : first)?.focus()
+      }
+    }
   })
   host.append(backdrop)
   ;(
-    dialog.querySelector<HTMLElement>('input') ??
+    dialog.querySelector<HTMLElement>('input, select') ??
     dialog.querySelector<HTMLElement>('button')
   )?.focus()
   return close
@@ -71,6 +96,141 @@ function actions(
   submit.classList.add('lf-btn-primary')
   row.append(button({ label: 'Cancel' }, onCancel), submit)
   return { row, submit }
+}
+
+/** Edit a drawing's exact anchors and, for Fibonacci drawings, its visible ratios. */
+export function openDrawingSettingsModal(
+  host: HTMLElement,
+  drawings: Annotations,
+  id: string,
+  onClose: () => void,
+): (() => void) | undefined {
+  const drawing = drawings.get(id)
+  if (!drawing) return
+  const { points, hiddenLevels } = drawing
+  const levels = drawings.fibLevels(id)
+
+  return openModal(
+    host,
+    'Drawing settings',
+    close => {
+      const form = el('form')
+      const time = input('number', '')
+      const price = input('number', '')
+      time.step = price.step = 'any'
+      let index = 0
+      const edits = new Map<number, AnnotationPoint>()
+      const readPoint = () => {
+        const point = { time: time.valueAsNumber, price: price.valueAsNumber }
+        const original = points[index]!
+        if (point.time === original.time && point.price === original.price) {
+          edits.delete(index)
+        } else {
+          edits.set(index, point)
+        }
+      }
+      const showPoint = () => {
+        const point = edits.get(index) ?? points[index]!
+        time.value = Number.isFinite(point.time) ? String(point.time) : ''
+        price.value = Number.isFinite(point.price) ? String(point.price) : ''
+      }
+      const picker = el('select', 'lf-input')
+      if (points.length > 1) {
+        for (let i = 0; i < points.length; i++) {
+          const option = el('option', '', `Point ${i + 1}`)
+          option.value = String(i)
+          picker.append(option)
+        }
+        picker.addEventListener('change', () => {
+          readPoint()
+          index = picker.selectedIndex
+          showPoint()
+        })
+        form.append(field('Anchor', picker))
+      }
+      showPoint()
+      form.append(field('Time (Unix seconds)', time), field('Price', price))
+
+      const checks = levels?.map(level => {
+        const control = input('checkbox', '')
+        control.checked = !hiddenLevels?.includes(level)
+        return { level, control, initiallyChecked: control.checked }
+      })
+      if (checks) {
+        const group = el('fieldset', 'lf-fib-levels')
+        group.append(el('legend', '', 'Fibonacci levels'))
+        const grid = el('div')
+        for (const { level, control } of checks) {
+          const label = el('label')
+          label.append(control, String(level))
+          grid.append(label)
+        }
+        group.append(grid)
+        form.append(group)
+      }
+
+      const error = el('div', 'lf-error')
+      error.setAttribute('role', 'alert')
+      const { row } = actions(close, 'Apply')
+      form.append(error, row)
+      form.addEventListener('submit', e => {
+        e.preventDefault()
+        readPoint()
+        const current = drawings.get(id)
+        if (
+          current?.type !== drawing.type ||
+          current.points.length !== points.length
+        ) {
+          error.textContent =
+            'The drawing changed. Reopen its settings to edit it.'
+          return
+        }
+        const patch: AnnotationPatch = {}
+        if (edits.size > 0) {
+          for (const [i, point] of edits) {
+            const original = points[i]!
+            const validTime =
+              point.time === original.time || Number.isInteger(point.time)
+            if (!validTime || !Number.isFinite(point.price)) {
+              error.textContent = validTime
+                ? `Enter a numeric price for point ${i + 1}.`
+                : `Enter whole Unix seconds for point ${i + 1}.`
+              picker.value = String(i)
+              index = i
+              showPoint()
+              ;(validTime ? price : time).focus()
+              return
+            }
+            const target = current.points[i]!
+            if (point.time !== original.time) target.time = point.time
+            if (point.price !== original.price) target.price = point.price
+          }
+          patch.points = current.points
+        }
+        const changed = checks?.filter(
+          ({ control, initiallyChecked }) =>
+            control.checked !== initiallyChecked,
+        )
+        if (changed?.length) {
+          const hidden = new Set(current.hiddenLevels)
+          for (const { level, control } of changed) {
+            if (control.checked) hidden.delete(level)
+            else hidden.add(level)
+          }
+          patch.hiddenLevels = [...hidden]
+        }
+        try {
+          if (patch.points || patch.hiddenLevels) drawings.update(id, patch)
+        } catch (e) {
+          error.textContent = (e as Error).message
+          return
+        }
+        close()
+      })
+      return [form]
+    },
+    onClose,
+  )
 }
 
 /**

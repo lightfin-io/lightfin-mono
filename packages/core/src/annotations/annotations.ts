@@ -5,6 +5,7 @@ import type {
   PrimitiveHandle,
   PrimitiveView,
 } from '../chart/primitive'
+import { fibLevels } from './fib'
 import type { Fit, Px } from './geometry'
 import { fitCloses } from './geometry'
 import type { DrawEnv, Resolved } from './tools'
@@ -43,7 +44,10 @@ export interface AnnotationsEventMap {
 
 /** What {@link Annotations.update} can change. */
 export type AnnotationPatch = Partial<
-  Pick<Annotation, 'points' | 'style' | 'text' | 'shape' | 'locked' | 'hidden'>
+  Pick<
+    Annotation,
+    'points' | 'style' | 'text' | 'shape' | 'locked' | 'hidden' | 'hiddenLevels'
+  >
 >
 
 const HANDLE_RADIUS = 5
@@ -248,6 +252,12 @@ export class Annotations {
     return ann ? copy(ann) : null
   }
 
+  /** The supported Fibonacci ratios for a drawing, or null for other drawings or unknown ids. */
+  fibLevels(id: string): readonly number[] | null {
+    const levels = fibLevels(this.find(id)?.type)
+    return levels ? [...levels] : null
+  }
+
   /**
    * The style a drawing paints with, theme defaults filled in — e.g. for a
    * style editor to show. Null for an unknown id.
@@ -306,6 +316,7 @@ export class Annotations {
   /**
    * Move, restyle, relabel, reshape, lock, or hide a drawing. Style is merged
    * over the current style; an `undefined` field reverts to its default.
+   * Set `hiddenLevels` to `[]` to show all Fibonacci levels again.
    * Throws, changing nothing, if the result is malformed.
    */
   update(id: string, patch: AnnotationPatch): void {
@@ -362,6 +373,7 @@ export class Annotations {
       style: ann.style,
       text: ann.text,
       shape: ann.shape,
+      hiddenLevels: ann.hiddenLevels,
     })
     this.items.push(twin)
     this.select(twin.id)
@@ -1098,6 +1110,7 @@ function build(input: AnnotationInput): Annotation {
   if (input.shape !== undefined) ann.shape = input.shape
   if (input.locked) ann.locked = true
   if (input.hidden) ann.hidden = true
+  if (input.hiddenLevels?.length) ann.hiddenLevels = [...input.hiddenLevels]
   if (input.group !== undefined) ann.group = input.group
   return ann
 }
@@ -1119,6 +1132,7 @@ function copy(ann: Annotation): Annotation {
     ...ann,
     points: ann.points.map(p => ({ ...p })),
     style: { ...ann.style },
+    ...(ann.hiddenLevels && { hiddenLevels: [...ann.hiddenLevels] }),
   }
 }
 

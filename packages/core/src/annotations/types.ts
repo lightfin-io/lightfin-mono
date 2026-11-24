@@ -129,6 +129,8 @@ export interface Annotation {
   locked?: boolean
   /** Hide this drawing from the chart and keep it in saved drawings. Default false. */
   hidden?: boolean
+  /** Fibonacci ratios to hide on this drawing. Omit to show every level. */
+  hiddenLevels?: readonly number[]
   /**
    * Who placed the drawing, e.g. `'ai'`, so the host can replace or clear one
    * source's drawings without touching the rest. The user's have none.
