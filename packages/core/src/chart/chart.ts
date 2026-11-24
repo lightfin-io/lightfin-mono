@@ -78,6 +78,8 @@ export interface PaneLayout {
 /** Payloads of the events {@link Chart.on} can subscribe to. */
 export interface ChartEventMap {
   crosshairMove: CrosshairMoveEvent | null
+  /** The crosshair switched between free and magnet mode. */
+  crosshairModeChange: CrosshairMode
   /** The price series' data or chart type changed (see {@link SeriesChange}). */
   dataChange: SeriesChange
   /** A new price series replaced the previous one. */
@@ -307,8 +309,10 @@ export class Chart {
 
   /** Switch between a free and a magnet (OHLC-snapping) crosshair. */
   setCrosshairMode(mode: CrosshairMode): void {
+    if (this.options.crosshairMode === mode) return
     this.options.crosshairMode = mode
     this.scheduler.invalidate('overlay')
+    this.events.emit('crosshairModeChange', mode)
   }
 
   /**

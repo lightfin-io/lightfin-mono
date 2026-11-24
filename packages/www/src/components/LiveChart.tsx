@@ -1,12 +1,17 @@
-import { LightfinChart, useChartEffect } from '@lightfin/react'
 import { DEFAULT_THEME } from '@lightfin/core'
 import type { ChartTheme } from '@lightfin/core'
 import { createAnnotations } from '@lightfin/core/annotations'
 import { createChrome } from '@lightfin/core/chrome'
+import { LightfinChart, useChartEffect } from '@lightfin/react'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 import { createBinanceFeed } from './binanceFeed'
+import {
+  INTERVALS,
+  loadDemoPreferences,
+  saveDemoPreferences,
+} from './demoPreferences'
 
 // A light counterpart to core's dark `DEFAULT_THEME`, tuned to sit on the docs'
 // white reading column. Candle/volume/indicator hues are shared with the dark
@@ -53,11 +58,6 @@ function useDocsTheme(): DocsTheme {
   return theme
 }
 
-// The chart has no notion of interval: the chrome's selector asks us to load
-// the matching bars. Binance spells these lowercase (1m … 1h, 4h, 1d).
-const INTERVALS = ['1m', '5m', '15m', '1H', '4H', '1D'] as const
-const DEFAULT_INTERVAL = '1H'
-
 /**
  * The hero demo: a real `@lightfin/core` chart driven through `@lightfin/react`,
  * streaming live BTC/USDT bars from Binance's public market-data feed — the
@@ -79,7 +79,7 @@ export default function LiveChart({ height = 420 }: LiveChartProps) {
       style={{ height, width: '100%' } satisfies CSSProperties}
       options={{ volumeVisible: true, theme }}
     >
-      <Candles />
+      <DemoChart />
     </LightfinChart>
   )
 }
@@ -88,9 +88,11 @@ export interface LiveChartProps {
   height?: number
 }
 
-function Candles() {
+function DemoChart() {
   // Create the series, attach the live Binance feed, and mount the chrome once.
   useChartEffect(chart => {
+    const preferences = loadDemoPreferences()
+    let interval = preferences.interval
     chart.setInstrument({
       symbol: 'BTCUSDT',
       name: 'Bitcoin / TetherUS',
@@ -98,26 +100,48 @@ function Candles() {
       timezone: 'UTC',
       pricePrecision: 2,
     })
-    chart.addCandlestickSeries()
+    const series = chart.addCandlestickSeries()
+    series.setChartType(preferences.chartType)
+    chart.setCrosshairMode(preferences.crosshairMode)
 
     const loadInterval = (interval: string) => {
       chart.setDataSource(
-        createBinanceFeed({ symbol: 'BTCUSDT', interval: interval.toLowerCase() }),
+        createBinanceFeed({
+          symbol: 'BTCUSDT',
+          interval: interval.toLowerCase(),
+        }),
       )
     }
-    loadInterval(DEFAULT_INTERVAL)
+    loadInterval(interval)
 
     // Drawings anchor to time + price, so they survive interval switches.
     const drawings = createAnnotations(chart)
 
+    const savePreferences = () =>
+      saveDemoPreferences({
+        interval,
+        chartType: series.chartType,
+        crosshairMode: chart.crosshairMode(),
+      })
+
     const chrome = createChrome(chart, {
       intervals: INTERVALS,
-      interval: DEFAULT_INTERVAL,
-      onIntervalChange: loadInterval,
+      interval,
+      onIntervalChange(next) {
+        interval = next
+        loadInterval(interval)
+        savePreferences()
+      },
       annotations: drawings,
     })
+    const offChartType = chart.on('dataChange', change => {
+      if (change === 'style') savePreferences()
+    })
+    const offCrosshairMode = chart.on('crosshairModeChange', savePreferences)
 
     return () => {
+      offChartType()
+      offCrosshairMode()
       chrome.dispose()
       drawings.dispose()
     }
