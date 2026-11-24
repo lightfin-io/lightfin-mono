@@ -133,6 +133,58 @@ test('clone, undo, and redo from the toolbar and keyboard', async ({
   expect(await count()).toBe(1)
 })
 
+test('drawing backups restore independently of the demo autosave', async ({
+  page,
+}) => {
+  await openDemo(page)
+  const trigger = page.getByRole('button', { name: 'Drawing backups' })
+  const dialog = page.getByRole('dialog', { name: 'Drawing backups' })
+  const save = dialog.getByRole('button', { name: 'Save backup' })
+  const restore = dialog.getByRole('button', { name: 'Restore backup' })
+  const status = dialog.getByRole('status')
+  const undo = page.getByRole('button', { name: 'Undo', exact: true })
+  const readDrawings = () => page.evaluate(() => window.drawings.toJSON())
+
+  await trigger.click()
+  await restore.click()
+  await expect(status).toHaveText('No drawing backup has been saved.')
+  expect(await readDrawings()).toEqual([])
+  await page.keyboard.press('Escape')
+  await expect(trigger).toBeFocused()
+
+  await page.evaluate(() => {
+    const { from, to } = window.chart.visibleTimeRange()!
+    window.drawings.add({
+      type: 'fib',
+      points: [
+        { time: from, price: 95 },
+        { time: to, price: 105 },
+      ],
+      hidden: true,
+      hiddenLevels: [0.5],
+    })
+  })
+  const backup = await readDrawings()
+  await trigger.click()
+  await save.click()
+  await expect(status).toHaveText('Drawing backup saved.')
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Remove all drawings' }).click()
+  expect(await readDrawings()).toEqual([])
+  await expect(undo).toBeEnabled()
+
+  await trigger.click()
+  await restore.click()
+  await expect(status).toHaveText('Drawing backup restored.')
+  expect(await readDrawings()).toEqual(backup)
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  await expect(undo).toBeDisabled()
+
+  await page.reload()
+  await page.waitForFunction(() => window.drawings !== undefined)
+  expect(await readDrawings()).toEqual(backup)
+})
+
 test('drawing settings save exact anchors and Fibonacci levels together', async ({
   page,
 }) => {

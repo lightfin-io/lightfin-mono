@@ -68,21 +68,43 @@ loadInterval('1m')
 // Drawings are plain JSON; persisting them is the host's job, here
 // localStorage. They anchor to time + price, so they survive interval switches.
 const DRAWINGS_KEY = 'lightfin-demo-drawings'
+const DRAWING_BACKUP_KEY = 'lightfin-demo-drawing-backup'
 const drawings = createAnnotations(chart)
 try {
   drawings.load(JSON.parse(localStorage.getItem(DRAWINGS_KEY) ?? '[]'))
 } catch {
   localStorage.removeItem(DRAWINGS_KEY)
 }
-drawings.on('change', () => {
+function persistDrawings(): void {
   localStorage.setItem(DRAWINGS_KEY, JSON.stringify(drawings.toJSON()))
-})
+}
+drawings.on('change', persistDrawings)
 
 const chrome = createChrome(chart, {
   intervals: Object.keys(INTERVALS),
   interval: '1m',
   onIntervalChange: loadInterval,
   annotations: drawings,
+  drawingPersistence: {
+    save: () => {
+      localStorage.setItem(
+        DRAWING_BACKUP_KEY,
+        JSON.stringify(drawings.toJSON()),
+      )
+    },
+    restore: () => {
+      const backup = localStorage.getItem(DRAWING_BACKUP_KEY)
+      if (backup === null) throw new Error('No drawing backup has been saved.')
+      drawings.load(JSON.parse(backup))
+      try {
+        persistDrawings()
+      } catch {
+        throw new Error(
+          'Drawings restored for this session. Browser storage could not be updated.',
+        )
+      }
+    },
+  },
 })
 
 // Indicators load on demand from their own chunks — the core
@@ -242,6 +264,7 @@ aiButton.addEventListener('click', () => {
   if (range) applyToolCall(mockAnalyst(candles.bars(range)))
 })
 drawings.on('change', syncAiButton)
+drawings.on('selectionChange', syncAiButton)
 syncAiButton()
 document.body.append(aiButton)
 

@@ -32,6 +32,7 @@ import { createLeftToolbar } from './drawingTools'
 import type { DateRangePreset } from './format'
 import { DATE_RANGE_PRESETS, formatClock } from './format'
 import { Hud } from './hud'
+import type { DrawingPersistence } from './modals'
 import { acquireStyles, releaseStyles, themeVars } from './styles'
 import type {
   IndicatorCatalogEntry,
@@ -42,6 +43,7 @@ import { createBottomToolbar, createTopToolbar } from './toolbars'
 
 export type { DateRangePreset } from './format'
 export { DATE_RANGE_PRESETS } from './format'
+export type { DrawingPersistence } from './modals'
 export type { IndicatorCatalogEntry, IndicatorSource } from './toolbars'
 
 function menuEntry(
@@ -206,6 +208,8 @@ export interface ChromeOptions {
    * to leave them out (and the annotations code unloaded).
    */
   annotations?: Annotations
+  /** Host callbacks for the drawing toolbar's backup dialog. Requires annotations. */
+  drawingPersistence?: DrawingPersistence
 }
 
 export interface Chrome {
@@ -282,7 +286,13 @@ export function createChrome(
   const drawings = options.annotations
   const toolStyles: ToolStyles = new Map()
   const left = drawings
-    ? createLeftToolbar(chart, drawings, host, toolStyles)
+    ? createLeftToolbar(
+        chart,
+        drawings,
+        host,
+        toolStyles,
+        options.drawingPersistence,
+      )
     : null
   const styleBar = drawings
     ? createDrawingToolbar(chart, drawings, host, toolStyles)

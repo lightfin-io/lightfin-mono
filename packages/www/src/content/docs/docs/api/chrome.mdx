@@ -40,6 +40,7 @@ chart theme.
 | `indicators`       | `readonly IndicatorMenuItem[]`| `BUILTIN_INDICATORS`  | The indicators menu; `[]` hides it.              |
 | `ranges`           | `readonly DateRangePreset[]`  | `DATE_RANGE_PRESETS`  | Quick ranges in the bottom toolbar.              |
 | `annotations`      | `Annotations`                 | —                     | Shows the drawing-tools + style toolbars.        |
+| `drawingPersistence` | `DrawingPersistence`        | —                     | Enables drawing backups when `annotations` is supplied. |
 
 The chart has no notion of interval — picking one just calls `onIntervalChange`
 and your host loads the matching bars (see [Live data](/docs/guides/live-data)).
@@ -97,6 +98,37 @@ Select a drawing and open **Drawing settings** from its floating toolbar to
 enter an anchor's exact time in Unix seconds and its price. For Fibonacci
 retracements and extensions, the dialog also lets you show or hide individual
 levels. **Apply** saves the edits as one undoable change.
+
+### Drawing backups
+
+Pass `drawingPersistence` to add **Drawing backups** to the drawing toolbar.
+The host implements `save()` and `restore()` and chooses where to store the
+backup. This example keeps a single backup in the browser.
+
+```ts
+const backupKey = 'my-app:chart-drawing-backup'
+createChrome(chart, {
+  annotations: drawings,
+  drawingPersistence: {
+    save() {
+      localStorage.setItem(backupKey, JSON.stringify(drawings.toJSON()))
+    },
+    restore() {
+      const backup = localStorage.getItem(backupKey)
+      if (backup === null) throw new Error('No drawing backup has been saved.')
+      drawings.load(JSON.parse(backup))
+    },
+  },
+})
+```
+
+Callbacks can return a promise. Throw or reject with an `Error` to show its
+message in the dialog. `load()` validates the entire backup and resets drawing
+history. If the host also autosaves on `change`, persist the restored drawings
+explicitly after `load()`.
+
+See [Saving and resetting settings](/docs/guides/saving-settings) to use the
+backup dialog alongside autosave and persisted chart preferences.
 
 ## Also exported
 

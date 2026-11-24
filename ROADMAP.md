@@ -8,10 +8,6 @@ Pre-1.0. Rendering, live data, the indicator framework, chrome, drawing tools, p
 
 ## Annotations
 
-Drawings already serialize to JSON (`toJSON` / `load`). Persisting them is the host's job — the demo writes `localStorage` — and chrome has no save/restore control.
-
-Also unbuilt:
-
 - Gann, Elliott, and pattern tools.
 
 ## Indicators
