@@ -41,8 +41,6 @@ chart.setInstrument(
       },
 )
 const candles = chart.addCandlestickSeries()
-const defaultCrosshairMode = chart.crosshairMode()
-const defaultChartType = candles.chartType
 
 // The chart has no notion of interval: the chrome's selector asks us to load
 // the matching bars, by attaching a data source at that bar period. The chart
@@ -65,53 +63,17 @@ function loadInterval(interval: string): void {
       })
   chart.setDataSource(live ? source : { getBars: source.getBars })
 }
-loadInterval('1m')
-
-// Drawings are plain JSON; persisting them is the host's job, here
-// localStorage. They anchor to time + price, so they survive interval switches.
-const DRAWINGS_KEY = 'lightfin-demo-drawings'
-const DRAWING_BACKUP_KEY = 'lightfin-demo-drawing-backup'
-const drawings = createAnnotations(chart)
-try {
-  drawings.load(JSON.parse(localStorage.getItem(DRAWINGS_KEY) ?? '[]'))
-} catch {
-  localStorage.removeItem(DRAWINGS_KEY)
-}
-function persistDrawings(): void {
-  localStorage.setItem(DRAWINGS_KEY, JSON.stringify(drawings.toJSON()))
-}
-drawings.on('change', persistDrawings)
+const drawings = createAnnotations(chart, {
+  persistenceKey: 'lightfin-demo-drawings',
+})
 
 const chrome = createChrome(chart, {
   intervals: Object.keys(INTERVALS),
   interval: '1m',
   onIntervalChange: loadInterval,
   annotations: drawings,
-  onResetChartOptions: () => {
-    chart.setCrosshairMode(defaultCrosshairMode)
-    candles.setChartType(defaultChartType)
-  },
-  drawingPersistence: {
-    save: () => {
-      localStorage.setItem(
-        DRAWING_BACKUP_KEY,
-        JSON.stringify(drawings.toJSON()),
-      )
-    },
-    restore: () => {
-      const backup = localStorage.getItem(DRAWING_BACKUP_KEY)
-      if (backup === null) throw new Error('No drawing backup has been saved.')
-      drawings.load(JSON.parse(backup))
-      try {
-        persistDrawings()
-      } catch {
-        throw new Error(
-          'Drawings restored for this session. Browser storage could not be updated.',
-        )
-      }
-    },
-  },
 })
+if (chrome.interval() === '1m') loadInterval('1m')
 
 // Indicators load on demand from their own chunks — the core
 // bundle never includes them until used here. More can be added from the

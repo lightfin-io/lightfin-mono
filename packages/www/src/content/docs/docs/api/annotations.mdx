@@ -18,22 +18,11 @@ drawings.setTool('trendline') // arm a tool; the user draws it
 ```
 
 Every drawing anchors to data space (`{ time, price }` points), so it stays put
-across pan, zoom, history backfill, and interval switches. Drawings serialize to
-plain JSON for you to persist:
-
-```ts
-drawings.load(JSON.parse(localStorage.drawings ?? '[]'))
-drawings.on('change', () => {
-  localStorage.drawings = JSON.stringify(drawings.toJSON())
-})
-```
+across pan, zoom, history backfill, and interval switches.
 
 To get the drawing-tool and style toolbars for free, hand `drawings` to
 [`createChrome`](/docs/api/chrome). Otherwise drive it from your own UI with the
 API below.
-
-For a complete example of autosave, manual backups, and resetting settings, see
-[Saving and resetting settings](/docs/guides/saving-settings).
 
 ## The tools
 
@@ -108,6 +97,46 @@ const off = drawings.on('change', () => persist())
 | `selectionChange`  | `string \| null`   | The selected drawing's id.                                   |
 
 Call `drawings.dispose()` to detach from the chart and drop listeners.
+
+## Persistence
+
+`createAnnotations(chart)` restores drawings from `localStorage` and saves
+committed changes, including undo, redo, and deletion. The default key uses
+the page, chart container, and the exchange and symbol set when you attach
+annotations. Give your chart container a stable `id` or pass `persistenceKey`
+to control where drawings are stored across mounts.
+
+```ts
+const drawings = createAnnotations(chart, {
+  persistenceKey: 'my-app:drawings:BTCUSDT',
+  onPersistenceError(error, operation) {
+    console.error(`Could not ${operation} drawings`, error)
+  },
+})
+```
+
+To replace `localStorage`, pass a `DrawingPersistence` adapter as
+`{ persistence: adapter }`. Both methods can return promises.
+
+```ts
+interface DrawingPersistence {
+  load(): readonly AnnotationInput[] | null | Promise<readonly AnnotationInput[] | null>
+  save(drawings: readonly Annotation[]): void | Promise<void>
+}
+```
+
+Return `null` if no drawing list is stored. `save()` replaces the entire list,
+including `[]` after clearing the chart. Lightfin validates the saved list
+before restoring it. Use `await drawings.ready` before allowing edits if you
+want users to start with the saved drawings. A committed edit made while the
+initial read is pending takes precedence over the loaded list. Async saves
+run in order, keeping the latest snapshot if more edits come in during a save.
+`drawings.dispose()` disconnects the adapter when tearing down the chart.
+
+Pass `{ persistence: false }` for in-memory drawings or to manage storage
+directly with `toJSON()`, `load()`, and `on('change', …)`. An explicit call to
+`load()` skips autosave. See [Saving and resetting settings](/docs/guides/saving-settings)
+for an example that also persists chart settings.
 
 ## The `Annotation` shape
 

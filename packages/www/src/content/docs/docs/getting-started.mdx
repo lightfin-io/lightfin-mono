@@ -11,8 +11,9 @@ and live data — while staying **small, dependency-free, and easy to wire to an
 data source**.
 
 The core is framework-agnostic vanilla TypeScript, rendered on layered
-`Canvas2D`. It's _bars in, chart out_: it renders and handles interaction, and
-leaves data, persistence and your trading UI to you.
+`Canvas2D`. It's _bars in, chart out_: it renders and handles interaction while
+your app supplies the data and trading UI. Drawings and interactive chart
+settings are saved in the browser by default.
 
 <div class="not-content">
   <LiveChart client:only="react" height={360} />

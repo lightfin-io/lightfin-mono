@@ -1,173 +1,96 @@
 ---
 title: Saving and resetting settings
-description: Save chart preferences, reload drawings, and restore defaults with browser storage.
+description: Keep chart settings and drawings across refreshes, or supply your own storage.
 ---
 
-Your app chooses what to remember. Store chart preferences and drawings under
-separate keys so users can reset the chart's appearance while keeping their
-drawings. This example uses `localStorage` for one chart. Include the chart or
-instrument ID in the drawing and backup keys when users switch between charts.
+`createAnnotations()` saves drawings to `localStorage` by default.
+`createChrome()` uses the same browser storage for the interval, chart type,
+and crosshair mode. Each uses its own key, scoped to the page path and chart
+container. Give each chart container a stable `id` so it keeps its saved state
+when it moves within the page. Use explicit keys to share state across pages.
 
-## Save and load chart preferences
+For a symbol-specific chart, call `chart.setInstrument()` before creating
+annotations. The default drawing key uses the exchange and symbol at that
+point. When reusing a chart for a different instrument, set the new instrument
+and remount annotations to load its drawing list. Remount any chrome that was
+attached to the previous annotations instance.
 
-Save the fields your settings UI exposes. This example remembers volume
-visibility and crosshair mode, and falls back to the app's defaults when
-storage is unavailable or a saved value is unusable.
+## Restore settings and load bars
+
+Create your price series before mounting chrome and include the available
+intervals in `intervals`. With the default adapter, `chrome.interval()`
+already reflects the restored value when `createChrome()` returns. If Chrome
+restores a different interval, it calls `onIntervalChange` after mounting.
+If the interval stays at its initial value, load those bars yourself.
 
 ```ts
 import { createChart } from '@lightfin/core'
-import type { Bar, ChartOptions } from '@lightfin/core'
+import type { DataSource } from '@lightfin/core'
 import { createAnnotations } from '@lightfin/core/annotations'
 import { createChrome } from '@lightfin/core/chrome'
 
-type Preferences = Pick<ChartOptions, 'volumeVisible' | 'crosshairMode'>
-
-const preferencesKey = 'my-app:chart-preferences'
-const defaultPreferences: Preferences = {
-  volumeVisible: true,
-  crosshairMode: 'normal',
-}
-
-function loadPreferences(): Preferences {
-  try {
-    const saved = JSON.parse(localStorage.getItem(preferencesKey) ?? 'null')
-    return {
-      volumeVisible:
-        typeof saved?.volumeVisible === 'boolean'
-          ? saved.volumeVisible
-          : defaultPreferences.volumeVisible,
-      crosshairMode:
-        saved?.crosshairMode === 'normal' || saved?.crosshairMode === 'magnet'
-          ? saved.crosshairMode
-          : defaultPreferences.crosshairMode,
-    }
-  } catch {
-    return { ...defaultPreferences }
-  }
-}
-
-function savePreferences(preferences: Preferences): void {
-  localStorage.setItem(preferencesKey, JSON.stringify(preferences))
-}
-```
-
-For a theme or locale selector, save the selected value and use it to construct
-[chart options](/docs/api/chart#options). Define formatter functions in your app
-and pass them when you create the chart. If you save an interval, reload its
-bars and pass the same interval to [chrome](/docs/api/chrome).
-
-## Autosave drawings and keep a backup
-
-Load the drawing JSON before subscribing to `change`. Lightfin validates the
-whole array before replacing any drawings. The example logs storage errors
-to the console. In your app, surface failed writes where users save drawings
-or settings.
-
-```ts
-const drawingsKey = 'my-app:chart-drawings'
-const backupKey = 'my-app:chart-drawings-backup'
-
-function mountChart(container: HTMLElement, bars: readonly Bar[]) {
-  const chart = createChart(container, loadPreferences())
-  chart.addCandlestickSeries().setData(bars)
+function mountChart(
+  container: HTMLElement,
+  sourceFor: (interval: string) => DataSource,
+) {
+  const chart = createChart(container, { volumeVisible: true })
+  chart.addCandlestickSeries()
   const drawings = createAnnotations(chart)
-
-  try {
-    const saved = localStorage.getItem(drawingsKey)
-    if (saved !== null) drawings.load(JSON.parse(saved))
-  } catch (error) {
-    console.error('Could not load drawings', error)
+  const initialInterval = '1H'
+  const loadBars = (interval: string) => {
+    chart.setDataSource(sourceFor(interval))
   }
-
-  const persistDrawings = () => {
-    localStorage.setItem(drawingsKey, JSON.stringify(drawings.toJSON()))
-  }
-  drawings.on('change', () => {
-    try {
-      persistDrawings()
-    } catch (error) {
-      console.error('Could not autosave drawings', error)
-    }
-  })
-
   const chrome = createChrome(chart, {
     annotations: drawings,
-    onResetChartOptions: resetPreferences,
-    drawingPersistence: {
-      save() {
-        localStorage.setItem(backupKey, JSON.stringify(drawings.toJSON()))
-      },
-      restore() {
-        const backup = localStorage.getItem(backupKey)
-        if (backup === null) throw new Error('No drawing backup has been saved.')
-        drawings.load(JSON.parse(backup))
-        try {
-          persistDrawings()
-        } catch {
-          throw new Error('Drawings restored for this session. Autosave failed.')
-        }
-      },
-    },
+    intervals: ['5m', '15m', '1H', '1D'],
+    interval: initialInterval,
+    onIntervalChange: loadBars,
   })
+  if (chrome.interval() === initialInterval) loadBars(initialInterval)
 
-  return {
-    chart,
-    drawings,
-    dispose() {
-      chrome.dispose()
-      drawings.dispose()
-      chart.remove()
-    },
+  return () => {
+    chrome.dispose()
+    drawings.dispose()
+    chart.remove()
   }
 }
 ```
 
-In **Drawing backups**, **Save backup** overwrites the manual checkpoint.
-**Restore backup** replaces the current drawings and starts a new undo history.
-`load()` skips the `change` event, so the restore callback saves the drawings
-explicitly for the next page load.
+Your app supplies `sourceFor` to create a [data source](/docs/guides/live-data)
+for the selected interval. If your app switches intervals itself, load the
+bars and call `chrome.setInterval(interval)` to update and save the selection.
+Drawings keep their time and price anchors when you change the interval.
 
-## Apply or reset preferences
+## Choose a storage backend
 
-Mount the chart with your container and bars. Chrome's **Reset settings**
-dialog calls `resetPreferences` through `onResetChartOptions`. Wire
-`applyPreferences` to your settings UI.
+Pass `persistenceKey` to `createAnnotations()` or `createChrome()` to choose
+its `localStorage` key. Use a different key for drawings and settings.
+Pass `{ persistence: false }` to keep the corresponding state in memory.
 
-```ts
-let view = mountChart(container, bars)
+To use your own storage, pass `{ persistence: adapter }`. Implement
+`DrawingPersistence` from `@lightfin/core/annotations` for drawing lists and
+`SettingsPersistence` from `@lightfin/core/chrome` for chart settings. Each
+adapter has `load()` and `save(value)` methods and may return promises.
+`load()` returns `null` when no saved state exists. Settings can be partial.
+For drawings, `save()` receives the full list, including `[]` after a clear.
+Use `onPersistenceError(error, operation)` to report failed reads or writes.
 
-function applyPreferences(preferences: Preferences): void {
-  savePreferences(preferences)
-  view.dispose()
-  view = mountChart(container, bars)
-}
+With asynchronous adapters, run the initial bar-loading check from the example
+after `await chrome.ready` so a restored interval takes effect first. Await
+`drawings.ready` before enabling drawing tools if users should start from the
+saved drawings. These promises cover storage restore. Your data source loads
+bars separately.
 
-function resetPreferences(): void {
-  localStorage.removeItem(preferencesKey)
-  view.dispose()
-  view = mountChart(container, bars)
-}
-```
+## Reset settings
 
-Reset reloads the autosaved drawings and recreates the chart with
-`defaultPreferences`. A new chart starts with a fresh viewport and drawing
-history. If you use a [data source](/docs/guides/live-data), reattach it on
-mount. In React, give [`<LightfinChart>`](/docs/guides/react#options-are-applied-once)
-a new `key` when applying construction options.
+In chrome's **Reset settings** dialog, **Reset chart options** restores the
+initial interval, chart type, and crosshair mode and saves those values.
+Chrome calls `onIntervalChange` if resetting selects a different interval.
+Provide `onResetChartOptions` if your app also has preferences to reset.
+Construction options such as theme and volume visibility come from your app.
+Apply those by recreating the chart or changing its React `key`.
 
-You can switch crosshair mode in place with `chart.setCrosshairMode(mode)`.
-Read `chart.crosshairMode()` when saving the current choice, including changes
-made using chrome's **Magnet** button.
-
-## Reset drawing tools or clear drawings
-
-Choose **Reset drawing-tool defaults** in Chrome's **Reset settings** dialog,
-or call `chrome.resetDrawingToolDefaults()`. This clears the remembered styles
-for new drawings and returns to the cursor. Existing drawings and their undo
-history are preserved.
-
-To reset a color on an existing drawing, use
-`drawings.update(id, { style: { color: undefined } })`. The drawing inherits
-the theme's color. To remove all current drawings, call `drawings.clear()`.
-That operation is undoable and triggers autosave. The manual backup stays
-available under its own key.
+**Reset drawing-tool defaults** clears remembered styles for new drawings and
+returns to the cursor. You can also call `chrome.resetDrawingToolDefaults()`.
+Use `drawings.clear()` to remove current drawings. That operation is undoable
+and triggers autosave.

@@ -201,24 +201,16 @@ test('clone, undo, and redo from the toolbar and keyboard', async ({
   expect(await count()).toBe(1)
 })
 
-test('drawing backups restore independently of the demo autosave', async ({
+test('drawings are restored on reload and clearing them is autosaved', async ({
   page,
 }) => {
   await openDemo(page)
-  const trigger = page.getByRole('button', { name: 'Drawing backups' })
-  const dialog = page.getByRole('dialog', { name: 'Drawing backups' })
-  const save = dialog.getByRole('button', { name: 'Save backup' })
-  const restore = dialog.getByRole('button', { name: 'Restore backup' })
-  const status = dialog.getByRole('status')
   const undo = page.getByRole('button', { name: 'Undo', exact: true })
   const readDrawings = () => page.evaluate(() => window.drawings.toJSON())
 
-  await trigger.click()
-  await restore.click()
-  await expect(status).toHaveText('No drawing backup has been saved.')
-  expect(await readDrawings()).toEqual([])
-  await page.keyboard.press('Escape')
-  await expect(trigger).toBeFocused()
+  await expect(
+    page.getByRole('button', { name: 'Drawing backups' }),
+  ).toHaveCount(0)
 
   await page.evaluate(() => {
     const { from, to } = window.chart.visibleTimeRange()!
@@ -232,25 +224,63 @@ test('drawing backups restore independently of the demo autosave', async ({
       hiddenLevels: [0.5],
     })
   })
-  const backup = await readDrawings()
-  await trigger.click()
-  await save.click()
-  await expect(status).toHaveText('Drawing backup saved.')
-  await dialog.getByRole('button', { name: 'Close' }).click()
-  await page.getByRole('button', { name: 'Remove all drawings' }).click()
-  expect(await readDrawings()).toEqual([])
+  const saved = await readDrawings()
+  expect(saved).toHaveLength(1)
   await expect(undo).toBeEnabled()
-
-  await trigger.click()
-  await restore.click()
-  await expect(status).toHaveText('Drawing backup restored.')
-  expect(await readDrawings()).toEqual(backup)
-  await dialog.getByRole('button', { name: 'Close' }).click()
-  await expect(undo).toBeDisabled()
 
   await page.reload()
   await page.waitForFunction(() => window.drawings !== undefined)
-  expect(await readDrawings()).toEqual(backup)
+  expect(await readDrawings()).toEqual(saved)
+  await expect(undo).toBeDisabled()
+
+  await page.getByRole('button', { name: 'Remove all drawings' }).click()
+  expect(await readDrawings()).toEqual([])
+  await page.reload()
+  await page.waitForFunction(() => window.drawings !== undefined)
+  expect(await readDrawings()).toEqual([])
+})
+
+test('chart settings survive reload and can be reset to their defaults', async ({
+  page,
+}) => {
+  await openDemo(page)
+  const toolbar = page.getByRole('toolbar', { name: 'Chart toolbar' })
+  const line = toolbar.getByRole('button', { name: 'Line', exact: true })
+  const candles = toolbar.getByRole('button', { name: 'Candles' })
+  const interval = (name: string) =>
+    toolbar.getByRole('button', { name: `Interval ${name}`, exact: true })
+  const magnet = page.getByRole('button', { name: 'Magnet' })
+  const expectBarSpacing = (seconds: number) =>
+    expect
+      .poll(() =>
+        page.evaluate(() => {
+          const bars = window.chart.getSeries()!.bars()
+          return bars.length > 1 ? bars[1]!.time - bars[0]!.time : null
+        }),
+      )
+      .toBe(seconds)
+
+  await interval('5m').click()
+  await line.click()
+  await magnet.click()
+  await expectBarSpacing(300)
+
+  await page.reload()
+  await expect(interval('5m')).toHaveAttribute('aria-pressed', 'true')
+  await expect(line).toHaveAttribute('aria-pressed', 'true')
+  await expect(magnet).toHaveAttribute('aria-pressed', 'true')
+  await expectBarSpacing(300)
+
+  await toolbar.getByRole('button', { name: 'Reset settings' }).click()
+  await page.getByRole('button', { name: 'Reset chart options' }).click()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Chart options reset.' }),
+  ).toBeVisible()
+  await page.reload()
+  await expect(interval('1m')).toHaveAttribute('aria-pressed', 'true')
+  await expect(candles).toHaveAttribute('aria-pressed', 'true')
+  await expect(magnet).toHaveAttribute('aria-pressed', 'false')
+  await expectBarSpacing(60)
 })
 
 test('drawing settings save exact anchors and Fibonacci levels together', async ({

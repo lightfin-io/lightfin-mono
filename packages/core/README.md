@@ -5,14 +5,12 @@ candlesticks, volume, indicators, drawing tools, smooth pan/zoom, and live
 data, rendered on HTML5 Canvas2D. Framework-agnostic vanilla TypeScript,
 tree-shakeable, and easy to wire to any data source.
 
-Bars in, chart out. Lightfin renders and handles interaction; data,
-persistence, and the trading UI stay with the host. It is not a backtesting
-engine, a data service, or an order-entry UI — `onOrderIntent` fires
-price and coordinates so the host can open its own form.
+Lightfin renders and handles interaction while the host supplies data and the
+trading UI. Drawings and interactive chart settings use browser storage by
+default. Hosts can supply their own storage adapters. `onOrderIntent` reports
+price and coordinates so the host can open its own order form.
 
 Part of the [Lightfin monorepo](https://github.com/lightfin-io/lightfin-mono/).
-Open work is in
-[ROADMAP.md](https://github.com/lightfin-io/lightfin-mono/blob/main/ROADMAP.md).
 
 ## Install
 

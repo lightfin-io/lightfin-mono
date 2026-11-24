@@ -1,6 +1,6 @@
 # Lightfin
 
-Guidance for changing this repo. Open product work is listed in [ROADMAP.md](./ROADMAP.md); leave it alone unless asked. The public API and comments in the code are the source of truth for behavior.
+Guidance for changing this repo. The public API and comments in the code are the source of truth for behavior.
 
 ## What this is
 
@@ -9,7 +9,7 @@ A framework-agnostic charting library: bars in, chart out. Canvas2D rendering an
 The host owns:
 
 - data loading (a `DataSource`, or `setData` / `update`)
-- drawing persistence (`toJSON` / `load`; the library only emits `change`)
+- chart identity and optional storage overrides (annotations and interactive chrome settings default to localStorage)
 - the order form (`onOrderIntent` reports price and coordinates)
 - the event-tag detail card (`onSelect` reports the event and position)
 - any model call (the annotations schema is a tool definition; the library never calls a model)

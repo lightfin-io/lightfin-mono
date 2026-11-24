@@ -19,11 +19,11 @@
     },
     "packages/core": {
       "name": "@lightfin/core",
-      "version": "0.0.0",
+      "version": "1.0.0",
     },
     "packages/react": {
       "name": "@lightfin/react",
-      "version": "0.0.0",
+      "version": "1.0.0",
       "devDependencies": {
         "@lightfin/core": "workspace:*",
         "@types/react": "^19.3.0",
@@ -38,7 +38,7 @@
     },
     "packages/www": {
       "name": "@lightfin/www",
-      "version": "0.0.0",
+      "version": "1.0.0",
       "dependencies": {
         "@astrojs/react": "^4.2.3",
         "@astrojs/starlight": "^0.34.0",

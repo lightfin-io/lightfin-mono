@@ -130,9 +130,6 @@ export const ICONS = {
   redo: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M11.5 4L15 7.5 11.5 11M15 7.5H8a4 4 0 000 8h2"/>
   </svg>`,
-  archive: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M3.5 7h11v7.5h-11zM2.5 3.5h13V7h-13zM7 10h4"/>
-  </svg>`,
   ray: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M5 13l2.75-2.75M10.25 7.75L16.5 1.5"/>
     <circle cx="3.75" cy="14.25" r="1.75"/>

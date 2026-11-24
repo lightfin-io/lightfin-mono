@@ -8,6 +8,7 @@ import type { Bar } from '../data/types'
 import { Series } from '../series/series'
 import { Annotations } from './annotations'
 import { distToSegment, fitCloses } from './geometry'
+import type { AnnotationsOptions } from './index'
 import { formatDuration } from './measure'
 import {
   TOOLS,
@@ -16,14 +17,17 @@ import {
   hitAnnotation,
   resolveStyle,
 } from './tools'
-import type { Annotation } from './types'
+import type { Annotation, AnnotationInput } from './types'
 import { validateAnnotation } from './validate'
 
 /**
  * A stand-in for the chart's coordinate API: 1-minute bars 10px apart
  * (x = time / 6) and 10px per price unit (y = 1000 - price * 10).
  */
-function setup(bars: Bar[] = []) {
+function setup(
+  bars: Bar[] = [],
+  options: AnnotationsOptions = { persistence: false },
+) {
   const element = document.createElement('div')
   document.body.append(element)
   let primitive: ChartPrimitive | null = null
@@ -31,6 +35,7 @@ function setup(bars: Bar[] = []) {
   series.setData(bars)
   const chart = {
     element,
+    instrument: () => null,
     getSeries: () => series,
     attachPrimitive(p: ChartPrimitive) {
       primitive = p
@@ -48,7 +53,7 @@ function setup(bars: Bar[] = []) {
     getOptions: () => ({ theme: DEFAULT_THEME, priceAxisWidth: 64 }),
     formatPrice: (p: number) => p.toFixed(2),
   }
-  const drawings = new Annotations(chart as unknown as Chart)
+  const drawings = new Annotations(chart as unknown as Chart, options)
   const changes = vi.fn()
   drawings.on('change', changes)
   const p = () => primitive!
@@ -88,6 +93,94 @@ const trendline = (
     { time: points[0], price: points[1] },
     { time: points[2], price: points[3] },
   ],
+})
+
+describe('drawing persistence', () => {
+  const drawing: AnnotationInput = {
+    id: 'level',
+    type: 'hline',
+    points: [{ time: 60, price: 10 }],
+  }
+
+  it('restores drawings by default and supports opting out', () => {
+    const first = setup([], {}).drawings
+    first.add(drawing)
+    const saved = first.toJSON()
+    first.dispose()
+
+    const restored = setup([], {}).drawings
+    try {
+      expect(restored.toJSON()).toEqual(saved)
+      const inMemory = setup().drawings
+      expect(inMemory.toJSON()).toEqual([])
+      inMemory.add({ ...drawing, id: 'in-memory' })
+      inMemory.dispose()
+      const remounted = setup([], {}).drawings
+      expect(remounted.toJSON()).toEqual(saved)
+      remounted.dispose()
+    } finally {
+      restored.clear()
+      restored.dispose()
+    }
+  })
+
+  it('reports invalid stored drawings and saves the next edit', async () => {
+    const key = 'test:drawings'
+    const stored = JSON.stringify([drawing, { type: 'hline', points: [] }])
+    localStorage.setItem(key, stored)
+    const onPersistenceError = vi.fn()
+    const { drawings } = setup([], {
+      persistenceKey: key,
+      onPersistenceError,
+    })
+    try {
+      await drawings.ready
+      expect(drawings.toJSON()).toEqual([])
+      expect(localStorage.getItem(key)).toBe(stored)
+      expect(onPersistenceError).toHaveBeenCalledWith(expect.any(Error), 'load')
+
+      drawings.add(drawing)
+      expect(JSON.parse(localStorage.getItem(key)!)).toEqual(drawings.toJSON())
+    } finally {
+      drawings.dispose()
+      localStorage.removeItem(key)
+    }
+  })
+
+  it('keeps edits made during a load and saves the latest list after a failed write', async () => {
+    let finishLoad!: (saved: AnnotationInput[]) => void
+    const read = new Promise<AnnotationInput[]>(resolve => {
+      finishLoad = resolve
+    })
+    let failWrite!: (error: Error) => void
+    const write = new Promise<void>((_, reject) => {
+      failWrite = reject
+    })
+    const save =
+      vi.fn<(snapshot: readonly Annotation[]) => void | Promise<void>>()
+    save.mockReturnValueOnce(write)
+    const onPersistenceError = vi.fn()
+    const { drawings } = setup([], {
+      persistence: { load: () => read, save },
+      onPersistenceError,
+    })
+    drawings.add(drawing)
+    expect(save).not.toHaveBeenCalled()
+    finishLoad([{ ...drawing, id: 'old' }])
+    await drawings.ready
+    expect(save).toHaveBeenCalledWith(drawings.toJSON())
+    expect(drawings.get('old')).toBeNull()
+
+    drawings.clear()
+    drawings.undo()
+    expect(save).toHaveBeenCalledTimes(1)
+    const error = new Error('Store unavailable')
+    failWrite(error)
+    await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    expect(onPersistenceError).toHaveBeenCalledWith(error, 'save')
+    expect(save).toHaveBeenLastCalledWith(drawings.toJSON())
+    drawings.dispose()
+  })
 })
 
 describe('Annotations', () => {

@@ -34,21 +34,27 @@ chart theme.
 | `topToolbar`       | `boolean`                     | `true`                | Interval / chart type / indicators bar.          |
 | `bottomToolbar`    | `boolean`                     | `true`                | Date ranges / go-to / clock / fullscreen bar.    |
 | `intervals`        | `readonly string[]`           | —                     | Interval labels for the selector. Omit to hide it. |
-| `interval`         | `string`                      | —                     | The active interval, shown in selector + legend. |
-| `onIntervalChange` | `(interval: string) => void`  | —                     | Called when the user picks an interval.          |
+| `interval`         | `string`                      | —                     | Initial interval and reset default.              |
+| `onIntervalChange` | `(interval: string) => void`  | —                     | Called when the selector, restore, or reset changes the interval. |
 | `chartTypes`       | `readonly ChartType[]`        | all four              | Chart types offered in the toolbar.              |
 | `indicators`       | `readonly IndicatorMenuItem[]`| `BUILTIN_INDICATORS`  | The indicators menu; `[]` hides it.              |
 | `ranges`           | `readonly DateRangePreset[]`  | `DATE_RANGE_PRESETS`  | Quick ranges in the bottom toolbar.              |
 | `annotations`      | `Annotations`                 | —                     | Shows the drawing-tools + style toolbars.        |
-| `drawingPersistence` | `DrawingPersistence`        | —                     | Enables drawing backups when `annotations` is supplied. |
-| `onResetChartOptions` | `() => void \| Promise<void>` | —                  | Enables chart option reset in the top toolbar.   |
+| `persistence`       | `SettingsPersistence \| false` | localStorage       | Override or disable storage for interactive settings. |
+| `persistenceKey`    | `string`                      | page and chart container | Override the browser storage key.            |
+| `onPersistenceError` | `(error: unknown, operation: 'load' \| 'save') => void` | — | Handle storage errors. |
+| `onResetChartOptions` | `() => void \| Promise<void>` | —                  | Reset any additional host settings.              |
 
-The chart has no notion of interval — picking one just calls `onIntervalChange`
-and your host loads the matching bars (see [Live data](/docs/guides/live-data)).
+Chrome restores and automatically saves the interval, chart type, and crosshair
+mode. The host loads matching bars through `onIntervalChange` when the user
+picks a different interval or Chrome restores one. See
+[Saving and resetting settings](/docs/guides/saving-settings) for setup examples.
 
 ## `Chrome`
 
 ```ts
+await chrome.ready // wait for an asynchronous settings adapter
+chrome.interval() // read the active interval
 chrome.setInterval('5m') // reflect an interval you switched programmatically
 chrome.resetDrawingToolDefaults() // forget remembered styles and return to the cursor
 chrome.dispose() // remove every widget and restore the container
@@ -56,11 +62,10 @@ chrome.dispose() // remove every widget and restore the container
 
 ## Reset settings
 
-The top toolbar shows **Reset settings** when you supply `onResetChartOptions`
-or an `annotations` instance. **Reset chart options** calls the host callback,
-which can clear saved preferences and recreate the chart with the host's
-defaults. Throw or reject with an `Error` to show its message in the dialog.
-See [Saving and resetting settings](/docs/guides/saving-settings) for an example.
+**Reset chart options** restores and saves the interval, chart type, and
+crosshair mode from mount. Chrome then calls `onResetChartOptions` if supplied.
+Throw or reject with an `Error` from that callback to show its message in the
+dialog.
 
 **Reset drawing-tool defaults** clears the styles Chrome remembers for new
 drawings and switches to the cursor, canceling any drawing in progress.
@@ -114,36 +119,8 @@ enter an anchor's exact time in Unix seconds and its price. For Fibonacci
 retracements and extensions, the dialog also lets you show or hide individual
 levels. **Apply** saves the edits as one undoable change.
 
-### Drawing backups
-
-Pass `drawingPersistence` to add **Drawing backups** to the drawing toolbar.
-The host implements `save()` and `restore()` and chooses where to store the
-backup. This example keeps a single backup in the browser.
-
-```ts
-const backupKey = 'my-app:chart-drawing-backup'
-createChrome(chart, {
-  annotations: drawings,
-  drawingPersistence: {
-    save() {
-      localStorage.setItem(backupKey, JSON.stringify(drawings.toJSON()))
-    },
-    restore() {
-      const backup = localStorage.getItem(backupKey)
-      if (backup === null) throw new Error('No drawing backup has been saved.')
-      drawings.load(JSON.parse(backup))
-    },
-  },
-})
-```
-
-Callbacks can return a promise. Throw or reject with an `Error` to show its
-message in the dialog. `load()` validates the entire backup and resets drawing
-history. If the host also autosaves on `change`, persist the restored drawings
-explicitly after `load()`.
-
-See [Saving and resetting settings](/docs/guides/saving-settings) to use the
-backup dialog alongside autosave and persisted chart preferences.
+Configure [drawing autosave](/docs/api/annotations#persistence) when you create
+the annotations instance.
 
 ## Also exported
 

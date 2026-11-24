@@ -7,11 +7,9 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 import { createBinanceFeed } from './binanceFeed'
-import {
-  INTERVALS,
-  loadDemoPreferences,
-  saveDemoPreferences,
-} from './demoPreferences'
+
+const INTERVALS = ['1m', '5m', '15m', '1H', '4H', '1D'] as const
+const DEFAULT_INTERVAL = '1H'
 
 // A light counterpart to core's dark `DEFAULT_THEME`, tuned to sit on the docs'
 // white reading column. Candle/volume/indicator hues are shared with the dark
@@ -91,8 +89,6 @@ export interface LiveChartProps {
 function DemoChart() {
   // Create the series, attach the live Binance feed, and mount the chrome once.
   useChartEffect(chart => {
-    const preferences = loadDemoPreferences()
-    let interval = preferences.interval
     chart.setInstrument({
       symbol: 'BTCUSDT',
       name: 'Bitcoin / TetherUS',
@@ -100,9 +96,7 @@ function DemoChart() {
       timezone: 'UTC',
       pricePrecision: 2,
     })
-    const series = chart.addCandlestickSeries()
-    series.setChartType(preferences.chartType)
-    chart.setCrosshairMode(preferences.crosshairMode)
+    chart.addCandlestickSeries()
 
     const loadInterval = (interval: string) => {
       chart.setDataSource(
@@ -112,36 +106,20 @@ function DemoChart() {
         }),
       )
     }
-    loadInterval(interval)
-
-    // Drawings anchor to time + price, so they survive interval switches.
-    const drawings = createAnnotations(chart)
-
-    const savePreferences = () =>
-      saveDemoPreferences({
-        interval,
-        chartType: series.chartType,
-        crosshairMode: chart.crosshairMode(),
-      })
-
+    const drawings = createAnnotations(chart, {
+      persistenceKey: 'lightfin-www:drawings:BTCUSDT',
+    })
     const chrome = createChrome(chart, {
       intervals: INTERVALS,
-      interval,
-      onIntervalChange(next) {
-        interval = next
-        loadInterval(interval)
-        savePreferences()
-      },
+      interval: DEFAULT_INTERVAL,
+      onIntervalChange: loadInterval,
+      persistenceKey: 'lightfin:homepage-demo:preferences',
       annotations: drawings,
     })
-    const offChartType = chart.on('dataChange', change => {
-      if (change === 'style') savePreferences()
-    })
-    const offCrosshairMode = chart.on('crosshairModeChange', savePreferences)
+    // A restored interval already goes through onIntervalChange.
+    if (chrome.interval() === DEFAULT_INTERVAL) loadInterval(DEFAULT_INTERVAL)
 
     return () => {
-      offChartType()
-      offCrosshairMode()
       chrome.dispose()
       drawings.dispose()
     }

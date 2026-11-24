@@ -23,6 +23,13 @@
  */
 import type { Annotations } from '../annotations'
 import type { Chart } from '../chart/chart'
+import type { CrosshairMode } from '../chart/options'
+import type { Persistence, PersistenceErrorHandler } from '../chart/persistence'
+import {
+  bindPersistence,
+  chartStorageKey,
+  localStoragePersistence,
+} from '../chart/persistence'
 import type { IndicatorDefinition, IndicatorModule } from '../indicators/types'
 import type { ChartType } from '../series/series'
 import { el } from './dom'
@@ -32,7 +39,6 @@ import { createLeftToolbar } from './drawingTools'
 import type { DateRangePreset } from './format'
 import { DATE_RANGE_PRESETS, formatClock } from './format'
 import { Hud } from './hud'
-import type { DrawingPersistence } from './modals'
 import { acquireStyles, releaseStyles, themeVars } from './styles'
 import type {
   IndicatorCatalogEntry,
@@ -43,7 +49,6 @@ import { createBottomToolbar, createTopToolbar } from './toolbars'
 
 export type { DateRangePreset } from './format'
 export { DATE_RANGE_PRESETS } from './format'
-export type { DrawingPersistence } from './modals'
 export type { IndicatorCatalogEntry, IndicatorSource } from './toolbars'
 
 function menuEntry(
@@ -175,6 +180,20 @@ function indicatorName(item: IndicatorMenuItem): string | null {
   return null
 }
 
+export interface ChartSettings {
+  interval: string | null
+  chartType?: ChartType
+  crosshairMode: CrosshairMode
+}
+
+/** Storage for the chart's interactive settings. Missing fields use the host's defaults. */
+export type SettingsPersistence = Persistence<
+  ChartSettings,
+  Partial<ChartSettings>
+>
+
+const CHART_TYPES = ['candlestick', 'bar', 'line', 'area'] as const
+
 export interface ChromeOptions {
   /** Top-left legend with OHLCV and indicator rows. Default true. */
   hud?: boolean
@@ -191,6 +210,7 @@ export interface ChromeOptions {
   intervals?: readonly string[]
   /** The active interval, shown in the selector and the legend. */
   interval?: string
+  /** Load bars after the user selects an interval or a saved interval is restored. */
   onIntervalChange?: (interval: string) => void
   /** Chart types offered in the toolbar. Default: all four. */
   chartTypes?: readonly ChartType[]
@@ -208,13 +228,21 @@ export interface ChromeOptions {
    * to leave them out (and the annotations code unloaded).
    */
   annotations?: Annotations
-  /** Host callbacks for the drawing toolbar's backup dialog. Requires annotations. */
-  drawingPersistence?: DrawingPersistence
-  /** Restore the host's chart options from the top toolbar's reset dialog. Throw or reject to report a failure. */
+  /** Defaults to localStorage. Pass false to disable saving interactive settings. */
+  persistence?: SettingsPersistence | false
+  /** Override the default browser storage key for this chart. */
+  persistenceKey?: string
+  /** Handle storage errors. */
+  onPersistenceError?: PersistenceErrorHandler
+  /** Reset additional host options from the top toolbar's reset dialog. Throw or reject to report a failure. */
   onResetChartOptions?: () => void | Promise<void>
 }
 
 export interface Chrome {
+  /** Resolves after the initial settings restore, including asynchronous adapters. */
+  readonly ready: Promise<void>
+  /** The active interval, including any restored value. */
+  interval(): string | null
   /** Set the active interval (e.g. after the host switched it programmatically). */
   setInterval(interval: string | null): void
   /** Forget styles remembered for new drawings and return to the cursor. */
@@ -251,7 +279,14 @@ export function createChrome(
   host.classList.add('lf-host')
   root.classList.add('lf-chart')
 
-  let interval = options.interval ?? null
+  const defaultInterval = options.interval ?? null
+  const defaultCrosshairMode = chart.crosshairMode()
+  let defaultChartType = chart.getSeries()?.chartType
+  const chartTypes = options.chartTypes ?? CHART_TYPES
+  const intervals = options.intervals ?? []
+  let interval = defaultInterval
+  let restoredChartType: ChartType | undefined
+  let saveSettings: (() => void) | undefined
   const showBottom = options.bottomToolbar !== false
   const timeZone = () => chart.instrument()?.timezone
 
@@ -268,48 +303,36 @@ export function createChrome(
   const drawings = options.annotations
   const toolStyles: ToolStyles = new Map()
   const left = drawings
-    ? createLeftToolbar(
-        chart,
-        drawings,
-        host,
-        toolStyles,
-        options.drawingPersistence,
-      )
+    ? createLeftToolbar(chart, drawings, host, toolStyles)
     : null
   function resetDrawingToolDefaults(): void {
     toolStyles.clear()
     drawings?.setTool(null)
   }
 
-  const resetChartOptions = options.onResetChartOptions
   const top =
     options.topToolbar === false
       ? null
       : createTopToolbar(chart, {
           host,
-          intervals: options.intervals ?? [],
+          intervals,
           interval: () => interval,
-          selectInterval: iv => {
-            if (iv === interval) return
-            applyInterval(iv)
-            options.onIntervalChange?.(iv)
-          },
-          chartTypes: options.chartTypes ?? [
-            'candlestick',
-            'bar',
-            'line',
-            'area',
-          ],
+          selectInterval,
+          chartTypes,
           catalog,
-          resetChartOptions:
-            resetChartOptions &&
-            (async () => {
-              try {
-                await resetChartOptions()
-              } finally {
-                if (left?.el.isConnected) left.sync()
-              }
-            }),
+          resetChartOptions: async () => {
+            try {
+              restoredChartType = undefined
+              if (defaultChartType)
+                chart.getSeries()?.setChartType(defaultChartType)
+              chart.setCrosshairMode(defaultCrosshairMode)
+              selectInterval(defaultInterval)
+              saveSettings?.()
+              await options.onResetChartOptions?.()
+            } finally {
+              if (left?.el.isConnected) left.sync()
+            }
+          },
           resetDrawingToolDefaults: drawings && resetDrawingToolDefaults,
         })
 
@@ -349,19 +372,94 @@ export function createChrome(
     const now = new Date()
     bottom?.tick(now)
   })
+  const offSeries = chart.on('seriesChange', series => {
+    defaultChartType ??= series.chartType
+    if (restoredChartType) {
+      series.setChartType(restoredChartType)
+      restoredChartType = undefined
+    }
+  })
 
   function applyInterval(next: string | null): void {
+    if (next === interval) return
     interval = next
     top?.sync()
     hud?.invalidate()
+    saveSettings?.()
   }
 
+  function selectInterval(next: string | null): void {
+    if (next === interval) return
+    applyInterval(next)
+    if (next !== null) options.onIntervalChange?.(next)
+  }
+
+  const settings =
+    options.persistence === false
+      ? undefined
+      : bindPersistence(
+          options.persistence ??
+            localStoragePersistence<ChartSettings, Partial<ChartSettings>>(
+              options.persistenceKey ?? chartStorageKey(root, 'settings'),
+            ),
+          saved => {
+            if (
+              saved.crosshairMode === 'normal' ||
+              saved.crosshairMode === 'magnet'
+            ) {
+              chart.setCrosshairMode(saved.crosshairMode)
+            }
+            if (saved.chartType && chartTypes.includes(saved.chartType)) {
+              const series = chart.getSeries()
+              if (series) series.setChartType(saved.chartType)
+              else restoredChartType = saved.chartType
+            }
+            if (
+              saved.interval &&
+              saved.interval !== interval &&
+              (saved.interval === defaultInterval ||
+                intervals.includes(saved.interval))
+            ) {
+              const restored = saved.interval
+              applyInterval(restored)
+              // Let the host finish mounting before asking it to load bars.
+              queueMicrotask(() => {
+                if (saveSettings && interval === restored) {
+                  options.onIntervalChange?.(restored)
+                }
+              })
+            }
+          },
+          save => {
+            saveSettings = () =>
+              save({
+                interval,
+                chartType: chart.getSeries()?.chartType ?? restoredChartType,
+                crosshairMode: chart.crosshairMode(),
+              })
+            const offCrosshair = chart.on('crosshairModeChange', saveSettings)
+            const offType = chart.on('dataChange', change => {
+              if (change === 'style') saveSettings?.()
+            })
+            return () => {
+              saveSettings = undefined
+              offCrosshair()
+              offType()
+            }
+          },
+          options.onPersistenceError,
+        )
+
   return {
+    ready: settings?.ready ?? Promise.resolve(),
+    interval: () => interval,
     setInterval: applyInterval,
     resetDrawingToolDefaults,
     dispose: () => {
+      settings?.dispose()
       clearTimeout(clockTimer)
       offInstrument()
+      offSeries()
       hud?.dispose()
       styleBar?.dispose()
       for (const bar of [top, bottom, left] as (Toolbar | null)[]) {

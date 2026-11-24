@@ -3,16 +3,12 @@
  * channels, Fibonacci, Gann, patterns, shapes, labels, and measurements.
  *
  * Its own subpath export, so the core bundle never includes annotation code
- * unless a consumer imports it. Drawings serialize to plain JSON for the host
- * to persist:
+ * unless a consumer imports it. Drawings are restored and saved in localStorage
+ * by default.
  *
  * ```ts
  * import { createAnnotations } from '@lightfin/core/annotations'
  * const drawings = createAnnotations(chart)
- * drawings.load(JSON.parse(localStorage.drawings ?? '[]'))
- * drawings.on('change', () => {
- *   localStorage.drawings = JSON.stringify(drawings.toJSON())
- * })
  * drawings.setTool('trendline') // or pass `drawings` to createChrome()
  * ```
  *
@@ -29,9 +25,12 @@
  */
 import type { Chart } from '../chart/chart'
 import { Annotations } from './annotations'
+import type { AnnotationsOptions } from './persistence'
 
 export { Annotations } from './annotations'
 export type { AnnotationPatch, AnnotationsEventMap } from './annotations'
+export type { AnnotationsOptions, DrawingPersistence } from './persistence'
+export { localStorageDrawingPersistence, persistDrawings } from './persistence'
 export { FIB_EXTENSION_LEVELS, FIB_LEVELS } from './tools'
 export { validateAnnotation } from './validate'
 export type {
@@ -47,6 +46,9 @@ export type {
 } from './types'
 
 /** Attach drawing tools to `chart`. */
-export function createAnnotations(chart: Chart): Annotations {
-  return new Annotations(chart)
+export function createAnnotations(
+  chart: Chart,
+  options?: AnnotationsOptions,
+): Annotations {
+  return new Annotations(chart, options)
 }

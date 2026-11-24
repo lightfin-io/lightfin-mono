@@ -1,6 +1,6 @@
 {
   "name": "@lightfin/www",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Marketing site and documentation for Lightfin, built with Astro + Starlight.",
   "type": "module",
   "private": true,

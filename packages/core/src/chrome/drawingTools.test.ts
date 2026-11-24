@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
 
 import { Annotations } from '../annotations'
 import type { Chart } from '../chart/chart'
 import { createLeftToolbar } from './drawingTools'
-import { createDrawingBackupButton } from './modals'
 
 it('keeps undo and redo buttons in sync with drawing history', () => {
   const host = document.createElement('div')
@@ -15,8 +14,9 @@ it('keeps undo and redo buttons in sync with drawing history', () => {
     element,
     attachPrimitive: () => ({ redraw() {}, detach() {} }),
     crosshairMode: () => 'normal',
+    on: () => () => {},
   } as unknown as Chart
-  const annotations = new Annotations(chart)
+  const annotations = new Annotations(chart, { persistence: false })
   const toolbar = createLeftToolbar(chart, annotations, host, new Map())
   host.append(toolbar.el)
   const undo = host.querySelector<HTMLButtonElement>('[aria-label="Undo"]')!
@@ -39,44 +39,5 @@ it('keeps undo and redo buttons in sync with drawing history', () => {
 
   toolbar.dispose()
   annotations.dispose()
-  host.remove()
-})
-
-it('allows retry after an async backup failure and blocks overlapping actions', async () => {
-  const host = document.createElement('div')
-  document.body.append(host)
-  let reject!: (reason: Error) => void
-  const save = vi.fn(
-    () =>
-      new Promise<void>((_, fail) => {
-        reject = fail
-      }),
-  )
-  const restore = vi.fn()
-  const control = createDrawingBackupButton(host, { save, restore })
-  host.append(control.el)
-  control.el.click()
-
-  const buttons = host.querySelectorAll<HTMLButtonElement>('.lf-actions button')
-  const saveButton = buttons[1]!
-  const restoreButton = buttons[2]!
-  const status = host.querySelector('[role="status"]')!
-  saveButton.click()
-  saveButton.click()
-  restoreButton.click()
-  expect(status.textContent).toBe('Saving backup…')
-  expect(save).toHaveBeenCalledTimes(1)
-  expect(restore).not.toHaveBeenCalled()
-
-  reject(new Error('Storage unavailable'))
-  await Promise.resolve()
-  expect(status.textContent).toBe('Storage unavailable')
-  restoreButton.click()
-  await Promise.resolve()
-  expect(status.textContent).toBe('Drawing backup restored.')
-  expect(restore).toHaveBeenCalledOnce()
-
-  control.dispose()
-  expect(host.querySelector('[role="dialog"]')).toBeNull()
   host.remove()
 })

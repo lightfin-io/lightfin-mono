@@ -1,5 +1,6 @@
 import type { Chart, PlotRect } from '../chart/chart'
 import { Emitter } from '../chart/events'
+import { chartStorageKey } from '../chart/persistence'
 import type {
   ChartPointerEvent,
   PrimitiveHandle,
@@ -8,6 +9,8 @@ import type {
 import { fibLevels } from './fib'
 import type { Fit, Px } from './geometry'
 import { fitCloses } from './geometry'
+import type { AnnotationsOptions } from './persistence'
+import { localStorageDrawingPersistence, persistDrawings } from './persistence'
 import type { DrawEnv, Resolved } from './tools'
 import {
   TOOLS,
@@ -117,8 +120,9 @@ export class Annotations {
     { key: string; fit: Fit | null }
   >()
   private readonly ownsTabIndex: boolean
+  private readonly persistence?: ReturnType<typeof persistDrawings>
 
-  constructor(chart: Chart) {
+  constructor(chart: Chart, options: AnnotationsOptions = {}) {
     this.chart = chart
     const root = chart.element
     // Focusable so Delete/Escape reach it after a click on the chart.
@@ -137,6 +141,24 @@ export class Annotations {
       pointerUp: e => this.pointerUp(e),
       cursor: e => this.cursor(e),
     })
+    if (options.persistence !== false) {
+      const storage =
+        options.persistence ??
+        localStorageDrawingPersistence(
+          options.persistenceKey ??
+            chartStorageKey(root, 'drawings', chart.instrument()),
+        )
+      this.persistence = persistDrawings(
+        this,
+        storage,
+        options.onPersistenceError,
+      )
+    }
+  }
+
+  /** Resolves after the initial restore, including asynchronous adapters. */
+  get ready(): Promise<void> {
+    return this.persistence?.ready ?? Promise.resolve()
   }
 
   /** Subscribe to an event (see {@link AnnotationsEventMap}); returns an unsubscribe. */
@@ -430,6 +452,7 @@ export class Annotations {
   /** Detach from the chart and drop all listeners. */
   dispose(): void {
     this.closeEditor()
+    this.persistence?.dispose()
     this.handle.detach()
     const root = this.chart.element
     root.removeEventListener('keydown', this.onKeyDown)

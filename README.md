@@ -11,26 +11,17 @@ docs site live beside it.
 
 <img width="1057" height="530" alt="Chart Screenshot" src="https://github.com/user-attachments/assets/76cb6b7a-6b97-42a5-bfc7-eb8891c3a8a4" />
 
-Open work is in [ROADMAP.md](./ROADMAP.md). Library usage is in
-[`packages/core/README.md`](./packages/core/README.md).
-
-## Status
-
-Pre-1.0. Shipped: core rendering, live data, 16 indicators, chart chrome,
-25 drawing tools, scale-out performance (500k-candle stress page, bundle-size
-budget), accessibility and keyboard control, chart-driven history loading,
-drawing-tool depth, event tags, localized dates, and optional drawing backups.
-`@lightfin/react` and the docs site (`packages/www`) are in the repo.
+Library usage is in [`packages/core/README.md`](./packages/core/README.md).
 
 ## Packages
 
 A [Bun](https://bun.sh) workspace. Packages live under [`packages/`](./packages):
 
-| Package | Name | What it is |
-| --- | --- | --- |
-| [`packages/core`](./packages/core) | `@lightfin/core` | The chart library. Zero runtime dependencies. Holds the `demo/` playground and the Playwright `e2e/` suite. |
+| Package                              | Name              | What it is                                                                                                            |
+| ------------------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| [`packages/core`](./packages/core)   | `@lightfin/core`  | The chart library. Zero runtime dependencies. Holds the `demo/` playground and the Playwright `e2e/` suite.           |
 | [`packages/react`](./packages/react) | `@lightfin/react` | React bindings (`<LightfinChart>` + hooks). `react` and the core are peer dependencies, so the core stays React-free. |
-| [`packages/www`](./packages/www) | `@lightfin/www` | Marketing site and documentation (Astro + Starlight). Private; not published. |
+| [`packages/www`](./packages/www)     | `@lightfin/www`   | Marketing site and documentation (Astro + Starlight). Private; not published.                                         |
 
 ## Development
 

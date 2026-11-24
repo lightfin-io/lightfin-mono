@@ -7,8 +7,6 @@ import type {
 import type { Chart } from '../chart/chart'
 import type { IconName } from './dom'
 import { ICONS, button, el, menuItem } from './dom'
-import type { DrawingPersistence } from './modals'
-import { createDrawingBackupButton } from './modals'
 import { popover } from './popover'
 import type { Toolbar } from './toolbars'
 
@@ -124,7 +122,6 @@ export function createLeftToolbar(
   annotations: Annotations,
   host: HTMLElement,
   styles: ToolStyles,
-  persistence?: DrawingPersistence,
 ): Toolbar {
   const bar = el('div', 'lf-toolbar lf-toolbar-left')
   bar.setAttribute('role', 'toolbar')
@@ -240,11 +237,6 @@ export function createLeftToolbar(
       annotations.clear(),
     ),
   )
-  const backups = persistence
-    ? createDrawingBackupButton(host, persistence)
-    : null
-  if (backups) bar.append(backups.el)
-
   const sync = () => {
     cursor.setAttribute('aria-pressed', String(!annotations.tool))
     for (const g of groups) {
@@ -256,6 +248,7 @@ export function createLeftToolbar(
     redo.disabled = !annotations.canRedo
   }
   const offChange = annotations.on('change', sync)
+  const offCrosshair = chart.on('crosshairModeChange', sync)
   // load() resets history and clears selection without emitting change.
   const offSelection = annotations.on('selectionChange', sync)
   const offTool = annotations.on('toolChange', tool => {
@@ -268,7 +261,7 @@ export function createLeftToolbar(
     }
     sync()
   })
-  // The magnet can be toggled elsewhere (e.g. a key), with no event.
+  // Application code can change drawing toggles outside the toolbar.
   bar.addEventListener('pointerenter', sync)
   sync()
 
@@ -278,8 +271,8 @@ export function createLeftToolbar(
     dispose: () => {
       offTool()
       offChange()
+      offCrosshair()
       offSelection()
-      backups?.dispose()
       for (const g of groups) g.flyout.close()
       bar.remove()
     },

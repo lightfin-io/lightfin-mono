@@ -43,6 +43,8 @@ function mount(withFullscreen = true) {
   const chart = {
     element: root,
     getOptions: () => ({ theme: DEFAULT_THEME }),
+    getSeries: () => null,
+    crosshairMode: () => 'normal',
     instrument: () => null,
     dateFormatters: DEFAULT_DATE_FORMATTERS,
     on: () => () => {},
