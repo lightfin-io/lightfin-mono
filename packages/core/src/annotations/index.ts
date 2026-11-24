@@ -1,6 +1,6 @@
 /**
  * @lightfin/core/annotations — opt-in drawing tools: lines,
- * channels, Fibonacci tools, shapes, labels, and measurements.
+ * channels, Fibonacci, Gann, patterns, shapes, labels, and measurements.
  *
  * Its own subpath export, so the core bundle never includes annotation code
  * unless a consumer imports it. Drawings serialize to plain JSON for the host

@@ -47,6 +47,18 @@ between its two times (the points' prices are ignored); `longPosition` /
 freehand stroke sampled along a drag. Markers take a `shape` —
 `'arrowUp' | 'arrowDown' | 'circle' | 'flag'`.
 
+- `gannFan` starts at a pivot. Place its second anchor on the 1×1 ray to set
+  the reference price change per bar. The other rays use time × price ratios
+  relative to that slope, in the direction of the second anchor.
+  [Gann Fan reference](https://www.metatrader5.com/en/terminal/help/objects/gann/gann_fan)
+- `elliottImpulse` and `elliottCorrection` take the start of the sequence
+  followed by each wave endpoint. The endpoints are labelled 1–5 and A–C,
+  respectively. [Elliott Wave reference](https://www.elliottwave.com/free/introduction-to-the-wave-principle/)
+- `headAndShoulders` takes the left shoulder, first reaction, head, second
+  reaction, and right shoulder. The two reactions define the dashed neckline.
+  Place the head and shoulders below the reactions for the inverse pattern.
+  [Head and Shoulders reference](https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr4.pdf)
+
 ## `Annotations`
 
 ### Tools & modes

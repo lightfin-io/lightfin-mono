@@ -55,6 +55,10 @@ export const annotationSchema = {
         'regression',
         'fib',
         'fibExtension',
+        'gannFan',
+        'elliottImpulse',
+        'elliottCorrection',
+        'headAndShoulders',
         'rectangle',
         'ellipse',
         'triangle',
@@ -77,6 +81,10 @@ export const annotationSchema = {
         'regression [2]: a fitted trend of the closes between two times, with ±2σ bands. ' +
         'fib [2]: retracement levels from swing start (1) to swing end (2). ' +
         'fibExtension [3]: extension levels of move 1→2 projected from point 3. ' +
+        'gannFan [2]: rays from the pivot (1), with the 1×1 ray through point 2. ' +
+        'elliottImpulse [6]: start and five wave endpoints, labelled 1–5. ' +
+        'elliottCorrection [4]: start and three wave endpoints, labelled A–C. ' +
+        'headAndShoulders [5]: left shoulder, first reaction, head, second reaction, right shoulder; works inverted too. ' +
         'rectangle, ellipse [2]: shaded zones between opposite corners. triangle [3]. brush [2+]: a freehand stroke. ' +
         'text [1]: a label. callout [2]: a labelled box (2) pointing at a bar (1). priceLabel [1]: a bubble with the price. ' +
         'marker [1]: an arrow, dot, or flag at a bar (signals). ' +
@@ -175,10 +183,9 @@ export const annotationSchema = {
 export const annotateChartTool = {
   name: 'annotate_chart',
   description:
-    'Draw annotations on the user’s price chart to illustrate your analysis: ' +
-    'support and resistance lines, trendlines, zones, Fibonacci retracements, and markers on notable bars, each with a short caption. ' +
-    'Each call replaces the annotations from your previous call (pass an empty list to remove them); the user’s own drawings are kept. ' +
-    'Anchor every point to a bar time (Unix seconds) and price from the chart data. Prefer a few meaningful annotations over many.',
+    'Draw a few annotations with short captions on the user’s price chart. ' +
+    'Use bar times (Unix seconds) and prices from the chart data. ' +
+    'Each call replaces your previous drawings. An empty list clears them. The user’s drawings are kept.',
   inputSchema: {
     type: 'object',
     properties: {

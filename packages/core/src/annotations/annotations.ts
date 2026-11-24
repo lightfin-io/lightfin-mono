@@ -80,7 +80,7 @@ const nextId = () =>
   `a${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 /**
- * Drawing tools on a chart: lines, channels, Fibonacci tools,
+ * Drawing tools on a chart: lines, channels, Fibonacci, Gann, patterns,
  * shapes, labels, and measurements (see {@link AnnotationType}). Pick a tool
  * with {@link setTool}, then drag or click out its points on the price pane;
  * select a drawing to drag it or its handles. Delete/Backspace removes the
@@ -581,7 +581,10 @@ export class Annotations {
       const r = this.paint(ctx, env, selected)
       if (r) this.paintSelection(ctx, r, env)
     }
-    if (this.draft) this.paint(ctx, env, this.draft.ann)
+    if (this.draft) {
+      const { ann, placed } = this.draft
+      this.paint(ctx, { ...env, previewPoints: placed + 1 }, ann)
+    }
     ctx.restore()
     for (const ann of this.items) {
       if (!ann.hidden && TOOLS[ann.type].badge)

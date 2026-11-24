@@ -25,6 +25,13 @@ import type { UTCTimestamp } from '../data/types'
  *   - `fibExtension` [3] — trend-based extension: the first two points' move
  *     projected from the third.
  *
+ * Gann and patterns:
+ *   - `gannFan` [2] — rays from the first point, with the second defining the 1×1 slope.
+ *   - `elliottImpulse` [6] — the start and five wave endpoints, labelled 1–5.
+ *   - `elliottCorrection` [4] — the start and three wave endpoints, labelled A–C.
+ *   - `headAndShoulders` [5] — left shoulder, first reaction, head, second
+ *     reaction, and right shoulder. The reactions define the neckline.
+ *
  * Shapes:
  *   - `rectangle` [2] / `ellipse` [2] — filled, between opposite corners.
  *   - `triangle` [3] — filled, between three corners.
@@ -54,6 +61,10 @@ export type AnnotationType =
   | 'regression'
   | 'fib'
   | 'fibExtension'
+  | 'gannFan'
+  | 'elliottImpulse'
+  | 'elliottCorrection'
+  | 'headAndShoulders'
   | 'rectangle'
   | 'ellipse'
   | 'triangle'
@@ -93,7 +104,7 @@ export interface AnnotationStyle {
    * theme's up/down color).
    */
   color?: string
-  /** Default 2 for lines, 1 for shapes, channels, and fib levels. */
+  /** Default 2 for lines, 1 for shapes, channels, Fibonacci levels, and Gann rays. */
   lineWidth?: number
   lineStyle?: LineStyle
   /** Shape fill or text background. Default: the line color, translucent (text: none). */

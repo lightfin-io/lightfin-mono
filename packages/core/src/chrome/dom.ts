@@ -172,6 +172,19 @@ export const ICONS = {
     <path d="M8.5 3.5H16M8.5 7H16M8.5 10.5H16M8.5 14.5H16"/>
     <path d="M2 14.5L4.5 5 7 12" stroke-dasharray="1.5 2"/>
   </svg>`,
+  gannFan: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M2 16 8 2M2 16 12 2M2 16 16 2M2 16l14-10M2 16l14-6"/>
+  </svg>`,
+  elliottImpulse: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m1.5 15 3-5 2.5 2.5L11 5l2.5 2.5L16.5 2"/>
+  </svg>`,
+  elliottCorrection: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m2 3 5 8 4-4 5 8"/>
+  </svg>`,
+  headAndShoulders: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m1.5 12 2-5L6 12l3-9 3 9 2.5-5 2 5"/>
+    <path d="M6 12h6" stroke-dasharray="1.5 2"/>
+  </svg>`,
   ellipse: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <ellipse cx="9" cy="9" rx="6.75" ry="4.75"/>
   </svg>`,

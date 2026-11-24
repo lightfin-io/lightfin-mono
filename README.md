@@ -17,13 +17,10 @@ Open work is in [ROADMAP.md](./ROADMAP.md). Library usage is in
 ## Status
 
 Pre-1.0. Shipped: core rendering, live data, 16 indicators, chart chrome,
-21 drawing tools, scale-out performance (500k-candle stress page, bundle-size
+25 drawing tools, scale-out performance (500k-candle stress page, bundle-size
 budget), accessibility and keyboard control, chart-driven history loading,
 drawing-tool depth, event tags, localized dates, and optional drawing backups.
 `@lightfin/react` and the docs site (`packages/www`) are in the repo.
-
-Resetting chart and drawing-tool defaults, more drawing tools, and more
-indicators are listed in [ROADMAP.md](./ROADMAP.md).
 
 ## Packages
 

@@ -42,6 +42,7 @@ const LINE: Controls = {
   text: true,
 }
 const SHAPE: Controls = { ...LINE, fill: 'Fill color' }
+const LABELLED_LINE: Controls = { ...LINE, font: 'always' }
 const POSITION: Controls = {
   color: 'Line color',
   lineStyle: true,
@@ -57,8 +58,12 @@ const CONTROLS: Record<AnnotationType, Controls> = {
   channel: { ...SHAPE, ends: 'extend' },
   pitchfork: SHAPE,
   regression: SHAPE,
-  fib: { ...LINE, font: 'always' },
-  fibExtension: { ...LINE, font: 'always' },
+  fib: LABELLED_LINE,
+  fibExtension: LABELLED_LINE,
+  gannFan: LABELLED_LINE,
+  elliottImpulse: LABELLED_LINE,
+  elliottCorrection: LABELLED_LINE,
+  headAndShoulders: LABELLED_LINE,
   rectangle: SHAPE,
   ellipse: SHAPE,
   triangle: SHAPE,

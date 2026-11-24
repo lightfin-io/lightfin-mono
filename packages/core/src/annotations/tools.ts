@@ -1,11 +1,13 @@
 import type { DrawEnv, Resolved, ToolSpec } from './draw'
 import { clearLabelBox, fillLabel, labelBox } from './draw'
 import { FIB_TOOLS } from './fib'
+import { GANN_FAN } from './gann'
 import type { Px } from './geometry'
 import { inBox } from './geometry'
 import { LABEL_TOOLS } from './labels'
 import { LINE_TOOLS } from './lines'
 import { MEASURE_TOOLS } from './measure'
+import { PATTERN_TOOLS } from './patterns'
 import { SHAPE_TOOLS } from './shapes'
 import type { AnnotationType } from './types'
 
@@ -16,6 +18,8 @@ export { FIB_EXTENSION_LEVELS, FIB_LEVELS } from './fib'
 export const TOOLS: Record<AnnotationType, ToolSpec> = {
   ...LINE_TOOLS,
   ...FIB_TOOLS,
+  gannFan: GANN_FAN,
+  ...PATTERN_TOOLS,
   ...SHAPE_TOOLS,
   ...LABEL_TOOLS,
   ...MEASURE_TOOLS,

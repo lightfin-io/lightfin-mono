@@ -59,10 +59,19 @@ export const TOOL_GROUPS: { label: string; items: ToolItem[] }[] = [
     ],
   },
   {
-    label: 'Fibonacci',
+    label: 'Fibonacci and Gann',
     items: [
       item('fib', 'fib', 'Fib retracement'),
       item('fibExtension', 'fibExtension', 'Trend-based fib extension'),
+      item('gannFan', 'gannFan', 'Gann Fan'),
+    ],
+  },
+  {
+    label: 'Patterns',
+    items: [
+      item('elliottImpulse', 'elliottImpulse', 'Elliott Impulse'),
+      item('elliottCorrection', 'elliottCorrection', 'Elliott Correction'),
+      item('headAndShoulders', 'headAndShoulders', 'Head and Shoulders'),
     ],
   },
   {

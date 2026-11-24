@@ -15,7 +15,7 @@
     "name": "annotations",
     "path": "dist/annotations.js",
     "import": "{ createAnnotations }",
-    "limit": "11.5 kB"
+    "limit": "12.1 kB"
   },
   {
     "name": "annotations schema (for AI tools)",

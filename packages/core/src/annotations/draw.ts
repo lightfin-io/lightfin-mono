@@ -18,6 +18,8 @@ export interface DrawEnv {
   theme: ChartTheme
   /** Pixels per bar slot. */
   barWidth: number
+  /** While placing a multi-point drawing, the fixed anchors plus the moving point. */
+  previewPoints?: number
   formatPrice(price: number): string
 }
 
@@ -235,6 +237,7 @@ const THIN = new Set<AnnotationType>([
   'triangle',
   'fib',
   'fibExtension',
+  'gannFan',
   'channel',
   'pitchfork',
   'regression',

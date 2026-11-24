@@ -2,10 +2,6 @@
 
 Pre-1.0. Rendering, live data, the indicator framework, chrome, drawing tools, price lines, event tags, the React binding, and the docs site are in the repo. This file is the work that is not.
 
-## Annotations
-
-- Gann, Elliott, and pattern tools.
-
 ## Indicators
 
 Sixteen built-ins ship (SMA, EMA, WMA, Bollinger, Keltner, VWAP, RSI, MACD, Stochastic, Williams %R, CCI, ROC, ADX, ATR, OBV, Volume MA). No specific next one is chosen. A new indicator is a module under `packages/core/src/indicators/` on the existing contract, plus a size-limit entry.
