@@ -23,6 +23,12 @@ A [Bun](https://bun.sh) workspace. Packages live under [`packages/`](./packages)
 | [`packages/react`](./packages/react) | `@lightfin/react` | React bindings (`<LightfinChart>` + hooks). `react` and the core are peer dependencies, so the core stays React-free. |
 | [`packages/www`](./packages/www)     | `@lightfin/www`   | Marketing site and documentation (Astro + Starlight). Private; not published.                                         |
 
+## FAQ
+
+### Why did you use Canvas2D and not WebGL or WebGPU?
+
+Measured in real browsers, Canvas2D was faster — WebGPU was about 30% slower. A frame is a few thousand flat rects batched into two fills, and pan/zoom rewrites every position, so the GPU never has enough raster work to pay back WebGPU's per-frame buffer upload and command submit. Canvas2D records the same rects and the browser tessellates and rasterizes them.
+
 ## Development
 
 ```sh
