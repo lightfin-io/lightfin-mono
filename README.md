@@ -27,7 +27,7 @@ A [Bun](https://bun.sh) workspace. Packages live under [`packages/`](./packages)
 
 ### Why did you use Canvas2D and not WebGL or WebGPU?
 
-Measured in real browsers, Canvas2D was faster — WebGPU was about 30% slower. A frame is a few thousand flat rects batched into two fills, and pan/zoom rewrites every position, so the GPU never has enough raster work to pay back WebGPU's per-frame buffer upload and command submit. Canvas2D records the same rects and the browser tessellates and rasterizes them.
+Measured in real browsers, Canvas2D was faster — WebGL/WebGPU were about 30% slower. A frame is a few thousand flat rects batched into two fills, and pan/zoom rewrites every position, so the GPU never has enough raster work to pay back WebGPU's per-frame buffer upload and command submit. Canvas2D records the same rects and the browser tessellates and rasterizes them.
 
 ## Development
 
