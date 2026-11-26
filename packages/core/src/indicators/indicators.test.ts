@@ -7,17 +7,23 @@ import adxDef from './adx'
 import atrDef from './atr'
 import bollingerDef from './bollinger'
 import cciDef from './cci'
+import choppinessDef from './choppiness'
+import donchianDef from './donchian'
 import emaDef from './ema'
 import keltnerDef from './keltner'
 import macdDef from './macd'
+import mfiDef from './mfi'
 import obvDef from './obv'
 import rocDef from './roc'
 import rsiDef from './rsi'
 import smaDef from './sma'
 import stochasticDef from './stochastic'
+import stochasticRsiDef from './stochasticRsi'
+import supertrendDef from './supertrend'
 import type { IndicatorDefinition } from './types'
 import volumeMaDef from './volumeMa'
 import vwapDef from './vwap'
+import vwmaDef from './vwma'
 import williamsRDef from './williamsR'
 import wmaDef from './wma'
 
@@ -65,6 +71,15 @@ function snapshot(
   return out
 }
 
+const newDefinitions: [string, AnyDef, Record<string, unknown>][] = [
+  ['Donchian', donchianDef, {}],
+  ['Supertrend', supertrendDef, { mult: 1.5 }],
+  ['Stochastic RSI', stochasticRsiDef, {}],
+  ['VWMA', vwmaDef, {}],
+  ['Money Flow Index', mfiDef, {}],
+  ['Choppiness Index', choppinessDef, {}],
+]
+
 const definitions: [string, AnyDef, Record<string, unknown>][] = [
   ['SMA', smaDef as unknown as AnyDef, { period: 10 }],
   ['EMA', emaDef as unknown as AnyDef, { period: 10 }],
@@ -84,22 +99,22 @@ const definitions: [string, AnyDef, Record<string, unknown>][] = [
   ['ADX', adxDef as unknown as AnyDef, { period: 14 }],
   ['ATR', atrDef as unknown as AnyDef, { period: 14 }],
   ['Volume MA', volumeMaDef as unknown as AnyDef, { period: 10 }],
+  ...newDefinitions,
 ]
 
 describe.each(definitions)('%s indicator', (_name, def, options) => {
   const resolved = { ...def.defaultOptions, ...options }
   const keys = def.plots(resolved).map(p => p.key)
 
-  it('warms up (first bar NaN) then produces finite values at the tail', () => {
+  it('warms up and produces at least one finite plot on the last bar', () => {
     const store = new ColumnStore()
     store.setData(bars(80))
     const snap = snapshot(def, options, store)
     for (const key of keys) {
-      // The first bar can never have a defined value (no prior history).
       expect(snap[key]![0]).toBeNaN()
-      // With plenty of bars, every plot has produced finite output by the end.
-      expect(Number.isFinite(snap[key]![snap[key]!.length - 1])).toBe(true)
+      expect(snap[key]!.some(Number.isFinite)).toBe(true)
     }
+    expect(keys.some(key => Number.isFinite(snap[key]!.at(-1)))).toBe(true)
   })
 
   it('incremental update() matches a from-scratch recompute', () => {
@@ -141,7 +156,12 @@ describe.each(definitions)('%s indicator', (_name, def, options) => {
 
     // Mutate the last (forming) bar in place, then update the tail.
     const last = data[data.length - 1]!
-    const ticked: Bar = { ...last, close: last.close + 5, high: last.high + 5 }
+    const ticked: Bar = {
+      ...last,
+      close: last.close + 5,
+      high: last.high + 5,
+      volume: last.volume! * 1.5,
+    }
     liveStore.push(ticked)
     calc.updateLast(reader)
 
@@ -152,8 +172,172 @@ describe.each(definitions)('%s indicator', (_name, def, options) => {
     for (const key of keys) {
       const live = calc.value(key, liveStore.lastIndex)
       const want = ref[key]![refStore.lastIndex - refStore.firstIndex]!
-      expect(live).toBeCloseTo(want, 10)
+      expect(live).toBe(want)
     }
+  })
+})
+
+it.each(newDefinitions)(
+  '%s recalculates and continues live after backfill',
+  (_name, def, options) => {
+    const data = bars(81)
+    const store = new ColumnStore()
+    const reader = new StoreReader(store)
+    const resolved = { ...def.defaultOptions, ...options }
+    const calc = def.create(resolved)
+    store.setData(data.slice(40, 80))
+    calc.calculateAll(reader)
+    store.prepend(data.slice(0, 40))
+    expect(reader.firstIndex).toBe(-40)
+    calc.calculateAll(reader)
+    store.push(data[80]!)
+    calc.updateLast(reader)
+
+    const batchStore = new ColumnStore()
+    batchStore.setData(data)
+    const batch = snapshot(def, options, batchStore)
+    for (const { key } of def.plots(resolved)) {
+      expect(
+        data.map((_, offset) => calc.value(key, reader.firstIndex + offset)),
+      ).toEqual(batch[key])
+    }
+  },
+)
+
+it('Donchian Channels include the current bar and drop expired highs and lows', () => {
+  const store = new ColumnStore()
+  store.setData([
+    { time: 1, open: 10, high: 15, low: 4, close: 10 },
+    { time: 2, open: 10, high: 12, low: 7, close: 10 },
+    { time: 3, open: 10, high: 13, low: 8, close: 10 },
+    { time: 4, open: 10, high: 14, low: 6, close: 10 },
+  ])
+  expect(snapshot(donchianDef, { period: 2 }, store)).toEqual({
+    upper: [NaN, 15, 13, 14],
+    middle: [NaN, 9.5, 10, 10],
+    lower: [NaN, 4, 7, 6],
+  })
+})
+
+function closeBars(prices: number[]): Bar[] {
+  return prices.map((close, time) => ({
+    time,
+    open: close,
+    high: close,
+    low: close,
+    close,
+  }))
+}
+
+it('VWMA weights closing prices over a rolling window across sessions', () => {
+  const store = new ColumnStore()
+  store.setData(
+    closeBars([10, 20, 90, 30]).map((bar, i) => ({
+      ...bar,
+      time: 86_398 + i,
+      high: bar.high + 6,
+      volume: [1, 3, 0, 2][i],
+    })),
+  )
+  expect(snapshot(vwmaDef, { period: 2 }, store).vwma).toEqual([
+    NaN,
+    17.5,
+    20,
+    30,
+  ])
+})
+
+it('MFI classifies flows by typical price and ignores unchanged prices', () => {
+  const store = new ColumnStore()
+  const data = closeBars([10, 10, 9, 9, 11, 11, 11])
+  data[1] = { ...data[1]!, high: 16 }
+  store.setData(
+    data.map((bar, i) => ({
+      ...bar,
+      volume: [undefined, 3, 4, 7, 1, 3, 2][i],
+    })),
+  )
+  expect(snapshot(mfiDef, { period: 2 }, store).mfi).toEqual([
+    NaN,
+    NaN,
+    50,
+    0,
+    100,
+    100,
+    50,
+  ])
+})
+
+it('volume-weighted indicators leave gaps for missing or zero-total volume and recover', () => {
+  const store = new ColumnStore()
+  store.setData(
+    closeBars([10, 11, 12, 13, 14, 15]).map((bar, i) => ({
+      ...bar,
+      volume: [0, 0, 0, undefined, 10, 10][i],
+    })),
+  )
+  expect(snapshot(vwmaDef, { period: 2 }, store).vwma).toEqual([
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    14.5,
+  ])
+  expect(snapshot(mfiDef, { period: 2 }, store).mfi).toEqual([
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    100,
+  ])
+})
+
+it('Choppiness distinguishes trends, reversals, and flat windows with gaps', () => {
+  const store = new ColumnStore()
+  store.setData(closeBars([10, 12, 13, 12, 13, 13, 13, 15, 14]))
+  expect(snapshot(choppinessDef, { period: 2 }, store).chop).toEqual([
+    NaN,
+    0,
+    0,
+    100,
+    100,
+    0,
+    100,
+    0,
+    expect.closeTo(58.49625, 5),
+  ])
+})
+
+it('Supertrend trails the active band and flips only on a strict crossing', () => {
+  const store = new ColumnStore()
+  store.setData(closeBars([10, 10, 14, 16, 14, 9, 8]))
+  expect(snapshot(supertrendDef, { atrPeriod: 2, mult: 1 }, store)).toEqual({
+    up: [NaN, NaN, 12, 14, 14, NaN, NaN],
+    down: [NaN, 10, NaN, NaN, NaN, 12.5, 10.25],
+  })
+})
+
+describe('Stochastic RSI', () => {
+  const options = { rsiPeriod: 2, stochPeriod: 2, kSmooth: 2, dPeriod: 2 }
+
+  it('smooths normalized RSI to get %K, then smooths %K to get %D', () => {
+    const store = new ColumnStore()
+    store.setData(closeBars([10, 12, 11, 14, 13, 12, 14]))
+    expect(snapshot(stochasticRsiDef, options, store)).toEqual({
+      k: [NaN, NaN, NaN, NaN, 50, 0, 50],
+      d: [NaN, NaN, NaN, NaN, NaN, 25, 25],
+    })
+  })
+
+  it('uses the midpoint when the RSI range is flat', () => {
+    const store = new ColumnStore()
+    store.setData(closeBars([10, 11, 12, 13, 14, 15]))
+    expect(snapshot(stochasticRsiDef, options, store)).toEqual({
+      k: [NaN, NaN, NaN, NaN, 50, 50],
+      d: [NaN, NaN, NaN, NaN, NaN, 50],
+    })
   })
 })
 

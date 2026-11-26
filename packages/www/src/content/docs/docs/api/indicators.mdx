@@ -37,6 +37,10 @@ Overlay indicators share the main pane; "own pane" indicators (RSI, MACD, …)
 get a resizable sub-pane. Volume MA draws over the volume histogram and only
 shows while that histogram does.
 
+VWMA and Money Flow Index leave a gap when a window contains missing volume
+or has zero total volume. Choppiness Index uses the true price span, including
+the close immediately before the window when available.
+
 ## `IndicatorHandle`
 
 `addIndicator` resolves to a handle; `chart.indicators()` returns every handle

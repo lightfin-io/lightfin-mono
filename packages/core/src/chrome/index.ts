@@ -86,20 +86,31 @@ export const builtinIndicators = {
     'Weighted Moving Average (WMA)',
     () => import('../indicators/wma'),
   ),
+  vwma: menuEntry(
+    'Volume-Weighted Moving Average (VWMA)',
+    () => import('../indicators/vwma'),
+  ),
   bollinger: menuEntry(
     'Bollinger Bands',
     () => import('../indicators/bollinger'),
   ),
   keltner: menuEntry('Keltner Channels', () => import('../indicators/keltner')),
+  donchian: menuEntry('Donchian Channels', () => import('../indicators/donchian')),
+  supertrend: menuEntry('Supertrend', () => import('../indicators/supertrend')),
   vwap: menuEntry('VWAP', () => import('../indicators/vwap')),
   rsi: menuEntry(
     'Relative Strength Index (RSI)',
     () => import('../indicators/rsi'),
   ),
+  mfi: menuEntry('Money Flow Index (MFI)', () => import('../indicators/mfi')),
   macd: menuEntry('MACD', () => import('../indicators/macd')),
   stochastic: menuEntry(
     'Stochastic Oscillator',
     () => import('../indicators/stochastic'),
+  ),
+  stochasticRsi: menuEntry(
+    'Stochastic RSI',
+    () => import('../indicators/stochasticRsi'),
   ),
   williamsR: menuEntry('Williams %R', () => import('../indicators/williamsR')),
   cci: menuEntry(
@@ -110,6 +121,10 @@ export const builtinIndicators = {
   adx: menuEntry(
     'Average Directional Index (ADX)',
     () => import('../indicators/adx'),
+  ),
+  choppiness: menuEntry(
+    'Choppiness Index (CHOP)',
+    () => import('../indicators/choppiness'),
   ),
   atr: menuEntry('Average True Range (ATR)', () => import('../indicators/atr')),
   obv: menuEntry('On-Balance Volume (OBV)', () => import('../indicators/obv')),

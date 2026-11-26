@@ -53,29 +53,11 @@ class StochasticCalc extends BaseCalc {
     return range === 0 ? 50 : (100 * (reader.close(index) - lowest)) / range
   }
 
-  /** SMA of an already-computed column over `period` bars ending at `index`. */
-  private movingAvg(
-    reader: BarReader,
-    key: string,
-    index: number,
-    period: number,
-  ): number {
-    const start = index - period + 1
-    if (start < reader.firstIndex) return NaN
-    let sum = 0
-    for (let i = start; i <= index; i++) {
-      const v = this.value(key, i)
-      if (!Number.isFinite(v)) return NaN
-      sum += v
-    }
-    return sum / period
-  }
-
   protected computeAt(reader: BarReader, index: number): void {
     // Order matters: each step only reads columns already set for this index.
     this.set(RAW_K, index, this.rawK(reader, index))
-    this.set(K, index, this.movingAvg(reader, RAW_K, index, this.kSmooth))
-    this.set(D, index, this.movingAvg(reader, K, index, this.dPeriod))
+    this.set(K, index, this.meanPlot(RAW_K, index, this.kSmooth))
+    this.set(D, index, this.meanPlot(K, index, this.dPeriod))
   }
 }
 

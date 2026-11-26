@@ -1,4 +1,4 @@
-import { BaseCalc, meanClose, trueRange } from './helpers'
+import { averageTrueRange, BaseCalc, meanClose } from './helpers'
 import type { BarReader, IndicatorDefinition } from './types'
 
 /**
@@ -49,23 +49,14 @@ class KeltnerCalc extends BaseCalc {
     )
   }
 
-  /** One Wilder-smoothed ATR step, seeded by the mean TR at its first window. */
-  private atrStep(reader: BarReader, index: number): number {
-    const offset = index - reader.firstIndex
-    const p = this.atrPeriod
-    if (offset < p - 1) return NaN
-    if (offset === p - 1) {
-      let sum = 0
-      for (let i = reader.firstIndex; i <= index; i++)
-        sum += trueRange(reader, i)
-      return sum / p
-    }
-    return (this.prior(ATR, index - 1) * (p - 1) + trueRange(reader, index)) / p
-  }
-
   protected computeAt(reader: BarReader, index: number): void {
     const ema = this.emaStep(reader, index)
-    const atr = this.atrStep(reader, index)
+    const atr = averageTrueRange(
+      reader,
+      index,
+      this.atrPeriod,
+      this.prior(ATR, index - 1),
+    )
     this.set(EMA, index, ema)
     this.set(ATR, index, atr)
     this.set(MIDDLE, index, ema)

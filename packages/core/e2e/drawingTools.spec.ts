@@ -254,8 +254,10 @@ test('chart settings survive reload and can be reset to their defaults', async (
     expect
       .poll(() =>
         page.evaluate(() => {
-          const bars = window.chart.getSeries()!.bars()
-          return bars.length > 1 ? bars[1]!.time - bars[0]!.time : null
+          // The chart container is exposed as window.chart during reload.
+          if (typeof window.chart?.getSeries !== 'function') return null
+          const bars = window.chart.getSeries()?.bars()
+          return bars && bars.length > 1 ? bars[1]!.time - bars[0]!.time : null
         }),
       )
       .toBe(seconds)

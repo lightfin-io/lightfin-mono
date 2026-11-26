@@ -7,10 +7,9 @@ import type { BarReader, IndicatorCalc } from './types'
  * — so incremental updates are equivalent to a from-scratch recompute by
  * construction (the hard requirement, verified in tests).
  *
- * `computeAt(reader, index)` must only read *prior* outputs (index-1 and
- * earlier, via {@link BaseCalc.prior}) and bar values, never later ones; then
- * it works unchanged whether called in a forward loop (`calculateAll`) or on
- * just the newest bar (`updateLast`).
+ * `computeAt(reader, index)` can read earlier outputs via {@link BaseCalc.prior}
+ * and any columns it has already written for this bar. This lets it run in a
+ * forward loop (`calculateAll`) or on just the newest bar (`updateLast`).
  */
 export abstract class BaseCalc implements IndicatorCalc {
   private base = 0
@@ -52,6 +51,17 @@ export abstract class BaseCalc implements IndicatorCalc {
   /** A previously-committed output for `plotKey` at logical `index` (NaN if none). */
   protected prior(plotKey: string, index: number): number {
     return this.value(plotKey, index)
+  }
+
+  /** Average a cached column over a window ending at `index`. */
+  protected meanPlot(plotKey: string, index: number, period: number): number {
+    let sum = 0
+    for (let i = index - period + 1; i <= index; i++) {
+      const value = this.value(plotKey, i)
+      if (!Number.isFinite(value)) return NaN
+      sum += value
+    }
+    return sum / period
   }
 
   protected abstract computeAt(reader: BarReader, index: number): void
@@ -119,7 +129,7 @@ export function lowestLow(
 /**
  * True Range for `index` — the greatest of the bar's range and its gaps from
  * the prior close. The first bar has no prior close, so its TR is just the
- * bar's high−low. Shared by ATR, ADX, and Keltner Channels.
+ * bar's high−low.
  */
 export function trueRange(reader: BarReader, index: number): number {
   const high = reader.high(index)
@@ -131,4 +141,21 @@ export function trueRange(reader: BarReader, index: number): number {
     Math.abs(high - prevClose),
     Math.abs(low - prevClose),
   )
+}
+
+/** Wilder's ATR, seeded by the mean true range over the first full window. */
+export function averageTrueRange(
+  reader: BarReader,
+  index: number,
+  period: number,
+  previous: number,
+): number {
+  const offset = index - reader.firstIndex
+  if (offset < period - 1) return NaN
+  if (offset === period - 1) {
+    let sum = 0
+    for (let i = reader.firstIndex; i <= index; i++) sum += trueRange(reader, i)
+    return sum / period
+  }
+  return (previous * (period - 1) + trueRange(reader, index)) / period
 }

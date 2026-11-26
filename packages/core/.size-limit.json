@@ -9,7 +9,7 @@
     "name": "chrome",
     "path": "dist/chrome.js",
     "import": "{ createChrome }",
-    "limit": "24.7 kB"
+    "limit": "27.8 kB"
   },
   {
     "name": "annotations",
@@ -42,7 +42,7 @@
   {
     "name": "all built-in indicators",
     "path": "dist/indicators/*.js",
-    "limit": "8.3 kB"
+    "limit": "11.4 kB"
   },
   {
     "name": "everything (core + chrome + annotations + price lines + indicators)",
@@ -54,6 +54,6 @@
       "dist/event-tags.js",
       "dist/indicators/*.js"
     ],
-    "limit": "55.6 kB"
+    "limit": "57.1 kB"
   }
 ]
