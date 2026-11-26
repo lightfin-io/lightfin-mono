@@ -87,11 +87,12 @@ export const ICONS = {
     <path d="M2.5 14.5c3-.5 3.5-10 6.5-10s3.5 6 6.5 6"/>
     <path d="M2.5 3v12.5H16"/>
   </svg>`,
-  indicatorPane:
-    '<svg viewBox="0 0 162 162" fill="none" fill-rule="evenodd" stroke="currentColor" stroke-width="4" aria-hidden="true">' +
-    '<path d="M2 2h158v158H2z"/>' +
-    '<path stroke-linecap="square" d="M5.288 111.5h151.424"/>' +
-    '</svg>',
+  indicatorPane: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 162 162">
+    <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-width="6">
+      <path d="M3 3h156v156H3z"/>
+      <path stroke-linecap="square" d="M5.288 111.5h151.424"/>
+    </g>
+  </svg>`,
   calendar: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="2.5" y="3.5" width="13" height="12" rx="1.5"/>
     <path d="M2.5 7.5h13M6 2v3M12 2v3"/>

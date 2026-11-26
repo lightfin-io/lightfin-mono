@@ -209,7 +209,7 @@ export const DEFAULT_THEME: ChartTheme = {
   gridColor: '#1f2733',
   axisTextColor: '#9db2bd',
   axisBorderColor: '#2a2e39',
-  paneBorderColor: '#2a2e39',
+  paneBorderColor: '#2e313b',
   upColor: '#26a69a',
   downColor: '#ef5350',
   volumeUpColor: 'rgba(38, 166, 154, 0.5)',

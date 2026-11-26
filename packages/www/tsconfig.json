@@ -4,6 +4,15 @@
   "exclude": ["dist"],
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "jsxImportSource": "react",
+    /* Typecheck resolves the workspace packages from source, so `astro check`
+       does not need a prior core/react build. Published consumers still resolve
+       the `dist` declarations via each package's exports. */
+    "paths": {
+      "@lightfin/core": ["../core/src/index.ts"],
+      "@lightfin/core/annotations": ["../core/src/annotations/index.ts"],
+      "@lightfin/core/chrome": ["../core/src/chrome/index.ts"],
+      "@lightfin/react": ["../react/src/index.ts"]
+    }
   }
 }
