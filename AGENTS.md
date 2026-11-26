@@ -91,4 +91,4 @@ Vitest for pure logic (scales, ticks, indicator incremental-vs-batch equivalence
 
 `/demo` is the manual playground (Binance BTC/USDT, or `?feed=mock` and `?live=0`). `demo/stress.html` loads 500k 1m bars and reports ingest, calc, backfill, and paint times.
 
-Bundle size is gated by `size-limit` (`bun run size`, per-package `.size-limit.json`) with about 10% headroom. Raising a budget is a deliberate change. A new subpath needs an entry in the core Vite build and, when it has weight, in the size budget.
+Bundle size is gated by `size-limit` (`bun run size`, per-package `.size-limit.json`) with about 10% headroom. Raising a budget is a deliberate change. A new subpath needs an entry in the core Vite build and, when it has weight, in the size budget. `bun run size:json` rewrites `packages/core/size.json` and `packages/react/size.json` from those checks (brotli bytes). The landing page reads them at build time; CI fails if the committed files drift.

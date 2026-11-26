@@ -1,0 +1,56 @@
+[
+  {
+    "name": "core (createChart)",
+    "passed": true,
+    "size": 16437,
+    "sizeLimit": 16500
+  },
+  {
+    "name": "chrome",
+    "passed": true,
+    "size": 32068,
+    "sizeLimit": 32100
+  },
+  {
+    "name": "annotations",
+    "passed": true,
+    "size": 12098,
+    "sizeLimit": 12100
+  },
+  {
+    "name": "annotations schema (for AI tools)",
+    "passed": true,
+    "size": 1688,
+    "sizeLimit": 1700
+  },
+  {
+    "name": "price lines",
+    "passed": true,
+    "size": 916,
+    "sizeLimit": 1000
+  },
+  {
+    "name": "event tags",
+    "passed": true,
+    "size": 1212,
+    "sizeLimit": 1500
+  },
+  {
+    "name": "one indicator (SMA)",
+    "passed": true,
+    "size": 510,
+    "sizeLimit": 1000
+  },
+  {
+    "name": "all built-in indicators",
+    "passed": true,
+    "size": 13147,
+    "sizeLimit": 13300
+  },
+  {
+    "name": "everything (core + chrome + annotations + price lines + indicators)",
+    "passed": true,
+    "size": 62636,
+    "sizeLimit": 62700
+  }
+]

@@ -17,5 +17,9 @@ jobs:
       - run: bun run build
       # Fails the build when a bundle outgrows its budget in .size-limit.json.
       - run: bun run size
+      # Rewrites size.json from those measurements. Fails when the committed
+      # files — which the landing page reads — have drifted.
+      - run: bun run size:json
+      - run: git diff --exit-code -- packages/core/size.json packages/react/size.json
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e

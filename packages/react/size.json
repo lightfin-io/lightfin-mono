@@ -1,0 +1,8 @@
+[
+  {
+    "name": "react wrapper (glue only; react + core external)",
+    "passed": true,
+    "size": 597,
+    "sizeLimit": 2000
+  }
+]

@@ -27,7 +27,8 @@
     "prepublishOnly": "bun run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "size": "size-limit"
+    "size": "size-limit",
+    "size:json": "size-limit --json > size.json"
   },
   "peerDependencies": {
     "@lightfin/core": "*",

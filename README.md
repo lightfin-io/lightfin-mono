@@ -41,6 +41,7 @@ bun run test       # unit tests (Vitest) across packages
 bun run test:e2e   # browser tests against the demo (Playwright)
 bun run typecheck  # tsc --noEmit across packages
 bun run size       # check built bundles against each package's .size-limit.json
+bun run size:json  # rewrite packages/{core,react}/size.json for the landing page
 bun run format     # prettier --write
 ```
 

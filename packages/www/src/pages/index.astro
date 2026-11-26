@@ -1,6 +1,11 @@
 ---
-import LiveChart from '../components/LiveChart.tsx'
 import logo from '../assets/logo.svg'
+import LiveChart from '../components/LiveChart.tsx'
+import {
+  bundles,
+  competitorMultiple,
+  reactSize,
+} from '../data/bundle-sizes'
 
 const features = [
   {
@@ -26,25 +31,6 @@ const features = [
   {
     title: 'Zero dependencies',
     body: 'Not one transitive package — no supply-chain surface to audit, no CVEs to chase. The whole library is yours to review, which risk and compliance teams tend to ask about.',
-  },
-]
-
-// Bars are to-scale between the two Lightfin bundles; the comparison bar is
-// capped and fades off the track (it's ~32× the full bundle). Sizes are
-// brotli-compressed and match the size-limit checks in packages/core.
-const bundles = [
-  { label: 'Core', size: '16.3 kB', width: 19, tone: 'lean' },
-  {
-    label: 'Core + chrome + all indicators & annotations',
-    size: '61.7 kB',
-    width: 72,
-    tone: 'lean',
-  },
-  {
-    label: 'Other full-featured charting libraries',
-    size: '2 MB+',
-    width: 100,
-    tone: 'heavy',
   },
 ]
 
@@ -198,9 +184,10 @@ chart.addCandlestickSeries().setData(bars)`
           }
         </div>
         <p class="bundle__note">
-          Lightfin sizes are brotli-compressed and enforced in CI. The
-          comparison bar is capped — a 2&nbsp;MB bundle is roughly 32&times; the
-          full Lightfin build.
+          Lightfin sizes are brotli-compressed and enforced in CI. The React
+          wrapper adds {reactSize} with React and the core left external. The
+          comparison bar is capped — a 2&nbsp;MB bundle is roughly {competitorMultiple}&times;
+          the full Lightfin build.
         </p>
       </section>
 

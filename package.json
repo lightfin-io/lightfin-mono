@@ -11,12 +11,13 @@
     "dev": "bun run --filter @lightfin/core dev",
     "www": "bun run --filter @lightfin/www dev",
     "build": "bun run --filter @lightfin/core build && bun run --filter @lightfin/react build",
-    "build:www": "bun run --filter @lightfin/core build && bun run --filter @lightfin/react build && bun run --filter @lightfin/www build",
+    "build:www": "bun run --filter @lightfin/core build && bun run --filter @lightfin/react build && bun run size:json && bun run --filter @lightfin/www build",
     "deploy:www": "bun run build:www && bun run --filter @lightfin/www deploy",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun run --filter '*' test",
     "test:e2e": "bun run --filter @lightfin/core test:e2e",
     "size": "bun run --filter '*' size",
+    "size:json": "bun run --filter @lightfin/core size:json && bun run --filter @lightfin/react size:json",
     "format": "prettier --write ."
   },
   "devDependencies": {
