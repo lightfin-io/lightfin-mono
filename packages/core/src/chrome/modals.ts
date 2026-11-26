@@ -113,48 +113,53 @@ export function createResetSettingsButton(
 
   let close: (() => void) | undefined
   let busy = false
-  const trigger = button({ icon: 'resetSettings', title: 'Reset settings' }, () => {
-    if (close || busy) return
-    close = openModal(
-      host,
-      'Reset settings',
-      dismiss => {
-        const choices = el('div', 'lf-actions lf-reset-actions')
-        const status = el('div')
-        status.setAttribute('role', 'status')
-        const buttons = available.map(reset =>
-          button({ label: reset.label }, () => void run(reset)),
-        )
-        choices.append(...buttons)
-        const actions = el('div', 'lf-actions')
-        actions.append(button({ label: 'Close' }, dismiss))
+  const trigger = button(
+    { icon: 'resetSettings', title: 'Reset settings' },
+    () => {
+      if (close || busy) return
+      close = openModal(
+        host,
+        'Reset settings',
+        dismiss => {
+          const choices = el('div', 'lf-actions lf-reset-actions')
+          const status = el('div')
+          status.setAttribute('role', 'status')
+          const buttons = available.map(reset =>
+            button({ label: reset.label }, () => void run(reset)),
+          )
+          choices.append(...buttons)
+          const actions = el('div', 'lf-actions')
+          actions.append(button({ label: 'Close' }, dismiss))
 
-        async function run(reset: SettingsReset): Promise<void> {
-          if (busy) return
-          busy = true
-          const controls = [trigger, ...buttons]
-          for (const control of controls)
-            control.setAttribute('aria-disabled', 'true')
-          status.textContent = 'Resetting settings…'
-          try {
-            await reset.run()
-            status.textContent = reset.success
-          } catch (error) {
-            status.textContent =
-              error instanceof Error ? error.message : 'Settings reset failed.'
-          } finally {
-            busy = false
+          async function run(reset: SettingsReset): Promise<void> {
+            if (busy) return
+            busy = true
+            const controls = [trigger, ...buttons]
             for (const control of controls)
-              control.removeAttribute('aria-disabled')
+              control.setAttribute('aria-disabled', 'true')
+            status.textContent = 'Resetting settings…'
+            try {
+              await reset.run()
+              status.textContent = '✓ ' + reset.success
+            } catch (error) {
+              status.textContent =
+                error instanceof Error
+                  ? error.message
+                  : 'Settings reset failed.'
+            } finally {
+              busy = false
+              for (const control of controls)
+                control.removeAttribute('aria-disabled')
+            }
           }
-        }
-        return [choices, status, actions]
-      },
-      () => {
-        close = undefined
-      },
-    )
-  })
+          return [choices, status, actions]
+        },
+        () => {
+          close = undefined
+        },
+      )
+    },
+  )
   trigger.setAttribute('aria-haspopup', 'dialog')
   return { el: trigger, dispose: () => close?.() }
 }
