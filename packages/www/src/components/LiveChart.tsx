@@ -23,7 +23,6 @@ const LIGHT_CHART_THEME: Partial<ChartTheme> = {
   textStrong: '#131722',
   hover: 'rgba(92, 107, 116, 0.16)',
   hudHover: 'rgba(255, 255, 255, 0.7)',
-  panel: '#ebebeb',
   colorScheme: 'light',
 }
 

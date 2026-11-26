@@ -2,14 +2,14 @@
   {
     "name": "core (createChart)",
     "passed": true,
-    "size": 16437,
-    "sizeLimit": 16500
+    "size": 16663,
+    "sizeLimit": 16700
   },
   {
     "name": "chrome",
     "passed": true,
-    "size": 32068,
-    "sizeLimit": 32100
+    "size": 32576,
+    "sizeLimit": 32600
   },
   {
     "name": "annotations",
@@ -50,7 +50,7 @@
   {
     "name": "everything (core + chrome + annotations + price lines + indicators)",
     "passed": true,
-    "size": 62636,
-    "sizeLimit": 62700
+    "size": 63390,
+    "sizeLimit": 63500
   }
 ]

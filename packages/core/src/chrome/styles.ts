@@ -7,7 +7,28 @@ const STYLE_ID = 'lightfin-chrome-styles'
  * container (see {@link themeVars}).
  */
 const CSS = `
-.lf-host { display: flex; flex-direction: column; }
+.lf-host {
+  display: flex; flex-direction: column;
+  /* Menus, dialogs, and scrollbars step off the chart background.
+     light-dark flips the mix so a light color scheme darkens. */
+  --lf-panel: light-dark(
+    color-mix(in oklch, var(--lf-background) 94%, black),
+    color-mix(in oklch, var(--lf-background) 92%, white));
+  --lf-panelBorderColor: light-dark(
+    color-mix(in oklch, var(--lf-background) 88%, black),
+    color-mix(in oklch, var(--lf-background) 88%, white));
+  --lf-scrollbarTrack: light-dark(
+    color-mix(in oklch, var(--lf-background) 90%, black),
+    color-mix(in oklch, var(--lf-background) 86%, white));
+  --lf-scrollbar: light-dark(
+    color-mix(in oklch, var(--lf-background) 65%, black),
+    color-mix(in oklch, var(--lf-background) 60%, white));
+  scrollbar-width: thin;
+  scrollbar-color: var(--lf-scrollbar) var(--lf-scrollbarTrack);
+}
+/* scrollbar-color inherits from the host. scrollbar-width does not, in
+   Chromium, so the thin width has to be set on each element. */
+.lf-host * { scrollbar-width: thin; }
 .lf-host > .lf-chart, .lf-host > .lf-body { flex: 1 1 0; min-height: 0; }
 .lf-body { display: flex; }
 .lf-body > .lf-chart { flex: 1 1 0; min-width: 0; }
@@ -232,14 +253,12 @@ const chromeThemeKeys = [
   'textStrong',
   'hover',
   'hudHover',
-  'panel',
 ] as const satisfies readonly (keyof ChartTheme)[]
 
 /** CSS properties to copy from the chart theme onto the chrome host. */
 export function themeVars(theme: Readonly<ChartTheme>): Record<string, string> {
   const vars: Record<string, string> = {
     'color-scheme': theme.colorScheme,
-    '--lf-panelBorderColor': theme.panelBorderColor ?? theme.axisBorderColor,
   }
   for (const key of chromeThemeKeys) {
     vars[`--lf-${key}`] = theme[key]

@@ -45,11 +45,10 @@ export interface ChartTheme {
   hover: string
   /** Background for hovered or focused indicator rows in the HUD. */
   hudHover: string
-  /** Background for chrome menus, dialogs, and the floating drawing toolbar. */
-  panel: string
-  /** Border and divider color for chrome panels. Inherits the axis border color when omitted. */
-  panelBorderColor?: string
-  /** Color scheme for the chrome's native browser controls. */
+  /**
+   * `dark` or `light`. Sets native browser controls, and whether menus,
+   * dialogs, and scrollbars lighten or darken `background`.
+   */
   colorScheme: 'dark' | 'light'
 }
 
@@ -232,8 +231,6 @@ export const DEFAULT_THEME: ChartTheme = {
   textStrong: '#d1d4dc',
   hover: 'rgba(157, 178, 189, 0.16)',
   hudHover: 'rgba(19, 23, 34, 0.7)',
-  panel: '#222835',
-  panelBorderColor: '#2a2e39',
   colorScheme: 'dark',
 }
 
@@ -266,10 +263,6 @@ export function resolveOptions(partial: ChartOptionsInput): ChartOptions {
         partial.theme?.paneBorderColor ??
         axisBorderColor ??
         DEFAULT_THEME.paneBorderColor,
-      panelBorderColor:
-        partial.theme?.panelBorderColor ??
-        axisBorderColor ??
-        DEFAULT_THEME.panelBorderColor,
     },
     dateFormatters: { ...dateFormatters, ...partial.dateFormatters },
   }

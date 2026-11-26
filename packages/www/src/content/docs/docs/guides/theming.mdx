@@ -37,7 +37,8 @@ semi-transparent so the candles and gridlines read through them.
 ## A light theme
 
 Set the chart and chrome colors together for a light theme. `colorScheme`
-controls the appearance of native browser controls, such as range sliders.
+controls native browser controls, such as range sliders, and whether menus
+and scrollbars lighten or darken `background`.
 
 ```ts
 createChart(container, {
@@ -50,7 +51,6 @@ createChart(container, {
     textStrong: '#131722',
     hover: 'rgba(80, 84, 94, 0.16)',
     hudHover: 'rgba(255, 255, 255, 0.7)',
-    panel: '#ebebeb',
     colorScheme: 'light',
   },
 })
@@ -63,8 +63,17 @@ properties on the host element. Each name is `--lf-` followed by the exact
 theme property name, including its capitalization. For example, `lineColor`
 becomes `--lf-lineColor`, and `hudHover` becomes `--lf-hudHover`.
 
-`textStrong`, `hover`, `hudHover`, and `panel` each have their own defaults.
-Set them in `theme` to customize the chrome independently of `background`.
+Menus, dialogs, and the drawing toolbar don't have their own colors. Their
+fill (`--lf-panel`) and border (`--lf-panelBorderColor`) are a `color-mix` in
+`oklch` that lightens `background`. `light-dark` darkens that mix when
+`colorScheme` is `light`, so set `colorScheme` with the background. Scrollbars
+use the same step: `--lf-scrollbar` for the thumb and `--lf-scrollbarTrack`
+for the track. The host sets `scrollbar-color` (it inherits) and a thin
+`scrollbar-width` on itself and everything inside it, so every scrollbar
+picks them up. Toolbars keep their scrollbars hidden.
+
+`textStrong`, `hover`, and `hudHover` each have their own defaults. Set them
+in `theme` to customize the chrome independently of `background`.
 
 ## Indicator colors
 

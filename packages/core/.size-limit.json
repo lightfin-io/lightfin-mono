@@ -3,13 +3,13 @@
     "name": "core (createChart)",
     "path": "dist/index.js",
     "import": "{ createChart }",
-    "limit": "16.5 kB"
+    "limit": "16.7 kB"
   },
   {
     "name": "chrome",
     "path": "dist/chrome.js",
     "import": "{ createChrome }",
-    "limit": "32.1 kB"
+    "limit": "32.6 kB"
   },
   {
     "name": "annotations",
@@ -54,6 +54,6 @@
       "dist/event-tags.js",
       "dist/indicators/*.js"
     ],
-    "limit": "62.7 kB"
+    "limit": "63.5 kB"
   }
 ]
