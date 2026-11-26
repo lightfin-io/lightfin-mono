@@ -119,9 +119,18 @@ const DIVIDER_SLOP_TOUCH = 10
 const KEY_ZOOM = 1.25
 const CHART_TYPE_NAMES: Record<ChartType, string> = {
   candlestick: 'candlestick',
+  hollowCandles: 'hollow candles',
+  volumeCandles: 'volume candles',
   bar: 'OHLC bar',
+  highLow: 'high-low',
+  heikinAshi: 'Heikin Ashi',
   line: 'line',
+  lineWithMarkers: 'line with markers',
+  stepLine: 'step line',
   area: 'area',
+  hlcArea: 'HLC area',
+  baseline: 'baseline',
+  columns: 'columns',
 }
 // Fraction of the volume region the price domain is lifted above. <1 so candles
 // still dip slightly into the (translucent) volume bars, TradingView-style,
@@ -131,8 +140,8 @@ const VOLUME_PRICE_MARGIN = 0.6
 /**
  * The root chart object. Owns the layered canvas stack, the
  * frame scheduler, the time/price scales, the pan/zoom controller, the series,
- * and the indicators. Supports one price series (candlestick, OHLC bar, line,
- * or area — switchable in place) on an index-based time axis with an
+ * and the indicators. Supports one price series with a switchable renderer
+ * on an index-based time axis with an
  * autoscaled price axis, anchored pan/zoom, a crosshair and live
  * data/follow-mode, plus overlay and own-pane indicators.
  */
@@ -436,7 +445,7 @@ export class Chart {
    * type is only the starting renderer — `series.setChartType()` switches it
    * later without touching the data.
    */
-  private addSeries(chartType: ChartType): Series {
+  addSeries(chartType: ChartType = 'candlestick'): Series {
     if (this.series) this.series.onChange = undefined
     const series = new Series(chartType)
     series.onChange = change => this.onSeriesChange(change)
@@ -1138,12 +1147,15 @@ export class Chart {
 
   /** Crosshair at the keyboard bar's close, on the scale the next paint will use. */
   private placeKeyboardCrosshair(): void {
-    const store = this.series!.store
+    const series = this.series!
     const index = this.keyboardIndex!
     this.autoScalePrice()
+    const close = series.plottedClose(index)
     this.onCrosshairMove({
       x: this.timeScaleModel.indexToX(index),
-      y: this.priceToCoordinate(store.closes[store.physical(index)]!),
+      y: this.priceToCoordinate(
+        series.chartType === 'highLow' ? series.snapPrice(index, close) : close,
+      ),
     })
   }
 
@@ -1278,7 +1290,7 @@ export class Chart {
     ctx.stroke()
 
     // A divider line along the top of each indicator sub-pane.
-    ctx.strokeStyle = theme.axisBorderColor
+    ctx.strokeStyle = theme.paneBorderColor ?? theme.axisBorderColor
     ctx.beginPath()
     for (const { rect } of this.paneSlots()) {
       const y = snap(rect.top, dpr)
@@ -1308,6 +1320,7 @@ export class Chart {
       main,
       this.options.theme,
       dpr,
+      this.options.baselinePrice,
     )
     const slots = this.indicatorWindow(main.width)
     if (!this.indicatorCtl.isEmpty && slots.from <= slots.to) {

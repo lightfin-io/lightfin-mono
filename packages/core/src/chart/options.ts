@@ -7,6 +7,8 @@ export interface ChartTheme {
   axisTextColor: string
   /** Hairline color for axis borders. */
   axisBorderColor: string
+  /** Divider color between chart panes. Inherits the axis border color when omitted. */
+  paneBorderColor?: string
   /** Up (bullish) candle/bar body + wick. */
   upColor: string
   /** Down (bearish) candle/bar body + wick. */
@@ -155,6 +157,8 @@ export interface ChartOptions {
    * On by default; set false for charts that don't want it.
    */
   priceLineVisible: boolean
+  /** Reference for the baseline chart. Defaults to the midpoint of the scaled price domain. */
+  baselinePrice?: number
   /**
    * Draw a volume histogram in the bottom slice of the main pane on a hidden,
    * auto-scaled volume scale. Off by default (opt-in, lightweight);
@@ -203,6 +207,7 @@ export const DEFAULT_THEME: ChartTheme = {
   gridColor: '#1f2733',
   axisTextColor: '#9db2bd',
   axisBorderColor: '#2a2e39',
+  paneBorderColor: '#2a2e39',
   upColor: '#26a69a',
   downColor: '#ef5350',
   volumeUpColor: 'rgba(38, 166, 154, 0.5)',
@@ -225,7 +230,7 @@ export const DEFAULT_THEME: ChartTheme = {
   textStrong: '#d1d4dc',
   hover: 'rgba(157, 178, 189, 0.16)',
   hudHover: 'rgba(19, 23, 34, 0.7)',
-  panel: '#262a34',
+  panel: '#222835',
   colorScheme: 'dark',
 }
 
@@ -250,7 +255,14 @@ export function resolveOptions(partial: ChartOptionsInput): ChartOptions {
   return {
     ...DEFAULT_OPTIONS,
     ...partial,
-    theme: { ...DEFAULT_THEME, ...partial.theme },
+    theme: {
+      ...DEFAULT_THEME,
+      ...partial.theme,
+      paneBorderColor:
+        partial.theme?.paneBorderColor ??
+        partial.theme?.axisBorderColor ??
+        DEFAULT_THEME.paneBorderColor,
+    },
     dateFormatters: { ...dateFormatters, ...partial.dateFormatters },
   }
 }

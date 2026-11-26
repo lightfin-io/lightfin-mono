@@ -45,7 +45,7 @@ it('reports a failed host reset and allows retry after it settles', async () => 
   expect(status.textContent).toBe('Storage unavailable')
   chart!.click()
   await Promise.resolve()
-  expect(status.textContent).toBe('Chart reset.')
+  expect(status.textContent).toBe('✓ Chart reset.')
   expect(resetChart).toHaveBeenCalledTimes(2)
 
   control.dispose()

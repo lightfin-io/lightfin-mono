@@ -44,6 +44,9 @@ const CSS = `
 .lf-btn[aria-pressed='true'] { color: var(--lf-lineColor); }
 .lf-btn-icon { padding: 4px; }
 .lf-btn svg { display: block; width: 18px; height: 18px; }
+.lf-chart-type { gap: 1px; }
+.lf-chart-type svg + svg { width: 12px; height: 12px; }
+.lf-chart-type[aria-expanded='true'] { background: var(--lf-hover); color: var(--lf-textStrong); }
 .lf-clock { padding: 0 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .lf-menu {
@@ -58,9 +61,22 @@ const CSS = `
 .lf-menu .lf-btn svg { flex: none; }
 .lf-menu-label { padding: 6px 10px 2px; font-size: 11px; opacity: 0.7; }
 
+.lf-menu-chart-types {
+  width: 210px; min-width: 0; max-width: calc(100% - 10px);
+  max-height: calc(100% - 44px); box-sizing: border-box; overscroll-behavior: contain;
+}
+.lf-chart-type-divider { border-top: 1px solid var(--lf-axisBorderColor); margin: 4px; }
+.lf-menu-chart-types .lf-btn[aria-checked='true'] {
+  color: var(--lf-textStrong); background: var(--lf-hover);
+}
+.lf-menu-chart-types .lf-btn[aria-checked='true']::after {
+  content: ''; width: 8px; height: 4px; margin-inline-start: auto;
+  border: solid currentColor; border-width: 0 0 1.5px 1.5px; transform: rotate(-45deg);
+}
+
 /* Indicators menu: a pinned search field above a scrolling list. */
 .lf-menu-indicators { display: flex; flex-direction: column; overflow: hidden; }
-.lf-menu-indicators .lf-btn svg { margin-inline-start: auto; opacity: 0.5; }
+.lf-menu-indicators .lf-btn svg { margin-inline-start: auto; width: 12px; height: 12px; }
 .lf-menu-search {
   display: flex; align-items: center; gap: 6px; margin: -4px -4px 4px;
   padding: 7px 10px; border-bottom: 1px solid var(--lf-axisBorderColor); color: var(--lf-axisTextColor);

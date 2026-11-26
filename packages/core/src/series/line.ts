@@ -25,8 +25,39 @@ export function drawLine(
   priceScale: PriceScale,
   plot: PlotRect,
   theme: ChartTheme,
+  type: 'line' | 'lineWithMarkers' | 'stepLine',
 ): void {
-  strokeLine(ctx, closePath(store, window, timeScale, priceScale, plot), theme)
+  const values = store.closes.subarray(
+    store.physical(window.from),
+    store.physical(window.to) + 1,
+  )
+  const path = new Path2D()
+  tracePrices(
+    path,
+    values,
+    window.from,
+    timeScale,
+    priceScale,
+    plot,
+    type === 'stepLine',
+  )
+  strokeLine(ctx, path, theme.lineColor)
+
+  if (
+    type === 'lineWithMarkers' &&
+    (timeScale.barWidth >= 5 || values.length === 1)
+  ) {
+    const markers = new Path2D()
+    const r = Math.min(3, timeScale.barWidth * 0.3)
+    for (let i = 0; i < values.length; i++) {
+      const x = plot.left + timeScale.indexToX(window.from + i)
+      const y = plot.top + priceScale.priceToY(values[i]!, plot.height)
+      markers.moveTo(x + r, y)
+      markers.arc(x, y, r, 0, 2 * Math.PI)
+    }
+    ctx.fillStyle = theme.lineColor
+    ctx.fill(markers)
+  }
 }
 
 /**
@@ -45,15 +76,20 @@ export function drawArea(
   plot: PlotRect,
   theme: ChartTheme,
 ): void {
-  const line = closePath(store, window, timeScale, priceScale, plot)
+  const line = new Path2D()
+  tracePrices(
+    line,
+    store.closes.subarray(
+      store.physical(window.from),
+      store.physical(window.to) + 1,
+    ),
+    window.from,
+    timeScale,
+    priceScale,
+    plot,
+  )
   const bottom = plot.top + plot.height
-  const firstX = plot.left + timeScale.indexToX(window.from)
-  const lastX = plot.left + timeScale.indexToX(window.to)
-
-  const area = new Path2D(line)
-  area.lineTo(lastX, bottom)
-  area.lineTo(firstX, bottom)
-  area.closePath()
+  const area = areaToY(line, window, timeScale, plot, bottom)
 
   const clearY = bottom - plot.height * AREA_FADE_CLEARANCE
   const gradient = ctx.createLinearGradient(0, plot.top, 0, clearY)
@@ -62,36 +98,148 @@ export function drawArea(
   ctx.fillStyle = gradient
   ctx.fill(area)
 
-  strokeLine(ctx, line, theme)
+  strokeLine(ctx, line, theme.lineColor)
 }
 
-/** The polyline through each visible bar's close, at its slot center. */
-function closePath(
+/** Lightly shaded high-to-close and close-to-low bands, with a close line. */
+export function drawHlcArea(
+  ctx: CanvasRenderingContext2D,
   store: ColumnStore,
   window: IndexWindow,
   timeScale: TimeScale,
   priceScale: PriceScale,
   plot: PlotRect,
-): Path2D {
-  const path = new Path2D()
-  for (let i = window.from; i <= window.to; i++) {
-    const x = plot.left + timeScale.indexToX(i)
-    const y =
-      plot.top +
-      priceScale.priceToY(store.closes[store.physical(i)]!, plot.height)
-    if (i === window.from) path.moveTo(x, y)
-    else path.lineTo(x, y)
+  theme: ChartTheme,
+): void {
+  const start = store.physical(window.from)
+  const end = store.physical(window.to) + 1
+  const args = [window.from, timeScale, priceScale, plot] as const
+  const closes = store.closes.subarray(start, end)
+  const closeLine = new Path2D()
+  tracePrices(closeLine, closes, ...args)
+
+  for (const [values, color] of [
+    [store.highs, theme.upColor],
+    [store.lows, theme.downColor],
+  ] as const) {
+    const edge = new Path2D()
+    tracePrices(edge, values.subarray(start, end), ...args)
+    const band = new Path2D(edge)
+    for (let i = closes.length - 1; i >= 0; i--) {
+      band.lineTo(
+        plot.left + timeScale.indexToX(window.from + i),
+        plot.top + priceScale.priceToY(closes[i]!, plot.height),
+      )
+    }
+    band.closePath()
+    ctx.fillStyle = color
+    ctx.globalAlpha = 0.18
+    ctx.fill(band)
+    ctx.globalAlpha = 0.65
+    strokeLine(ctx, edge, color, 1)
   }
-  return path
+  ctx.globalAlpha = 1
+  strokeLine(ctx, closeLine, theme.lineColor)
+}
+
+/** A close area split at its reference price, with independent colors on each side. */
+export function drawBaseline(
+  ctx: CanvasRenderingContext2D,
+  store: ColumnStore,
+  window: IndexWindow,
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+  plot: PlotRect,
+  theme: ChartTheme,
+  baselinePrice?: number,
+): void {
+  const line = new Path2D()
+  tracePrices(
+    line,
+    store.closes.subarray(
+      store.physical(window.from),
+      store.physical(window.to) + 1,
+    ),
+    window.from,
+    timeScale,
+    priceScale,
+    plot,
+  )
+  // Autoscale padding is symmetric, so its midpoint follows the price band.
+  const price = baselinePrice ?? (priceScale.min + priceScale.max) / 2
+  const bottom = plot.top + plot.height
+  const yRef = plot.top + priceScale.priceToY(price, plot.height)
+  const split = Math.max(plot.top, Math.min(bottom, yRef))
+  const area = areaToY(line, window, timeScale, plot, split)
+  for (const [top, end, color] of [
+    [plot.top, split, theme.upColor],
+    [split, bottom, theme.downColor],
+  ] as const) {
+    if (end <= top) continue
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(plot.left, top, plot.width, end - top)
+    ctx.clip()
+    ctx.fillStyle = color
+    ctx.globalAlpha = 0.18
+    ctx.fill(area)
+    ctx.globalAlpha = 1
+    strokeLine(ctx, line, color)
+    ctx.restore()
+  }
+  if (yRef >= plot.top && yRef <= bottom) {
+    const baseline = new Path2D()
+    baseline.moveTo(plot.left, yRef)
+    baseline.lineTo(plot.left + plot.width, yRef)
+    ctx.setLineDash([4, 4])
+    strokeLine(ctx, baseline, theme.crosshairColor, 1)
+  }
+}
+
+function tracePrices(
+  path: Path2D,
+  values: Float64Array,
+  firstIndex: number,
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+  plot: PlotRect,
+  step = false,
+): void {
+  let previousY = 0
+  for (let offset = 0; offset < values.length; offset++) {
+    const x = plot.left + timeScale.indexToX(firstIndex + offset)
+    const y = plot.top + priceScale.priceToY(values[offset]!, plot.height)
+    if (offset === 0) path.moveTo(x, y)
+    else {
+      if (step) path.lineTo(x, previousY)
+      path.lineTo(x, y)
+    }
+    previousY = y
+  }
+}
+
+function areaToY(
+  line: Path2D,
+  window: IndexWindow,
+  timeScale: TimeScale,
+  plot: PlotRect,
+  y: number,
+): Path2D {
+  const area = new Path2D(line)
+  area.lineTo(plot.left + timeScale.indexToX(window.to), y)
+  area.lineTo(plot.left + timeScale.indexToX(window.from), y)
+  area.closePath()
+  return area
 }
 
 function strokeLine(
   ctx: CanvasRenderingContext2D,
   path: Path2D,
-  theme: ChartTheme,
+  color: string,
+  width = LINE_WIDTH,
 ): void {
-  ctx.strokeStyle = theme.lineColor
-  ctx.lineWidth = LINE_WIDTH
+  ctx.strokeStyle = color
+  ctx.lineWidth = width
   ctx.lineJoin = 'round'
   ctx.stroke(path)
 }

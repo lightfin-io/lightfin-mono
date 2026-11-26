@@ -149,8 +149,8 @@ describe('Series.priceRange', () => {
     expect(s.priceRange({ from: 0, to: 3 })).toEqual({ low: 3, high: 12 })
   })
 
-  it.each(['line', 'area'] as const)(
-    'spans only the closes for %s cha',
+  it.each(['line', 'lineWithMarkers', 'stepLine', 'area', 'baseline'] as const)(
+    'spans only the closes for %s',
     type => {
       const s = series()
       s.setChartType(type)
@@ -158,6 +158,14 @@ describe('Series.priceRange', () => {
       expect(s.priceRange({ from: 0, to: 3 })).toEqual({ low: 4, high: 10 })
     },
   )
+
+  it('includes zero in the column range', () => {
+    const s = series()
+    s.setChartType('columns')
+    expect(s.priceRange({ from: 0, to: 3 })).toEqual({ low: 0, high: 10 })
+    s.setData([bar(10, -5, -4, -8, -7)])
+    expect(s.priceRange({ from: 0, to: 0 })).toEqual({ low: -7, high: 0 })
+  })
 })
 
 describe('Series.setChartType', () => {
@@ -195,14 +203,58 @@ describe('Series.snapPrice', () => {
     expect(s.snapPrice(3, -50)).toBe(3)
   })
 
-  it.each(['line', 'area'] as const)('snaps to the close for %s', type => {
+  it.each([
+    'line',
+    'lineWithMarkers',
+    'stepLine',
+    'area',
+    'baseline',
+    'columns',
+  ] as const)('snaps to the close for %s', type => {
     const s = series()
     s.setChartType(type)
     expect(s.snapPrice(3, 11.5)).toBe(4)
   })
 
+  it('snaps to the visible high-low and HLC values', () => {
+    const s = series()
+    s.setChartType('highLow')
+    expect(s.snapPrice(3, 5)).toBe(3)
+    s.setChartType('hlcArea')
+    expect(s.snapPrice(3, 5)).toBe(4)
+    expect(s.snapPrice(3, 10)).toBe(12)
+  })
+
   it('leaves the price alone outside the data', () => {
     expect(series().snapPrice(9, 7.5)).toBe(7.5)
+  })
+})
+
+describe('Heikin Ashi', () => {
+  it('uses the derived prices for snapping and scaling, and exposes the original bars', () => {
+    const s = series()
+    const gap = bar(50, 3, 3, 1, 2)
+    s.update(gap)
+    s.setChartType('heikinAshi')
+    expect(s.plottedClose(4)).toBe(2.25)
+    expect(s.snapPrice(4, 8)).toBe(7.25)
+    expect(s.priceRange({ from: 4, to: 4 })).toEqual({ low: 1, high: 7.25 })
+    expect(s.bars({ from: 50 })).toEqual([gap])
+  })
+
+  it('rebuilds after a prepend and updates the live bar from its predecessor', () => {
+    const s = series()
+    s.setChartType('heikinAshi')
+    s.update(bar(40, 10, 12, 3, 11))
+    s.update(bar(50, 3, 3, 1, 2))
+    expect(s.snapPrice(4, 8)).toBe(8.125)
+    s.prepend([bar(0, 28, 34, 25, 32)])
+    expect(s.snapPrice(4, 9)).toBe(9.6171875)
+    const reset = new Series('heikinAshi')
+    reset.setData(s.bars())
+    expect(reset.priceRange({ from: 5, to: 5 })).toEqual(
+      s.priceRange({ from: 4, to: 4 }),
+    )
   })
 })
 

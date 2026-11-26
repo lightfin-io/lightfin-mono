@@ -21,12 +21,23 @@ export interface IndicatorCatalogEntry {
   options?: Record<string, unknown>
 }
 
-const CHART_TYPE_LABELS: Record<ChartType, string> = {
-  candlestick: 'Candles',
-  bar: 'Bars',
-  line: 'Line',
-  area: 'Area',
+const CHART_TYPES: Record<ChartType, [label: string, group: string]> = {
+  candlestick: ['Candles', 'bars'],
+  hollowCandles: ['Hollow candles', 'bars'],
+  volumeCandles: ['Volume candles', 'bars'],
+  bar: ['Bars', 'bars'],
+  highLow: ['High-low', 'bars'],
+  heikinAshi: ['Heikin Ashi', 'bars'],
+  line: ['Line', 'lines'],
+  lineWithMarkers: ['Line with markers', 'lines'],
+  stepLine: ['Step line', 'lines'],
+  area: ['Area', 'areas'],
+  hlcArea: ['HLC area', 'areas'],
+  baseline: ['Baseline', 'areas'],
+  columns: ['Columns', 'columns'],
 }
+
+export const DEFAULT_CHART_TYPES = Object.keys(CHART_TYPES) as ChartType[]
 
 export interface TopToolbarContext {
   host: HTMLElement
@@ -68,14 +79,10 @@ export function createTopToolbar(
   })
   if (intervalButtons.length > 0) groups.push(intervalButtons)
 
-  const typeButtons = ctx.chartTypes.map(type => {
-    const b = button({ icon: type, title: CHART_TYPE_LABELS[type] }, () =>
-      chart.getSeries()?.setChartType(type),
-    )
-    b.dataset.chartType = type
-    return b
-  })
-  if (typeButtons.length > 0) groups.push(typeButtons)
+  const typeSelector = ctx.chartTypes.length
+    ? createChartTypeSelector(chart, ctx.host, ctx.chartTypes)
+    : null
+  if (typeSelector) groups.push([typeSelector.el])
 
   const indicatorsButton = button(
     { icon: 'indicators', label: 'Indicators', title: 'Indicators' },
@@ -113,10 +120,7 @@ export function createTopToolbar(
     for (const b of intervalButtons) {
       b.setAttribute('aria-pressed', String(b.dataset.interval === current))
     }
-    const type = chart.getSeries()?.chartType
-    for (const b of typeButtons) {
-      b.setAttribute('aria-pressed', String(b.dataset.chartType === type))
-    }
+    typeSelector?.sync()
   }
   const offs = [
     chart.on('dataChange', change => {
@@ -131,10 +135,99 @@ export function createTopToolbar(
     sync,
     dispose: () => {
       menu.close()
+      typeSelector?.dispose()
       resets?.dispose()
       for (const off of offs) off()
       bar.remove()
     },
+  }
+}
+
+function createChartTypeSelector(
+  chart: Chart,
+  host: HTMLElement,
+  types: readonly ChartType[],
+): Toolbar {
+  const trigger = button({}, () => menu.toggle())
+  trigger.classList.add('lf-chart-type')
+  trigger.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      menu.open()
+    }
+  })
+
+  const list = el('div')
+  list.setAttribute('role', 'presentation')
+  let previousGroup: string | undefined
+  const items = types.map(type => {
+    const [label, group] = CHART_TYPES[type]
+    if (previousGroup && group !== previousGroup) {
+      const divider = el('div', 'lf-chart-type-divider')
+      divider.setAttribute('role', 'separator')
+      list.append(divider)
+    }
+    previousGroup = group
+    const item = menuItem({ label, icon: type, role: 'menuitemradio' }, () => {
+      chart.getSeries()?.setChartType(type)
+      menu.close()
+      trigger.focus()
+    })
+    item.tabIndex = -1
+    list.append(item)
+    return item
+  })
+  list.addEventListener('keydown', e => {
+    const index = items.indexOf(e.target as HTMLButtonElement)
+    let next: number
+    switch (e.key) {
+      case 'ArrowDown':
+        next = (index + 1) % items.length
+        break
+      case 'ArrowUp':
+        next = (index - 1 + items.length) % items.length
+        break
+      case 'Home':
+        next = 0
+        break
+      case 'End':
+        next = items.length - 1
+        break
+      case 'Tab':
+        menu.close()
+        trigger.focus()
+        return
+      default:
+        return
+    }
+    e.preventDefault()
+    items[next]?.focus()
+  })
+  const menu = popover(trigger, host, () => [list], {
+    className: 'lf-menu-chart-types',
+    label: 'Chart type',
+    initialFocus: '[aria-checked="true"]',
+  })
+
+  let displayed: ChartType | undefined
+  return {
+    el: trigger,
+    sync() {
+      const type = chart.getSeries()?.chartType
+      trigger.disabled = !type
+      const icon = type ?? types[0]!
+      if (icon !== displayed) {
+        displayed = icon
+        trigger.innerHTML = ICONS[icon] + ICONS.chartTypeChevron
+        trigger.title = `Chart type: ${CHART_TYPES[icon][0]}`
+        trigger.setAttribute('aria-label', trigger.title)
+      }
+      items.forEach((item, index) =>
+        item.setAttribute('aria-checked', String(types[index] === type)),
+      )
+      if (!type) menu.close()
+    },
+    dispose: () => menu.close(),
   }
 }
 

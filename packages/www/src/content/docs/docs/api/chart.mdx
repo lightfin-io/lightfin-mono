@@ -30,6 +30,7 @@ For saving preferences and recreating the chart with defaults, see
 | `volumeVisible`                     | `boolean`                     | Volume histogram in the main pane (default off).                      |
 | `volumeHeightRatio`                 | `number`                      | Fraction of plot height it occupies.                                  |
 | `priceLineVisible`                  | `boolean`                     | Dotted last-close line + axis badge (default on).                     |
+| `baselinePrice`                     | `number`                      | Baseline reference price (defaults to the scaled domain midpoint).   |
 | `rightOffset`                       | `number`                      | Blank bars kept to the right of the newest bar.                       |
 | `priceAxisWidth` / `timeAxisHeight` | `number`                      | px reserved for the axis strips.                                      |
 | `priceDecimals`                     | `number`                      | Min decimals on price/crosshair labels (default 2).                   |
@@ -43,6 +44,7 @@ For saving preferences and recreating the chart with defaults, see
 
 | Method                   | Returns          | Notes                            |
 | ------------------------ | ---------------- | -------------------------------- |
+| `addSeries(type?)`        | `Series`         | Starts with any `ChartType`. Defaults to `'candlestick'`. |
 | `addCandlestickSeries()` | `Series`         | Also `addBar/Line/AreaSeries()`. |
 | `getSeries()`            | `Series \| null` | The current series.              |
 

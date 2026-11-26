@@ -7,6 +7,8 @@ export interface PopoverOptions {
   role?: 'menu' | 'dialog'
   label?: string
   className?: string
+  /** Selector for the first focused control, if present. */
+  initialFocus?: string
 }
 
 export interface Popover {
@@ -63,7 +65,13 @@ export function popover(
     host.append(panel)
     place(panel, anchor, host, opts.side ?? 'below')
     anchor.setAttribute('aria-expanded', 'true')
-    panel.querySelector<HTMLElement>('button, input, select')?.focus()
+    const firstControl = panel.querySelector<HTMLElement>(
+      'button, input, select',
+    )
+    const target = opts.initialFocus
+      ? (panel.querySelector<HTMLElement>(opts.initialFocus) ?? firstControl)
+      : firstControl
+    target?.focus()
     document.addEventListener('pointerdown', onOutside, true)
     document.addEventListener('keydown', onKey, true)
   }

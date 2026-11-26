@@ -39,31 +39,58 @@ export function menuItem(
   return b
 }
 
+function chartIcon(content: string): string {
+  return `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${content}</svg>`
+}
+
 /** Inline SVG icons (static strings; no external assets). */
 export const ICONS = {
-  candlestick: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M5.5 2.5v3M5.5 12v3.5M12.5 2.5v5M12.5 13v2.5"/>
-    <rect x="3.5" y="5.5" width="4" height="6.5" rx=".5"/>
-    <rect x="10.5" y="7.5" width="4" height="5.5" rx=".5" fill="currentColor"/>
-  </svg>`,
-  bar: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  candlestick: chartIcon(`
+    <path d="M5.5 4v11M12.5 2v12"/>
+    <path d="M3.5 7h4v5h-4zM10.5 5h4v6h-4z" fill="currentColor"/>`),
+  hollowCandles: chartIcon(`
+    <path d="M5.5 4v3m0 5v3M12.5 2v12"/>
+    <path d="M3.5 7h4v5h-4z"/>
+    <path d="M10.5 5h4v6h-4z" fill="currentColor"/>`),
+  volumeCandles: chartIcon(`
+    <path d="M4 4v3m0 5v3M12 2v12"/>
+    <path d="M2.75 7h2.5v5h-2.5z"/>
+    <path d="M8.5 5h7v6h-7z" fill="currentColor"/>`),
+  bar: chartIcon(`
     <path d="M5.5 3v12M3.5 6h2M5.5 12h2M12.5 2.5v11M10.5 10h2M12.5 5h2"/>
-  </svg>`,
-  line: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M2.5 13.5l4-5 3 3 6-8"/>
-  </svg>`,
-  area: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M2.5 12l4-5 3 3 6-7v12.5h-13z" fill="currentColor" fill-opacity=".25"/>
-    <path d="M2.5 12l4-5 3 3 6-7"/>
-  </svg>`,
+  `),
+  highLow: chartIcon(
+    '<rect x="3.5" y="6.5" width="4" height="8"/><rect x="10.5" y="3.5" width="4" height="8"/>',
+  ),
+  heikinAshi: chartIcon(`
+    <path d="M5.5 5v2m0 6v3M12.5 2v2m0 6v3"/>
+    <path d="M3.5 7h4v6h-4zM10.5 4h4v6h-4zM4 12l3-3m4 0 3-3"/>`),
+  line: chartIcon('<path d="M2.5 13.5l4-5 3 3 6-8"/>'),
+  lineWithMarkers: chartIcon(`
+    <path d="m2.5 13.5 3-3.75m2.1-.2 1 1m2-.25 5-6.8"/>
+    <circle cx="6.5" cy="8.5" r="1.5"/><circle cx="9.5" cy="11.5" r="1.5"/>`),
+  stepLine: chartIcon('<path d="M2.5 14h4V9h4v2h3V4h2.5"/>'),
+  area: chartIcon(`
+    <path d="M2.5 12l4-5 3 3 6-7v12.5h-13z" fill="currentColor" fill-opacity=".25" stroke="none"/>
+    <path d="M2.5 12l4-5 3 3 6-7"/>`),
+  hlcArea: chartIcon(`
+    <path d="m2.5 8 4-4 3.5 2.5 5.5-4v7l-5.5 5-3.5-2.5-4 3z" fill="currentColor" fill-opacity=".18" stroke="none"/>
+    <path d="m2.5 8 4-4 3.5 2.5 5.5-4m-13 9.5 4-4 3.5 2.5 5.5-4.5m-13 9 4-3 3.5 2.5 5.5-5"/>`),
+  baseline: chartIcon(`
+    <path d="M2 9h14" stroke-dasharray="1 2"/>
+    <path d="m2.5 13.5 4-7.5 4 6 5-8"/>`),
+  columns: chartIcon(
+    '<path d="M2.5 15.5h13m-12-2v-5h2v5zm4.5 0v-10h2v10zm4.5 0v-7h2v7z"/>',
+  ),
+  chartTypeChevron: chartIcon('<path d="m4.5 7 4.5 4 4.5-4"/>'),
   indicators: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M2.5 14.5c3-.5 3.5-10 6.5-10s3.5 6 6.5 6"/>
     <path d="M2.5 3v12.5H16"/>
   </svg>`,
   indicatorPane:
-    '<svg viewBox="-9 -9 292 180" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">' +
-    '<path vector-effect="non-scaling-stroke" d="M2 2h270v158H2z"/>' +
-    '<path vector-effect="non-scaling-stroke" stroke-linecap="square" d="M5.5 111.5h263"/>' +
+    '<svg viewBox="0 0 162 162" fill="none" fill-rule="evenodd" stroke="currentColor" stroke-width="4" aria-hidden="true">' +
+    '<path d="M2 2h158v158H2z"/>' +
+    '<path stroke-linecap="square" d="M5.288 111.5h151.424"/>' +
     '</svg>',
   calendar: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="2.5" y="3.5" width="13" height="12" rx="1.5"/>

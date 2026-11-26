@@ -36,7 +36,7 @@ chart theme.
 | `intervals`        | `readonly string[]`           | —                     | Interval labels for the selector. Omit to hide it. |
 | `interval`         | `string`                      | —                     | Initial interval and reset default.              |
 | `onIntervalChange` | `(interval: string) => void`  | —                     | Called when the selector, restore, or reset changes the interval. |
-| `chartTypes`       | `readonly ChartType[]`        | all four              | Chart types offered in the toolbar.              |
+| `chartTypes`       | `readonly ChartType[]`        | all chart types       | Choices in the toolbar menu. `[]` hides it.     |
 | `indicators`       | `readonly IndicatorMenuItem[]`| `BUILTIN_INDICATORS`  | The indicators menu; `[]` hides it.              |
 | `ranges`           | `readonly DateRangePreset[]`  | `DATE_RANGE_PRESETS`  | Quick ranges in the bottom toolbar.              |
 | `annotations`      | `Annotations`                 | —                     | Shows the drawing-tools + style toolbars.        |

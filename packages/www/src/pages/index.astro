@@ -5,7 +5,7 @@ import logo from '../assets/logo.svg'
 const features = [
   {
     title: 'Professional-grade charting',
-    body: 'Candlesticks, bars, line and area — switchable in place. Smooth pan/zoom, crosshair, volume sub-pane and a current-price line out of the box.',
+    body: 'Switch between 13 styles, including candles, Heikin Ashi, lines and areas. Pan, zoom and inspect prices with the crosshair, volume overlay and current-price line.',
   },
   {
     title: 'Indicators built in, or build your own',
@@ -30,13 +30,13 @@ const features = [
 ]
 
 // Bars are to-scale between the two Lightfin bundles; the comparison bar is
-// capped and fades off the track (it's ~35× the full bundle). Sizes are
+// capped and fades off the track (it's ~32× the full bundle). Sizes are
 // brotli-compressed and match the size-limit checks in packages/core.
 const bundles = [
-  { label: 'Core', size: '15 kB', width: 19, tone: 'lean' },
+  { label: 'Core', size: '16.3 kB', width: 19, tone: 'lean' },
   {
     label: 'Core + chrome + all indicators & annotations',
-    size: '57 kB',
+    size: '61.7 kB',
     width: 72,
     tone: 'lean',
   },
@@ -199,7 +199,7 @@ chart.addCandlestickSeries().setData(bars)`
         </div>
         <p class="bundle__note">
           Lightfin sizes are brotli-compressed and enforced in CI. The
-          comparison bar is capped — a 2&nbsp;MB bundle is roughly 35&times; the
+          comparison bar is capped — a 2&nbsp;MB bundle is roughly 32&times; the
           full Lightfin build.
         </p>
       </section>

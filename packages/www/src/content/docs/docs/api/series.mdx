@@ -5,18 +5,41 @@ sidebar:
   order: 2
 ---
 
-A `Series` is returned by `chart.addCandlestickSeries()` (and the `Bar`/`Line`/
-`Area` variants). It owns the chart's bars and its renderer.
+A `Series` is returned by `chart.addSeries(type)`. It owns the chart's bars
+and its renderer. Switch styles with `series.setChartType(type)` while keeping
+the same bars, time slots and viewport.
 
 ## Methods
 
-| Method               | Returns      | Notes                                             |
-| -------------------- | ------------ | ------------------------------------------------- |
-| `setData(bars)`      | `void`       | Replace all bars; refits the viewport.            |
-| `update(bar)`        | `PushResult` | Append or replace the last bar (live ticks).      |
-| `prepend(bars)`      | `void`       | Add older bars to the front (history backfill).   |
-| `setChartType(type)` | `void`       | `'candlestick' \| 'bar' \| 'line' \| 'area'`.     |
-| `bars(range?)`       | `Bar[]`      | Read bars, optionally within `{ from, to }`.      |
+| Method               | Returns      | Notes                                           |
+| -------------------- | ------------ | ----------------------------------------------- |
+| `setData(bars)`      | `void`       | Replace all bars; refits the viewport.          |
+| `update(bar)`        | `PushResult` | Append or replace the last bar (live ticks).    |
+| `prepend(bars)`      | `void`       | Add older bars to the front (history backfill). |
+| `setChartType(type)` | `void`       | Switch to any `ChartType` listed below.         |
+| `bars(range?)`       | `Bar[]`      | Read bars, optionally within `{ from, to }`.    |
+
+## Chart types
+
+| `ChartType`       | Toolbar label     | What it shows                                                                                                       |
+| ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `candlestick`     | Candles           | Filled open-to-close bodies with high–low wicks.                                                                    |
+| `hollowCandles`   | Hollow candles    | Rising bodies are outlined. Color compares the close with the previous close.                                       |
+| `volumeCandles`   | Volume candles    | Body width reflects volume relative to the largest visible volume. Bars with missing volume use the standard width. |
+| `bar`             | Bars              | High–low stems with left open ticks and right close ticks.                                                          |
+| `highLow`         | High-low          | Outlined boxes spanning each bar's high and low.                                                                    |
+| `heikinAshi`      | Heikin Ashi       | Smoothed OHLC candles derived from the loaded bars.                                                                 |
+| `line`            | Line              | A line through the closes.                                                                                          |
+| `lineWithMarkers` | Line with markers | A close line with dots that appear when the bars are spaced far enough apart.                                       |
+| `stepLine`        | Step line         | A horizontal segment holds each close until the next bar.                                                           |
+| `area`            | Area              | A close line with a shaded area below it.                                                                           |
+| `hlcArea`         | HLC area          | Separate shaded bands between the close and each of the high and low lines.                                         |
+| `baseline`        | Baseline          | A close line shaded above and below `baselinePrice`, which defaults to the midpoint of the scaled price domain.     |
+| `columns`         | Columns           | Columns from zero to each close, colored by bar direction.                                                          |
+
+Heikin Ashi uses the smoothed values for autoscale and magnet snapping.
+`series.bars()`, indicators, the OHLC legend and the last-price line use the
+source data.
 
 ## The Bar shape
 

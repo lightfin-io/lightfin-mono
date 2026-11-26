@@ -45,7 +45,11 @@ import type {
   IndicatorSource,
   Toolbar,
 } from './toolbars'
-import { createBottomToolbar, createTopToolbar } from './toolbars'
+import {
+  DEFAULT_CHART_TYPES,
+  createBottomToolbar,
+  createTopToolbar,
+} from './toolbars'
 
 export type { DateRangePreset } from './format'
 export { DATE_RANGE_PRESETS } from './format'
@@ -258,8 +262,6 @@ export type SettingsPersistence = Persistence<
   Partial<ChartSettings>
 >
 
-const CHART_TYPES = ['candlestick', 'bar', 'line', 'area'] as const
-
 export interface ChromeOptions {
   /** Top-left legend with OHLCV and indicator rows. Default true. */
   hud?: boolean
@@ -278,7 +280,7 @@ export interface ChromeOptions {
   interval?: string
   /** Load bars after the user selects an interval or a saved interval is restored. */
   onIntervalChange?: (interval: string) => void
-  /** Chart types offered in the toolbar. Default: all four. */
+  /** Chart types offered in the toolbar menu. Defaults to all types; `[]` hides it. */
   chartTypes?: readonly ChartType[]
   /**
    * Indicators menu. Default {@link BUILTIN_INDICATORS}; `[]` hides it.
@@ -348,7 +350,7 @@ export function createChrome(
   const defaultInterval = options.interval ?? null
   const defaultCrosshairMode = chart.crosshairMode()
   let defaultChartType = chart.getSeries()?.chartType
-  const chartTypes = options.chartTypes ?? CHART_TYPES
+  const chartTypes = options.chartTypes ?? DEFAULT_CHART_TYPES
   const intervals = options.intervals ?? []
   let interval = defaultInterval
   let restoredChartType: ChartType | undefined

@@ -115,40 +115,41 @@ test('chart options and drawing-tool defaults reset independently', async ({
   const drawings = await page.evaluate(() => window.drawings.toJSON())
 
   const magnet = page.getByRole('button', { name: 'Magnet' })
-  const line = page.getByRole('button', { name: 'Line', exact: true })
+  const chartType = page.getByRole('button', { name: /^Chart type:/ })
+  const selectLine = async () => {
+    await chartType.click()
+    await page.getByRole('menuitemradio', { name: 'Line', exact: true }).click()
+  }
   const trigger = page.getByRole('button', { name: 'Reset settings' })
   const dialog = page.getByRole('dialog', { name: 'Reset settings' })
   const preset = () => page.evaluate(() => window.drawings.toolPreset?.style)
   await magnet.click()
-  await line.click()
+  await selectLine()
   await page.getByRole('button', { name: 'More lines' }).click()
   await page.getByRole('menuitem', { name: 'Ray', exact: true }).click()
   expect(await preset()).toEqual({ extend: 'end', lineWidth: 4 })
 
   await trigger.click()
   await dialog.getByRole('button', { name: 'Reset chart options' }).click()
-  await expect(dialog.getByRole('status')).toHaveText('Chart options reset.')
+  await expect(dialog.getByRole('status')).toContainText('Chart options reset.')
   await dialog.getByRole('button', { name: 'Close' }).click()
   await expect(magnet).toHaveAttribute('aria-pressed', 'false')
-  await expect(page.getByRole('button', { name: 'Candles' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  await expect(chartType).toHaveAccessibleName('Chart type: Candles')
   expect(await preset()).toEqual({ extend: 'end', lineWidth: 4 })
 
   await magnet.click()
-  await line.click()
+  await selectLine()
   await trigger.click()
   await dialog
     .getByRole('button', { name: 'Reset drawing-tool defaults' })
     .click()
-  await expect(dialog.getByRole('status')).toHaveText(
+  await expect(dialog.getByRole('status')).toContainText(
     'Drawing-tool defaults reset.',
   )
   await page.keyboard.press('Escape')
   await expect(trigger).toBeFocused()
   await expect(magnet).toHaveAttribute('aria-pressed', 'true')
-  await expect(line).toHaveAttribute('aria-pressed', 'true')
+  await expect(chartType).toHaveAccessibleName('Chart type: Line')
   await expect(page.getByRole('button', { name: 'Cursor' })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -245,8 +246,7 @@ test('chart settings survive reload and can be reset to their defaults', async (
 }) => {
   await openDemo(page)
   const toolbar = page.getByRole('toolbar', { name: 'Chart toolbar' })
-  const line = toolbar.getByRole('button', { name: 'Line', exact: true })
-  const candles = toolbar.getByRole('button', { name: 'Candles' })
+  const chartType = toolbar.getByRole('button', { name: /^Chart type:/ })
   const interval = (name: string) =>
     toolbar.getByRole('button', { name: `Interval ${name}`, exact: true })
   const magnet = page.getByRole('button', { name: 'Magnet' })
@@ -263,13 +263,14 @@ test('chart settings survive reload and can be reset to their defaults', async (
       .toBe(seconds)
 
   await interval('5m').click()
-  await line.click()
+  await chartType.click()
+  await page.getByRole('menuitemradio', { name: 'Heikin Ashi' }).click()
   await magnet.click()
   await expectBarSpacing(300)
 
   await page.reload()
   await expect(interval('5m')).toHaveAttribute('aria-pressed', 'true')
-  await expect(line).toHaveAttribute('aria-pressed', 'true')
+  await expect(chartType).toHaveAccessibleName('Chart type: Heikin Ashi')
   await expect(magnet).toHaveAttribute('aria-pressed', 'true')
   await expectBarSpacing(300)
 
@@ -280,7 +281,7 @@ test('chart settings survive reload and can be reset to their defaults', async (
   ).toBeVisible()
   await page.reload()
   await expect(interval('1m')).toHaveAttribute('aria-pressed', 'true')
-  await expect(candles).toHaveAttribute('aria-pressed', 'true')
+  await expect(chartType).toHaveAccessibleName('Chart type: Candles')
   await expect(magnet).toHaveAttribute('aria-pressed', 'false')
   await expectBarSpacing(60)
 })

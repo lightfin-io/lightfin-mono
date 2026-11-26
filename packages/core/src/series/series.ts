@@ -6,7 +6,9 @@ import type { PriceScale } from '../scales/priceScale'
 import type { TimeScale } from '../scales/timeScale'
 import { drawOhlcBars } from './bar'
 import { drawCandles } from './candlestick'
-import { drawArea, drawLine } from './line'
+import { drawColumns } from './columns'
+import { heikinAshiClose } from './heikinAshi'
+import { drawArea, drawBaseline, drawHlcArea, drawLine } from './line'
 
 /** Inclusive integer index window actually on screen. Empty when from > to. */
 export interface IndexWindow {
@@ -14,15 +16,21 @@ export interface IndexWindow {
   to: number
 }
 
-/**
- * How the series renders its bars. All four read the same
- * OHLC store, so switching is a repaint, never a data reload:
- *   - `candlestick` — filled bodies + wicks (default).
- *   - `bar`         — OHLC bars: high–low stem, open tick left, close tick right.
- *   - `line`        — a polyline through the closes.
- *   - `area`        — the close line with a gradient fill that fades out above the volume band.
- */
-export type ChartType = 'candlestick' | 'bar' | 'line' | 'area'
+/** Price renderers that share the same OHLCV data and time slots. */
+export type ChartType =
+  | 'candlestick'
+  | 'hollowCandles'
+  | 'volumeCandles'
+  | 'bar'
+  | 'highLow'
+  | 'heikinAshi'
+  | 'line'
+  | 'lineWithMarkers'
+  | 'stepLine'
+  | 'area'
+  | 'hlcArea'
+  | 'baseline'
+  | 'columns'
 
 /**
  * How a series changed, so the chart can respond appropriately:
@@ -41,14 +49,15 @@ export type ChartType = 'candlestick' | 'bar' | 'line' | 'area'
 export type SeriesChange = 'reset' | 'new-bar' | 'tick' | 'prepend' | 'style'
 
 /**
- * The chart's price series. Owns a {@link ColumnStore} and draws it as
- * candlesticks, OHLC bars, a line, or an area depending on {@link chartType}.
- * Every renderer follows the batching rule — a handful of fills/strokes
- * for the whole visible window regardless of bar count.
+ * The chart's price series. Owns a {@link ColumnStore} and draws it according
+ * to {@link chartType}, batching fills and strokes across the visible window.
  */
 export class Series {
   readonly store = new ColumnStore()
   private type: ChartType
+  // Only the Heikin Ashi open is recursive. Cache it by offset from the
+  // oldest bar so panning is cheap and live updates only compute the tail.
+  private heikinOpens: number[] = []
 
   /**
    * Set by the chart when the series is added, so `setData`/`update` can
@@ -68,16 +77,19 @@ export class Series {
   setChartType(type: ChartType): void {
     if (type === this.type) return
     this.type = type
+    this.rebuildHeikinOpens()
     this.onChange?.('style')
   }
 
   setData(bars: readonly Bar[]): void {
     this.store.setData(bars)
+    if (this.type === 'heikinAshi') this.rebuildHeikinOpens()
     this.onChange?.('reset')
   }
 
   update(bar: Bar): PushResult {
     const result = this.store.push(bar)
+    if (this.type === 'heikinAshi') this.updateHeikinOpen(result.index)
     this.onChange?.(result.isNewBar ? 'new-bar' : 'tick')
     return result
   }
@@ -108,12 +120,46 @@ export class Series {
   prepend(bars: readonly Bar[]): void {
     if (bars.length === 0) return
     this.store.prepend(bars)
+    if (this.type === 'heikinAshi') this.rebuildHeikinOpens()
     this.onChange?.('prepend')
   }
 
-  /** Whether the series draws only closes (line/area), not the full OHLC range. */
+  private rebuildHeikinOpens(): void {
+    this.heikinOpens = []
+    if (this.type !== 'heikinAshi' || this.store.size === 0) return
+    for (let i = this.store.firstIndex; i <= this.store.lastIndex; i++) {
+      this.updateHeikinOpen(i)
+    }
+  }
+
+  private updateHeikinOpen(index: number): void {
+    const { store, heikinOpens } = this
+    const offset = index - store.firstIndex
+    const p = store.physical(index)
+    heikinOpens[offset] =
+      offset === 0
+        ? (store.opens[p]! + store.closes[p]!) / 2
+        : (heikinOpens[offset - 1]! + heikinAshiClose(store, p - 1)) / 2
+  }
+
+  /** Close plotted at a loaded bar index, including Heikin Ashi smoothing. */
+  plottedClose(index: number): number {
+    const p = this.store.physical(index)
+    return this.type === 'heikinAshi'
+      ? heikinAshiClose(this.store, p)
+      : this.store.closes[p]!
+  }
+
+  /** Whether the series plots a single price (the close) per bar. */
   get closeOnly(): boolean {
-    return this.type === 'line' || this.type === 'area'
+    return (
+      this.type === 'line' ||
+      this.type === 'lineWithMarkers' ||
+      this.type === 'stepLine' ||
+      this.type === 'area' ||
+      this.type === 'baseline' ||
+      this.type === 'columns'
+    )
   }
 
   /**
@@ -129,40 +175,56 @@ export class Series {
     return { from, to }
   }
 
-  /**
-   * Price extent across an inclusive index window, for price-axis autoscale:
-   * min low / max high for candles and bars, min/max close for line and area
-   * (which never draw the wicks). Returns null when the window is empty.
-   */
+  /** Plotted price extent across an inclusive window, or null when empty. */
   priceRange(window: IndexWindow): { low: number; high: number } | null {
     const { store } = this
     if (window.from > window.to || store.size === 0) return null
     const lows = this.closeOnly ? store.closes : store.lows
     const highs = this.closeOnly ? store.closes : store.highs
-    let low = Infinity
-    let high = -Infinity
+    let low = this.type === 'columns' ? 0 : Infinity
+    let high = this.type === 'columns' ? 0 : -Infinity
+    const opens = this.type === 'heikinAshi' ? this.heikinOpens : undefined
     for (let i = window.from; i <= window.to; i++) {
       const p = store.physical(i)
-      const l = lows[p]!
-      const h = highs[p]!
+      const open = opens?.[i - store.firstIndex]
+      let l = lows[p]!
+      let h = highs[p]!
+      if (open !== undefined) {
+        const close = heikinAshiClose(store, p)
+        l = Math.min(l, open, close)
+        h = Math.max(h, open, close)
+      }
       if (l < low) low = l
       if (h > high) high = h
     }
     return low <= high ? { low, high } : null
   }
 
-  /**
-   * The price of bar `index` nearest to `price` — the closest of its
-   * open/high/low/close, or its close for line/area — for the crosshair's
-   * magnet mode.
-   */
+  /** Nearest price plotted at a bar, for the crosshair's magnet mode. */
   snapPrice(index: number, price: number): number {
     const { store } = this
-    if (!store.has(index)) return price
+    if (store.size === 0 || !store.has(index)) return price
     const p = store.physical(index)
-    if (this.closeOnly) return store.closes[p]!
-    let best = store.opens[p]!
-    for (const v of [store.highs[p]!, store.lows[p]!, store.closes[p]!]) {
+    const close = this.plottedClose(index)
+    if (this.closeOnly) return close
+    const heikinOpen = this.heikinOpens[index - store.firstIndex]
+    const open = heikinOpen ?? store.opens[p]!
+    const high =
+      heikinOpen === undefined
+        ? store.highs[p]!
+        : Math.max(store.highs[p]!, open, close)
+    const low =
+      heikinOpen === undefined
+        ? store.lows[p]!
+        : Math.min(store.lows[p]!, open, close)
+    const prices =
+      this.type === 'highLow'
+        ? [high, low]
+        : this.type === 'hlcArea'
+          ? [close, high, low]
+          : [open, high, low, close]
+    let best = prices[0]!
+    for (const v of prices) {
       if (Math.abs(v - price) < Math.abs(best - price)) best = v
     }
     return best
@@ -178,7 +240,7 @@ export class Series {
     let max = 0
     for (let i = window.from; i <= window.to; i++) {
       const v = store.volumes[store.physical(i)]!
-      if (!Number.isNaN(v) && v > max) max = v
+      if (Number.isFinite(v) && v > max) max = v
     }
     return max
   }
@@ -190,6 +252,7 @@ export class Series {
     plot: PlotRect,
     theme: ChartTheme,
     dpr: number,
+    baselinePrice?: number,
   ): void {
     const window = this.visibleWindow(timeScale, plot.width)
     if (window.from > window.to) return
@@ -203,16 +266,38 @@ export class Series {
     const args = [ctx, this.store, window, timeScale, priceScale, plot] as const
     switch (this.type) {
       case 'candlestick':
-        drawCandles(...args, theme, dpr)
+      case 'hollowCandles':
+      case 'volumeCandles':
+      case 'heikinAshi':
+      case 'highLow':
+        drawCandles(
+          ...args,
+          theme,
+          dpr,
+          this.type,
+          this.heikinOpens,
+          this.type === 'volumeCandles' ? this.volumeMax(window) : 0,
+        )
         break
       case 'bar':
         drawOhlcBars(...args, theme, dpr)
         break
       case 'line':
-        drawLine(...args, theme)
+      case 'lineWithMarkers':
+      case 'stepLine':
+        drawLine(...args, theme, this.type)
         break
       case 'area':
         drawArea(...args, theme)
+        break
+      case 'hlcArea':
+        drawHlcArea(...args, theme)
+        break
+      case 'baseline':
+        drawBaseline(...args, theme, baselinePrice)
+        break
+      case 'columns':
+        drawColumns(...args, theme, dpr)
         break
     }
     ctx.restore()

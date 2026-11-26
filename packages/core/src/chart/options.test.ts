@@ -19,6 +19,17 @@ describe('resolveOptions', () => {
     expect(resolved.theme.downColor).toBe(DEFAULT_THEME.downColor)
   })
 
+  it('inherits the axis border color unless the pane divider has its own color', () => {
+    const axisBorderColor = '#334455'
+    expect(
+      resolveOptions({ theme: { axisBorderColor } }).theme.paneBorderColor,
+    ).toBe(axisBorderColor)
+    expect(
+      resolveOptions({ theme: { axisBorderColor, paneBorderColor: '#667788' } })
+        .theme,
+    ).toMatchObject({ axisBorderColor, paneBorderColor: '#667788' })
+  })
+
   it('uses Gregorian dates and lets a custom formatter override the locale', () => {
     const date = new Date(Date.UTC(2024, 0, 5, 14, 30))
     const { dateFormatters } = resolveOptions({
