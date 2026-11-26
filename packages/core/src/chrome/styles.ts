@@ -52,7 +52,7 @@ const CSS = `
 .lf-menu {
   position: absolute; z-index: 20; min-width: 220px; max-height: 60%;
   overflow-y: auto; padding: 4px; border-radius: 6px;
-  background: var(--lf-panel); border: 1px solid var(--lf-axisBorderColor);
+  background: var(--lf-panel); border: 1px solid var(--lf-panelBorderColor);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); font: 13px/18px var(--lf-fontFamily);
 }
 .lf-menu .lf-btn { display: flex; width: 100%; padding: 6px 10px; gap: 8px; }
@@ -65,7 +65,7 @@ const CSS = `
   width: 210px; min-width: 0; max-width: calc(100% - 10px);
   max-height: calc(100% - 44px); box-sizing: border-box; overscroll-behavior: contain;
 }
-.lf-chart-type-divider { border-top: 1px solid var(--lf-axisBorderColor); margin: 4px; }
+.lf-chart-type-divider { border-top: 1px solid var(--lf-panelBorderColor); margin: 4px; }
 .lf-menu-chart-types .lf-btn[aria-checked='true'] {
   color: var(--lf-textStrong); background: var(--lf-hover);
 }
@@ -79,7 +79,7 @@ const CSS = `
 .lf-menu-indicators .lf-btn svg { margin-inline-start: auto; width: 12px; height: 12px; }
 .lf-menu-search {
   display: flex; align-items: center; gap: 6px; margin: -4px -4px 4px;
-  padding: 7px 10px; border-bottom: 1px solid var(--lf-axisBorderColor); color: var(--lf-axisTextColor);
+  padding: 7px 10px; border-bottom: 1px solid var(--lf-panelBorderColor); color: var(--lf-axisTextColor);
 }
 .lf-menu-search svg { flex: none; width: 15px; height: 15px; opacity: 0.7; }
 .lf-menu-search-input {
@@ -104,10 +104,11 @@ const CSS = `
 
 .lf-drawing-toolbar {
   position: absolute; z-index: 4; padding: 2px 4px; overflow: visible;
-  border: 1px solid var(--lf-axisBorderColor); border-radius: 6px;
+  border: 1px solid var(--lf-panelBorderColor); border-radius: 6px;
   background: var(--lf-panel); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 .lf-drawing-toolbar[hidden] { display: none; }
+.lf-drawing-toolbar .lf-sep { background: var(--lf-panelBorderColor); }
 .lf-grip { cursor: grab; opacity: 0.6; touch-action: none; }
 .lf-grip svg { display: block; width: 12px; height: 18px; }
 .lf-swatch-btn { flex-direction: column; gap: 1px; padding: 3px 4px 2px; }
@@ -159,29 +160,29 @@ const CSS = `
 .lf-modal {
   min-width: 280px; max-width: calc(100% - 32px); max-height: calc(100% - 32px);
   overflow-y: auto; padding: 16px; border-radius: 8px;
-  background: var(--lf-panel); border: 1px solid var(--lf-axisBorderColor);
+  background: var(--lf-panel); border: 1px solid var(--lf-panelBorderColor);
   color: var(--lf-textStrong); font: 13px/18px var(--lf-fontFamily);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 .lf-modal h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
-.lf-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--lf-axisBorderColor); }
+.lf-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--lf-panelBorderColor); }
 .lf-tabs .lf-btn { border-radius: 4px 4px 0 0; }
 .lf-field { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 8px 0; }
 .lf-field label { color: var(--lf-axisTextColor); }
 .lf-input {
   min-width: 0; width: 150px; padding: 4px 6px; border-radius: 4px;
-  border: 1px solid var(--lf-axisBorderColor); background: var(--lf-background);
+  border: 1px solid var(--lf-panelBorderColor); background: var(--lf-background);
   color: var(--lf-textStrong); font: inherit;
 }
 .lf-input[type='color'] { width: 48px; height: 26px; padding: 1px 2px; }
 .lf-input[type='checkbox'] { width: auto; }
 .lf-input:focus { outline: 1px solid var(--lf-lineColor); outline-offset: -1px; }
-.lf-fib-levels { margin: 12px 0 8px; border: 1px solid var(--lf-axisBorderColor); border-radius: 4px; }
+.lf-fib-levels { margin: 12px 0 8px; border: 1px solid var(--lf-panelBorderColor); border-radius: 4px; }
 .lf-fib-levels div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 8px; }
 .lf-fib-levels label { display: flex; align-items: center; gap: 4px; }
 .lf-error { min-height: 18px; color: var(--lf-downColor); font-size: 12px; }
 .lf-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.lf-actions .lf-btn { border: 1px solid var(--lf-axisBorderColor); padding: 5px 14px; }
+.lf-actions .lf-btn { border: 1px solid var(--lf-panelBorderColor); padding: 5px 14px; }
 .lf-actions .lf-btn-primary { background: var(--lf-lineColor); border-color: var(--lf-lineColor); color: #fff; }
 .lf-reset-actions { display: grid; grid-template-columns: 1fr; margin-bottom: 8px; }
 `
@@ -219,7 +220,10 @@ const chromeThemeKeys = [
 
 /** CSS properties to copy from the chart theme onto the chrome host. */
 export function themeVars(theme: Readonly<ChartTheme>): Record<string, string> {
-  const vars: Record<string, string> = { 'color-scheme': theme.colorScheme }
+  const vars: Record<string, string> = {
+    'color-scheme': theme.colorScheme,
+    '--lf-panelBorderColor': theme.panelBorderColor ?? theme.axisBorderColor,
+  }
   for (const key of chromeThemeKeys) {
     vars[`--lf-${key}`] = theme[key]
   }

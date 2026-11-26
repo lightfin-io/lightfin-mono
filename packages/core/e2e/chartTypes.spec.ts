@@ -71,3 +71,20 @@ test('the chart type menu supports keyboard navigation and reflects API changes'
   await expect(menu).toBeHidden()
   await expect(trigger).toBeFocused()
 })
+
+test('the chart type menu uses the panel border color', async ({ page }) => {
+  await openDemo(page)
+  const host = page.locator('.lf-host')
+  await expect(host).toHaveCSS('--lf-panelBorderColor', '#2a2e39')
+  await host.evaluate(el => {
+    el.style.setProperty('--lf-panelBorderColor', '#334455')
+    el.style.setProperty('--lf-axisBorderColor', '#aabbcc')
+  })
+  await page.getByRole('button', { name: /^Chart type:/ }).click()
+  const menu = page.getByRole('menu', { name: 'Chart type' })
+  await expect(menu).toHaveCSS('border-top-color', 'rgb(51, 68, 85)')
+  await expect(menu.getByRole('separator').first()).toHaveCSS(
+    'border-top-color',
+    'rgb(51, 68, 85)',
+  )
+})

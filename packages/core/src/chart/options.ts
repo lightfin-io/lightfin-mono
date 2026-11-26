@@ -47,6 +47,8 @@ export interface ChartTheme {
   hudHover: string
   /** Background for chrome menus, dialogs, and the floating drawing toolbar. */
   panel: string
+  /** Border and divider color for chrome panels. Inherits the axis border color when omitted. */
+  panelBorderColor?: string
   /** Color scheme for the chrome's native browser controls. */
   colorScheme: 'dark' | 'light'
 }
@@ -231,6 +233,7 @@ export const DEFAULT_THEME: ChartTheme = {
   hover: 'rgba(157, 178, 189, 0.16)',
   hudHover: 'rgba(19, 23, 34, 0.7)',
   panel: '#222835',
+  panelBorderColor: '#2a2e39',
   colorScheme: 'dark',
 }
 
@@ -248,6 +251,7 @@ export const DEFAULT_OPTIONS: ChartOptions = {
 }
 
 export function resolveOptions(partial: ChartOptionsInput): ChartOptions {
+  const axisBorderColor = partial.theme?.axisBorderColor
   const dateFormatters =
     partial.locale === undefined
       ? DEFAULT_DATE_FORMATTERS
@@ -260,8 +264,12 @@ export function resolveOptions(partial: ChartOptionsInput): ChartOptions {
       ...partial.theme,
       paneBorderColor:
         partial.theme?.paneBorderColor ??
-        partial.theme?.axisBorderColor ??
+        axisBorderColor ??
         DEFAULT_THEME.paneBorderColor,
+      panelBorderColor:
+        partial.theme?.panelBorderColor ??
+        axisBorderColor ??
+        DEFAULT_THEME.panelBorderColor,
     },
     dateFormatters: { ...dateFormatters, ...partial.dateFormatters },
   }
