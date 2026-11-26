@@ -60,6 +60,11 @@ export const ICONS = {
     <path d="M2.5 14.5c3-.5 3.5-10 6.5-10s3.5 6 6.5 6"/>
     <path d="M2.5 3v12.5H16"/>
   </svg>`,
+  indicatorPane:
+    '<svg viewBox="-9 -9 292 180" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">' +
+    '<path vector-effect="non-scaling-stroke" d="M2 2h270v158H2z"/>' +
+    '<path vector-effect="non-scaling-stroke" stroke-linecap="square" d="M5.5 111.5h263"/>' +
+    '</svg>',
   calendar: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="2.5" y="3.5" width="13" height="12" rx="1.5"/>
     <path d="M2.5 7.5h13M6 2v3M12 2v3"/>

@@ -60,6 +60,7 @@ const CSS = `
 
 /* Indicators menu: a pinned search field above a scrolling list. */
 .lf-menu-indicators { display: flex; flex-direction: column; overflow: hidden; }
+.lf-menu-indicators .lf-btn svg { margin-inline-start: auto; opacity: 0.5; }
 .lf-menu-search {
   display: flex; align-items: center; gap: 6px; margin: -4px -4px 4px;
   padding: 7px 10px; border-bottom: 1px solid var(--lf-axisBorderColor); color: var(--lf-axisTextColor);

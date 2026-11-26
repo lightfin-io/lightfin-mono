@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Chart } from '../chart/chart'
 import { DEFAULT_DATE_FORMATTERS, DEFAULT_THEME } from '../chart/options'
@@ -105,14 +105,53 @@ describe('indicators menu', () => {
     document.body.replaceChildren()
   })
 
-  it('lists every built-in, in order, when no list is passed', () => {
-    expect(BUILTIN_INDICATORS[0]).toBe(builtinIndicators.sma)
-    expect(BUILTIN_INDICATORS.at(-1)).toBe(builtinIndicators.volumeMa)
+  it('lists every built-in alphabetically by menu label by default', () => {
     const ctx = mount()
     chrome = ctx.chrome
-    expect(menuLabels(ctx.host)).toEqual(
-      BUILTIN_INDICATORS.map(entry => entry.name),
+    const sortedNames = Object.values(builtinIndicators)
+      .map(entry => entry.name)
+      .sort((a, b) => a.localeCompare(b, 'en'))
+    expect(menuLabels(ctx.host)).toEqual(sortedNames)
+  })
+
+  it('marks exactly the built-ins whose definitions use a separate pane', async () => {
+    const ctx = mount()
+    chrome = ctx.chrome
+    const marked = [...openMenu(ctx.host).querySelectorAll('[role="menuitem"]')]
+      .filter(item => item.querySelector('svg'))
+      .map(item => item.textContent)
+    const paneNames = await Promise.all(
+      BUILTIN_INDICATORS.map(async entry => {
+        const loaded = await entry.load()
+        const definition = 'default' in loaded ? loaded.default : loaded
+        return definition.overlay ? null : entry.name
+      }),
     )
+    expect(marked).toEqual(paneNames.filter(name => name !== null))
+  })
+
+  it('marks loaded and lazy custom pane entries without invoking the loader', () => {
+    const definition = { ...stubIndicator('Custom Pane'), overlay: false }
+    const load = vi.fn(() => definition)
+    const ctx = mount({
+      indicators: [
+        definition,
+        { default: definition },
+        { name: 'Lazy Pane', overlay: false, load },
+        { name: 'Unknown Placement', load },
+      ],
+    })
+    chrome = ctx.chrome
+    const items = [...openMenu(ctx.host).querySelectorAll('[role="menuitem"]')]
+    expect(items.map(item => item.querySelector('svg') !== null)).toEqual([
+      true,
+      true,
+      true,
+      false,
+    ])
+    expect(load).not.toHaveBeenCalled()
+    pickAt(ctx.host, 2)
+    expect(load).toHaveBeenCalledOnce()
   })
 
   it('keeps the built-ins and appends a custom indicator', () => {

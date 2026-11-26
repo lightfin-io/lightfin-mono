@@ -15,6 +15,8 @@ export interface IndicatorCatalogEntry {
   name: string
   /** Loads the indicator, typically `() => import('…/indicators/sma')`. */
   load: () => IndicatorSource
+  /** Set to false to mark an indicator that opens in a separate pane. */
+  overlay?: boolean
   /** Options passed to `addIndicator` when picked from the menu. */
   options?: Record<string, unknown>
 }
@@ -155,13 +157,17 @@ function buildIndicatorMenu(
   searchRow.append(search)
 
   const list = el('div', 'lf-menu-list')
-  const items = catalog.map(entry => ({
-    name: entry.name.toLowerCase(),
-    node: menuItem({ label: entry.name }, () => {
+  const items = catalog.map(entry => {
+    const node = menuItem({ label: entry.name }, () => {
       close()
       void chart.addIndicator(entry.load(), entry.options)
-    }),
-  }))
+    })
+    if (entry.overlay === false) {
+      node.insertAdjacentHTML('beforeend', ICONS.indicatorPane)
+      node.title = 'Opens in a separate pane'
+    }
+    return { name: entry.name.toLowerCase(), node }
+  })
   for (const { node } of items) list.append(node)
 
   const empty = el('div', 'lf-menu-empty', 'No matching indicators')

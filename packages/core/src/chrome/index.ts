@@ -54,8 +54,9 @@ export type { IndicatorCatalogEntry, IndicatorSource } from './toolbars'
 function menuEntry(
   name: string,
   load: IndicatorCatalogEntry['load'],
+  overlay = true,
 ): IndicatorCatalogEntry {
-  return { name, load }
+  return { name, load, overlay }
 }
 
 /**
@@ -101,43 +102,71 @@ export const builtinIndicators = {
   rsi: menuEntry(
     'Relative Strength Index (RSI)',
     () => import('../indicators/rsi'),
+    false,
   ),
-  mfi: menuEntry('Money Flow Index (MFI)', () => import('../indicators/mfi')),
-  macd: menuEntry('MACD', () => import('../indicators/macd')),
+  mfi: menuEntry(
+    'Money Flow Index (MFI)',
+    () => import('../indicators/mfi'),
+    false,
+  ),
+  macd: menuEntry('MACD', () => import('../indicators/macd'), false),
   stochastic: menuEntry(
     'Stochastic Oscillator',
     () => import('../indicators/stochastic'),
+    false,
   ),
   stochasticRsi: menuEntry(
     'Stochastic RSI',
     () => import('../indicators/stochasticRsi'),
+    false,
   ),
-  williamsR: menuEntry('Williams %R', () => import('../indicators/williamsR')),
+  williamsR: menuEntry(
+    'Williams %R',
+    () => import('../indicators/williamsR'),
+    false,
+  ),
   cci: menuEntry(
     'Commodity Channel Index (CCI)',
     () => import('../indicators/cci'),
+    false,
   ),
-  roc: menuEntry('Rate of Change (ROC)', () => import('../indicators/roc')),
+  roc: menuEntry(
+    'Rate of Change (ROC)',
+    () => import('../indicators/roc'),
+    false,
+  ),
   adx: menuEntry(
     'Average Directional Index (ADX)',
     () => import('../indicators/adx'),
+    false,
   ),
   choppiness: menuEntry(
     'Choppiness Index (CHOP)',
     () => import('../indicators/choppiness'),
+    false,
   ),
-  atr: menuEntry('Average True Range (ATR)', () => import('../indicators/atr')),
-  obv: menuEntry('On-Balance Volume (OBV)', () => import('../indicators/obv')),
+  atr: menuEntry(
+    'Average True Range (ATR)',
+    () => import('../indicators/atr'),
+    false,
+  ),
+  obv: menuEntry(
+    'On-Balance Volume (OBV)',
+    () => import('../indicators/obv'),
+    false,
+  ),
   volumeMa: menuEntry('Volume MA', () => import('../indicators/volumeMa')),
 }
 
 /**
- * Every {@link builtinIndicators} entry, in menu order. This is the indicators
- * menu when `indicators` is omitted. Spread it to keep the full set and add
- * your own: `[...BUILTIN_INDICATORS, myOscillator]`.
+ * Every {@link builtinIndicators} entry, sorted alphabetically by menu label.
+ * This is the default menu. Spread it to include a custom indicator,
+ * as in `[...BUILTIN_INDICATORS, myOscillator]`.
  */
 export const BUILTIN_INDICATORS: readonly IndicatorCatalogEntry[] =
-  Object.values(builtinIndicators)
+  Object.values(builtinIndicators).sort((a, b) =>
+    a.name.localeCompare(b.name, 'en'),
+  )
 
 // Caller options stay opaque; the definition interprets them.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,7 +180,7 @@ type ListedIndicator = IndicatorDefinition<any> | IndicatorModule<any>
  */
 export type IndicatorMenuItem = IndicatorCatalogEntry | ListedIndicator
 
-/** Catalog entries pass through; definitions and modules take their `name`. */
+/** Read menu metadata from loaded definitions or pass lazy entries through. */
 function toCatalogEntry(item: IndicatorMenuItem): IndicatorCatalogEntry {
   if (
     typeof item === 'object' &&
@@ -160,8 +189,14 @@ function toCatalogEntry(item: IndicatorMenuItem): IndicatorCatalogEntry {
   ) {
     return item as IndicatorCatalogEntry
   }
-  const name = indicatorName(item)
-  if (name !== null) return { name, load: () => item as IndicatorSource }
+  const metadata = indicatorMenuMetadata(item)
+  if (metadata) {
+    return {
+      name: metadata.name,
+      overlay: metadata.overlay,
+      load: () => item as IndicatorSource,
+    }
+  }
   // addIndicator accepts a bare import(); the menu needs a name up front.
   const thenable = item as unknown as { then?: unknown } | null
   if (typeof thenable?.then === 'function') {
@@ -174,23 +209,24 @@ function toCatalogEntry(item: IndicatorMenuItem): IndicatorCatalogEntry {
   )
 }
 
-function indicatorName(item: IndicatorMenuItem): string | null {
+function indicatorMenuMetadata(
+  item: IndicatorMenuItem,
+): Pick<IndicatorDefinition, 'name' | 'overlay'> | null {
   if (typeof item !== 'object' || item === null) return null
-  const record = item as {
-    name?: unknown
-    create?: unknown
-    default?: { name?: unknown; create?: unknown }
-  }
-  const embedded = record.default
+  const embedded = 'default' in item ? item.default : undefined
   if (
     embedded &&
     typeof embedded.create === 'function' &&
     typeof embedded.name === 'string'
   ) {
-    return embedded.name
+    return embedded
   }
-  if (typeof record.create === 'function' && typeof record.name === 'string') {
-    return record.name
+  if (
+    'create' in item &&
+    typeof item.create === 'function' &&
+    typeof item.name === 'string'
+  ) {
+    return item
   }
   return null
 }

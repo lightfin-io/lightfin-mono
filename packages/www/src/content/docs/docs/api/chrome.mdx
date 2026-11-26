@@ -74,15 +74,18 @@ Existing drawings and their undo history are preserved. Call
 
 ## Indicators menu
 
-By default the menu lists the whole built-in catalog, loading each indicator's
-code only when the user picks it. Pass `indicators` to change the list — mix
-three kinds of entry freely:
+The default menu lists built-ins alphabetically by label and loads each
+indicator when the user picks it. Pass `indicators` to supply entries in your
+preferred order. The list supports three kinds of entry.
 
 - **`builtinIndicators.<id>`** — a built-in, kept with its full menu label
   ("Bollinger Bands"), still loaded on demand.
 - **An imported module or definition** — `import ema from
   '@lightfin/core/indicators/ema'`, or your own; listed under its short `name`.
 - **A `{ name, load }` catalog entry** — any label with a loader of your own.
+
+The pane icon marks indicators that open in a separate pane. For a custom
+catalog entry with a loader, set `overlay: false` to show the icon.
 
 ```ts
 import { builtinIndicators, BUILTIN_INDICATORS } from '@lightfin/core/chrome'

@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test'
 
 import { openDemo } from './helpers'
 
-test('loads overlays and pane indicators from the Indicators menu', async ({ page }) => {
+test('loads overlays and pane indicators from the Indicators menu', async ({
+  page,
+}) => {
   await openDemo(page)
   const button = page.getByRole('button', { name: 'Indicators', exact: true })
 
@@ -15,7 +17,14 @@ test('loads overlays and pane indicators from the Indicators menu', async ({ pag
     ['Choppiness Index (CHOP)', 'CHOP', 'pane'],
   ] as const) {
     await button.click()
-    await page.getByRole('menuitem', { name: label, exact: true }).click()
+    const item = page.getByRole('menuitem', { name: label, exact: true })
+    if (placement === 'pane') {
+      await expect(item.locator('svg')).toBeVisible()
+      await expect(item).toHaveAccessibleDescription('Opens in a separate pane')
+    } else {
+      await expect(item.locator('svg')).toHaveCount(0)
+    }
+    await item.click()
     await expect
       .poll(() =>
         page.evaluate(name => {
