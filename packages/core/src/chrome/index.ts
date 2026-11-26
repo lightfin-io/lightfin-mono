@@ -34,7 +34,7 @@ import type { IndicatorDefinition, IndicatorModule } from '../indicators/types'
 import type { ChartType } from '../series/series'
 import { el } from './dom'
 import { createDrawingToolbar } from './drawingToolbar'
-import type { ToolStyles } from './drawingTools'
+import type { DrawingToolHotkeys, ToolStyles } from './drawingTools'
 import { createLeftToolbar } from './drawingTools'
 import type { DateRangePreset } from './format'
 import { DATE_RANGE_PRESETS, formatClock } from './format'
@@ -51,6 +51,12 @@ import {
   createTopToolbar,
 } from './toolbars'
 
+export type {
+  DrawingToolHotkey,
+  DrawingToolHotkeys,
+  DrawingToolId,
+} from './drawingTools'
+export { DEFAULT_DRAWING_TOOL_HOTKEYS } from './drawingTools'
 export type { DateRangePreset } from './format'
 export { DATE_RANGE_PRESETS } from './format'
 export type { IndicatorCatalogEntry, IndicatorSource } from './toolbars'
@@ -296,6 +302,13 @@ export interface ChromeOptions {
    * to leave them out (and the annotations code unloaded).
    */
   annotations?: Annotations
+  /**
+   * Override shortcuts for drawing toolbar items using key arrays such as
+   * `['Alt', 'T']`. Pass `null` for a tool to unbind it, or `false` to disable
+   * all drawing toolbar shortcuts.
+   * Unspecified tools use {@link DEFAULT_DRAWING_TOOL_HOTKEYS}.
+   */
+  hotkeys?: DrawingToolHotkeys | false
   /** Defaults to localStorage. Pass false to disable saving interactive settings. */
   persistence?: SettingsPersistence | false
   /** Override the default browser storage key for this chart. */
@@ -371,7 +384,7 @@ export function createChrome(
   const drawings = options.annotations
   const toolStyles: ToolStyles = new Map()
   const left = drawings
-    ? createLeftToolbar(chart, drawings, host, toolStyles)
+    ? createLeftToolbar(chart, drawings, host, toolStyles, options.hotkeys)
     : null
   function resetDrawingToolDefaults(): void {
     toolStyles.clear()

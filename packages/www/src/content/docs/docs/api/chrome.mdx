@@ -40,6 +40,7 @@ chart theme.
 | `indicators`       | `readonly IndicatorMenuItem[]`| `BUILTIN_INDICATORS`  | The indicators menu; `[]` hides it.              |
 | `ranges`           | `readonly DateRangePreset[]`  | `DATE_RANGE_PRESETS`  | Quick ranges in the bottom toolbar.              |
 | `annotations`      | `Annotations`                 | —                     | Shows the drawing-tools + style toolbars.        |
+| `hotkeys`          | `DrawingToolHotkeys \| false` | TradingView drawing shortcuts | Override shortcuts for the drawing toolbar. |
 | `persistence`       | `SettingsPersistence \| false` | localStorage       | Override or disable storage for interactive settings. |
 | `persistenceKey`    | `string`                      | page and chart container | Override the browser storage key.            |
 | `onPersistenceError` | `(error: unknown, operation: 'load' \| 'save') => void` | — | Handle storage errors. |
@@ -124,6 +125,17 @@ levels. **Apply** saves the edits as one undoable change.
 
 Configure [drawing autosave](/docs/api/annotations#persistence) when you create
 the annotations instance.
+
+### Drawing tool hotkeys
+
+Set `hotkeys` to override the drawing toolbar shortcuts by tool ID. Each
+binding is a `DrawingToolHotkey` array such as `['Alt', 'Shift', 'R']`.
+Use `null` to clear one tool's binding or `false` to disable all drawing tool
+hotkeys. The subpath exports `DEFAULT_DRAWING_TOOL_HOTKEYS` and the
+`DrawingToolHotkey`, `DrawingToolHotkeys`, and `DrawingToolId` types.
+
+See [Keyboard shortcuts](/docs/guides/keyboard-shortcuts) for the defaults and
+a configuration example.
 
 ## Also exported
 

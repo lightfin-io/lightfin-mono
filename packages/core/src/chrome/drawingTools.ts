@@ -11,9 +11,9 @@ import { popover } from './popover'
 import type { Toolbar } from './toolbars'
 
 /** One entry in the drawing tools: a tool, optionally armed with a preset. */
-export interface ToolItem {
+interface ToolItem<Id extends IconName = IconName> {
   tool: AnnotationType
-  icon: IconName
+  icon: Id
   title: string
   preset?: ToolPreset
 }
@@ -24,15 +24,15 @@ export interface ToolItem {
  */
 export type ToolStyles = Map<AnnotationType, AnnotationStyle>
 
-const item = (
+const item = <Id extends IconName>(
   tool: AnnotationType,
-  icon: IconName,
+  icon: Id,
   title: string,
   preset?: ToolPreset,
-): ToolItem => ({ tool, icon, title, preset })
+): ToolItem<Id> => ({ tool, icon, title, preset })
 
 /** The left toolbar's tool groups, each a button for its last-used tool and a flyout of the rest. */
-export const TOOL_GROUPS: { label: string; items: ToolItem[] }[] = [
+const TOOL_GROUPS = [
   {
     label: 'Lines',
     items: [
@@ -107,6 +107,79 @@ export const TOOL_GROUPS: { label: string; items: ToolItem[] }[] = [
   },
 ]
 
+/** Drawing toolbar item IDs, including presets such as `ray` and `highlighter`. */
+export type DrawingToolId =
+  (typeof TOOL_GROUPS)[number]['items'][number]['icon']
+
+/** Zero or more modifiers followed by one key. `Option` is an alias for `Alt`. */
+export type DrawingToolHotkey = readonly [
+  ...modifiers: (keyof typeof MODIFIERS | 'Option')[],
+  key: string,
+]
+
+/** Per-tool overrides such as `{ trendline: ['L'], hline: null }`. */
+export type DrawingToolHotkeys = Partial<
+  Record<DrawingToolId, DrawingToolHotkey | null>
+>
+
+/** TradingView's drawing shortcuts for the matching tools. Alt is Option on macOS. */
+export const DEFAULT_DRAWING_TOOL_HOTKEYS: Readonly<DrawingToolHotkeys> = {
+  trendline: ['Alt', 'T'],
+  hline: ['Alt', 'H'],
+  hray: ['Alt', 'J'],
+  vline: ['Alt', 'V'],
+  crossline: ['Alt', 'C'],
+  fib: ['Alt', 'F'],
+  rectangle: ['Alt', 'Shift', 'R'],
+}
+
+const MODIFIERS = {
+  Control: 'ctrlKey',
+  Alt: 'altKey',
+  Shift: 'shiftKey',
+  Meta: 'metaKey',
+} as const
+const MODIFIER_NAMES = Object.keys(MODIFIERS) as (keyof typeof MODIFIERS)[]
+
+function keyName(key: string): string {
+  if (key === ' ') return 'Space'
+  if (key === '+') return 'Plus'
+  return key.length === 1 ? key.toUpperCase() : key
+}
+
+function resolveHotkeys(overrides: DrawingToolHotkeys | false) {
+  const bindings = new Map<string, ToolItem>()
+  if (overrides === false) return bindings
+  for (const { items } of TOOL_GROUPS) {
+    for (const it of items) {
+      const override = overrides[it.icon]
+      const value =
+        override === undefined
+          ? DEFAULT_DRAWING_TOOL_HOTKEYS[it.icon]
+          : override
+      if (!Array.isArray(value)) continue
+      const requestedModifiers = value.map(key =>
+        key === 'Option' ? 'Alt' : key,
+      )
+      const key = requestedModifiers.pop()
+      if (
+        typeof key !== 'string' ||
+        !/^(?:\S|[A-Z][A-Za-z0-9]+)$/u.test(key) ||
+        Object.hasOwn(MODIFIERS, key)
+      )
+        continue
+      const modifiers = MODIFIER_NAMES.filter(name =>
+        requestedModifiers.includes(name),
+      )
+      if (modifiers.length !== requestedModifiers.length) continue
+      const binding = [...modifiers, keyName(key)].join('+')
+      if (override !== undefined || !bindings.has(binding))
+        bindings.set(binding, it)
+    }
+  }
+  return bindings
+}
+
 const CHEVRON =
   '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10.5 5.5v5h-5z" fill="currentColor"/></svg>'
 
@@ -122,11 +195,26 @@ export function createLeftToolbar(
   annotations: Annotations,
   host: HTMLElement,
   styles: ToolStyles,
+  hotkeys: DrawingToolHotkeys | false = {},
 ): Toolbar {
   const bar = el('div', 'lf-toolbar lf-toolbar-left')
   bar.setAttribute('role', 'toolbar')
   bar.setAttribute('aria-label', 'Drawing tools')
   bar.setAttribute('aria-orientation', 'vertical')
+
+  const bindings = resolveHotkeys(hotkeys)
+  const shortcuts = new Map([...bindings].map(([key, it]) => [it, key]))
+  const labelFor = (it: ToolItem) => {
+    const shortcut = shortcuts.get(it)
+    return shortcut
+      ? `${it.title} (${shortcut.replace(/^Control\+/, 'Ctrl+')})`
+      : it.title
+  }
+  const describeShortcut = (b: HTMLButtonElement, it: ToolItem) => {
+    const shortcut = shortcuts.get(it)
+    if (shortcut) b.setAttribute('aria-keyshortcuts', shortcut)
+    else b.removeAttribute('aria-keyshortcuts')
+  }
 
   let armed: ToolItem | null = null
   const arm = (next: ToolItem | null) => {
@@ -143,17 +231,24 @@ export function createLeftToolbar(
 
   const cursor = button({ icon: 'cursor', title: 'Cursor' }, () => arm(null))
 
-  const groups = TOOL_GROUPS.map(({ label, items }) => {
+  const groups = TOOL_GROUPS.map(({ label, items: groupItems }) => {
+    const items: ToolItem[] = groupItems
     const wrap = el('div', 'lf-tool-group')
     let current = items[0]!
-    const main = button({ icon: current.icon, title: current.title }, () =>
+    const main = button({ icon: current.icon, title: labelFor(current) }, () =>
       arm(armed === current ? null : current),
     )
+    describeShortcut(main, current)
     const show = (it: ToolItem) => {
       current = it
       main.innerHTML = ICONS[it.icon]
-      main.title = it.title
-      main.setAttribute('aria-label', it.title)
+      main.title = labelFor(it)
+      main.setAttribute('aria-label', main.title)
+      describeShortcut(main, it)
+    }
+    const choose = (it: ToolItem) => {
+      show(it)
+      arm(it)
     }
     const more = button({ title: `More ${label.toLowerCase()}` }, () =>
       flyout.toggle(),
@@ -165,11 +260,11 @@ export function createLeftToolbar(
       host,
       close =>
         items.map(it => {
-          const b = menuItem({ label: it.title, icon: it.icon }, () => {
+          const b = menuItem({ label: labelFor(it), icon: it.icon }, () => {
             close()
-            show(it)
-            arm(it)
+            choose(it)
           })
+          describeShortcut(b, it)
           b.setAttribute('aria-pressed', String(it === armed))
           return b
         }),
@@ -181,8 +276,26 @@ export function createLeftToolbar(
       flyout.open()
     })
     wrap.append(main, more)
-    return { items, wrap, main, show, flyout }
+    return { items, wrap, main, show, choose, flyout }
   })
+
+  const root = chart.element
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.target !== root || e.defaultPrevented || e.isComposing) return
+    const modifiers = MODIFIER_NAMES.filter(name => e[MODIFIERS[name]])
+    const lookup = (key: string) => bindings.get([...modifiers, key].join('+'))
+    let it = lookup(keyName(e.key))
+    // Option and Shift can turn a letter or digit into a different character.
+    if (!it && (e.altKey || e.shiftKey) && !/^[a-z0-9]$/i.test(e.key)) {
+      const physicalKey = /^(?:Key|Digit)([A-Z0-9])$/.exec(e.code)?.[1]
+      if (physicalKey) it = lookup(physicalKey)
+    }
+    if (!it) return
+    e.preventDefault()
+    if (!e.repeat && it !== armed)
+      groups.find(g => g.items.includes(it))?.choose(it)
+  }
+  if (bindings.size) root.addEventListener('keydown', onKeyDown)
 
   const toggles: { b: HTMLButtonElement; on(): boolean }[] = []
   const toggle = (
@@ -269,6 +382,7 @@ export function createLeftToolbar(
     el: bar,
     sync,
     dispose: () => {
+      root.removeEventListener('keydown', onKeyDown)
       offTool()
       offChange()
       offCrosshair()

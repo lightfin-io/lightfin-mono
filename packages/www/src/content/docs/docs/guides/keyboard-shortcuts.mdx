@@ -1,0 +1,82 @@
+---
+title: Keyboard shortcuts
+description: Navigate the chart, select drawing tools, and customize drawing shortcuts.
+---
+
+Click the plot or press `Tab` until the chart has focus. Drawing shortcuts
+appear in the toolbar tooltips and flyout labels, such as **Trend line (Alt+T)**.
+On macOS, `Alt` means `Option`.
+
+## Navigate the chart
+
+With bars loaded, press `←` or `→` to start the keyboard crosshair at the newest
+bar. The chart scrolls as needed to keep the keyboard crosshair in view.
+
+| Shortcut              | Action                                     |
+| --------------------- | ------------------------------------------ |
+| `←` / `→`             | Move the crosshair one bar left or right.  |
+| `Shift+←` / `Shift+→` | Move the crosshair ten bars left or right. |
+| `Home` / `End`        | Jump to the oldest or newest loaded bar.   |
+| `+` / `=`             | Zoom in.                                   |
+| `-` / `_`             | Zoom out.                                  |
+| `Escape`              | Dismiss the keyboard crosshair.            |
+
+## Select a drawing tool
+
+These defaults are available when you mount [Chrome](/docs/api/chrome) with an
+[annotations instance](/docs/api/annotations). Press the shortcut to select
+the tool, then place it on the chart. For example, press `Alt+T` and click two
+points to draw a trend line. Enable **Stay in drawing mode** to keep the tool
+selected after you finish a drawing.
+
+| Tool            | Tool ID     | Default shortcut |
+| --------------- | ----------- | ---------------- |
+| Trend line      | `trendline` | `Alt+T`          |
+| Horizontal line | `hline`     | `Alt+H`          |
+| Horizontal ray  | `hray`      | `Alt+J`          |
+| Vertical line   | `vline`     | `Alt+V`          |
+| Cross line      | `crossline` | `Alt+C`          |
+| Fib retracement | `fib`       | `Alt+F`          |
+| Rectangle       | `rectangle` | `Alt+Shift+R`    |
+
+## Edit drawings
+
+These shortcuts are available whenever annotations are attached to the chart.
+
+| Shortcut                                   | Action                                                         |
+| ------------------------------------------ | -------------------------------------------------------------- |
+| `Ctrl+Z` or `Cmd+Z`                        | Undo the last drawing change.                                  |
+| `Ctrl+Y`, `Ctrl+Shift+Z`, or `Cmd+Shift+Z` | Redo a drawing change.                                         |
+| `Delete` or `Backspace`                    | Delete the selected drawing.                                   |
+| `Escape`                                   | Cancel the active drawing tool or clear the drawing selection. |
+
+While editing text on the chart, press `Enter` to save, `Shift+Enter` to insert
+a line break, or `Escape` to cancel the edit.
+
+## Customize drawing shortcuts
+
+Pass `hotkeys` to `createChrome()`. Each binding is an array with the main key
+last. Use `Control`, `Alt`, `Shift`, and `Meta` for modifiers. `['Option', 'T']`
+and `['Alt', 'T']` both bind the key shown as `Alt+T` in tool labels.
+`Meta` is the Command key on macOS.
+
+```ts
+import { createAnnotations } from '@lightfin/core/annotations'
+import { createChrome } from '@lightfin/core/chrome'
+
+const drawings = createAnnotations(chart)
+createChrome(chart, {
+  annotations: drawings,
+  hotkeys: {
+    trendline: ['L'],
+    ray: ['Shift', 'L'],
+    hline: null,
+  },
+})
+```
+
+This changes the trend line label to **Trend line (L)**, binds the Ray preset
+to `Shift+L`, and clears the horizontal line shortcut. Omitted tools keep their
+defaults. If a custom binding uses another tool's default key combination, the
+custom binding takes priority. Use `hotkeys: false` to disable all shortcuts
+that select a drawing tool.

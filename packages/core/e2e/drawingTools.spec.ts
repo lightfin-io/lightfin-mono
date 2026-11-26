@@ -2,6 +2,39 @@ import { expect, test } from '@playwright/test'
 
 import { layout, openDemo } from './helpers'
 
+test('drawing hotkeys arm the labeled tools on the focused chart', async ({
+  page,
+}) => {
+  await openDemo(page)
+  const { origin, main } = await layout(page)
+  await page.mouse.click(origin.x + main.width / 2, origin.y + main.height / 2)
+  await expect(page.locator('.lf-chart')).toBeFocused()
+
+  const shortcuts = [
+    ['Trend line', 'Alt+T', 'trendline'],
+    ['Horizontal ray', 'Alt+J', 'hray'],
+    ['Vertical line', 'Alt+V', 'vline'],
+    ['Cross line', 'Alt+C', 'crossline'],
+    ['Fib retracement', 'Alt+F', 'fib'],
+    ['Rectangle', 'Alt+Shift+R', 'rectangle'],
+    ['Horizontal line', 'Alt+H', 'hline'],
+  ] as const
+  for (const [label, key, tool] of shortcuts) {
+    await page.keyboard.press(key)
+    expect(await page.evaluate(() => window.drawings.tool)).toBe(tool)
+    await expect(
+      page.getByRole('button', { name: `${label} (${key})` }),
+    ).toHaveAttribute('aria-pressed', 'true')
+  }
+
+  await page.mouse.click(origin.x + main.width / 2, origin.y + main.height / 2)
+  const drawn = await page.evaluate(() => ({
+    types: window.drawings.list().map(drawing => drawing.type),
+    tool: window.drawings.tool,
+  }))
+  expect(drawn).toEqual({ types: ['hline'], tool: null })
+})
+
 test('a parallel channel is drawn from the toolbar flyout with a drag and a click', async ({
   page,
 }) => {
