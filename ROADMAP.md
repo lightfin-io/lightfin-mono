@@ -1,0 +1,3 @@
+- Hotkey map that can be overriden. Relevant tools should show the hot key in the label if bound e.g. "Trend line (L)"
+- Up to 8 charts in a grid (sharing same chrome)
+- More built in indicators
