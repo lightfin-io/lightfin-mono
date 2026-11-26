@@ -1,6 +1,6 @@
 {
   "name": "@lightfin/react",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "React bindings for @lightfin/core: <LightfinChart> plus hooks.",
   "type": "module",
   "license": "MIT",
