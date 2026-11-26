@@ -138,6 +138,9 @@ const CSS = `
   text-shadow: 0 0 2px var(--lf-background), 0 0 4px var(--lf-background);
 }
 .lf-hud-legend { top: 4px; }
+.lf-hud-main {
+  left: 0; top: 0; box-sizing: border-box; overflow: hidden; pointer-events: auto;
+}
 .lf-hud-pane { left: 0; box-sizing: border-box; padding-top: 2px; overflow: hidden; pointer-events: auto; }
 .lf-hud-row { display: flex; align-items: center; gap: 6px; height: 20px; white-space: nowrap; }
 .lf-hud-title { color: var(--lf-textStrong); font-size: 13px; }
@@ -151,15 +154,18 @@ const CSS = `
 .lf-hud-ind[data-hidden] .lf-hud-label, .lf-hud-ind[data-hidden] .lf-hud-values { opacity: 0.45; }
 .lf-hud-values { display: inline-flex; gap: 6px; }
 .lf-hud-actions { display: inline-flex; gap: 2px; opacity: 0; }
-.lf-hud-pane .lf-hud-actions {
+.lf-hud-pane .lf-hud-actions,
+.lf-hud-main > .lf-hud-actions {
   position: absolute; top: 2px; right: 8px;
   background: var(--lf-hudHover); border-radius: 4px;
 }
 .lf-hud-legend .lf-hud-ind:hover .lf-hud-actions,
+.lf-hud-main:hover > .lf-hud-actions,
 .lf-hud-pane:hover .lf-hud-actions,
 .lf-hud-actions:focus-within { opacity: 1; pointer-events: auto; }
 @media (hover: none) {
-  .lf-hud-pane .lf-hud-actions { opacity: 1; pointer-events: auto; }
+  .lf-hud-pane .lf-hud-actions,
+  .lf-hud-main > .lf-hud-actions { opacity: 1; pointer-events: auto; }
 }
 .lf-hud-actions .lf-btn { padding: 3px; }
 .lf-hud-actions .lf-btn svg { width: 16px; height: 16px; }

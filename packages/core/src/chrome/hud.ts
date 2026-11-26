@@ -25,6 +25,8 @@ export interface HudContext {
  * last bar when not hovering), then one row per indicator with its values and
  * show/hide, settings, and remove controls. Price/volume overlays list under
  * the legend; pane indicators get their row at the top of their own pane.
+ * The price pane and each indicator pane show move controls when that pane
+ * has a neighbour above or below it. The legend rides on the price pane.
  *
  * DOM structure is rebuilt only when indicators/layout/instrument change;
  * hover and live ticks just rewrite text, coalesced to one update per frame.
@@ -33,6 +35,9 @@ export class Hud {
   private readonly chart: Chart
   private readonly ctx: HudContext
   private readonly legend = el('div', 'lf-hud lf-hud-legend')
+  private readonly mainPane = el('div', 'lf-hud lf-hud-main')
+  private readonly mainActions = el('span', 'lf-hud-actions')
+  private mainButtons: HTMLButtonElement[] = []
   private rows: IndicatorRow[] = []
   private readonly title = el('span', 'lf-hud-title')
   private readonly meta = el('span', 'lf-hud-dim')
@@ -66,7 +71,13 @@ export class Hud {
     this.ohlc = values
     this.volumeRow.append(el('span', 'lf-hud-dim', 'Vol'), this.volumeValue)
     this.legend.append(head)
-    chart.element.append(this.legend)
+    // The chart pans on pointerdown and captures the pointer, which would
+    // swallow the move buttons' clicks.
+    this.mainActions.addEventListener('pointerdown', e => e.stopPropagation())
+    this.mainPane.setAttribute('role', 'group')
+    this.mainPane.setAttribute('aria-label', 'Chart pane')
+    this.mainPane.append(this.legend, this.mainActions)
+    chart.element.append(this.mainPane)
 
     const structural = () => this.schedule(true)
     this.unsubscribers.push(
@@ -128,6 +139,13 @@ export class Hud {
     // Rows are recreated, so carry focus over to the same control.
     const active = document.activeElement
     let refocus: { handle: IndicatorHandle; action: number } | null = null
+    let refocusMain: string | null = null
+    if (
+      active instanceof HTMLButtonElement &&
+      this.mainButtons.includes(active)
+    ) {
+      refocusMain = active.title
+    }
     for (const row of this.rows) {
       const action = row.actions.findIndex(button => button === active)
       if (action !== -1) refocus = { handle: row.handle, action }
@@ -145,21 +163,71 @@ export class Hud {
       if (handle.placement === 'pane') continue
       this.legend.append(this.buildRow(handle))
     }
-    for (const [index, { indicator, rect }] of layout.panes.entries()) {
-      this.chart.element.append(this.buildRow(indicator, rect, index > 0))
+    const stack = [
+      { handle: null as IndicatorHandle | null, rect: layout.main },
+      ...layout.panes.map(pane => ({
+        handle: pane.indicator as IndicatorHandle | null,
+        rect: pane.rect,
+      })),
+    ].sort((a, b) => a.rect.top - b.rect.top)
+    this.placeMainPane(layout.main, stack)
+    for (const slot of stack) {
+      if (!slot.handle) continue
+      const index = stack.indexOf(slot)
+      this.chart.element.append(
+        this.buildRow(slot.handle, slot.rect, {
+          up: index > 0,
+          down: index < stack.length - 1,
+        }),
+      )
     }
 
     if (refocus) {
       const row = this.rows.find(r => r.handle === refocus.handle)
       const target = row?.actions[refocus.action] ?? row?.actions[0]
       target?.focus()
+    } else if (refocusMain) {
+      const match = this.mainButtons.find(
+        button => button.title === refocusMain,
+      )
+      ;(match ?? this.mainButtons[0])?.focus()
     }
+  }
+
+  /** Park the legend on the price pane and show move buttons for its neighbours. */
+  private placeMainPane(
+    rect: PlotRect,
+    stack: { handle: IndicatorHandle | null }[],
+  ): void {
+    this.mainPane.style.top = `${rect.top}px`
+    this.mainPane.style.width = `${rect.width}px`
+    this.mainPane.style.height = `${rect.height}px`
+    const index = stack.findIndex(slot => slot.handle === null)
+    const buttons: HTMLButtonElement[] = []
+    if (stack.length > 1 && index > 0) {
+      buttons.push(
+        button({ icon: 'movePaneUp', title: 'Move pane up' }, () =>
+          this.chart.movePaneUp(),
+        ),
+      )
+    }
+    if (stack.length > 1 && index >= 0 && index < stack.length - 1) {
+      buttons.push(
+        button({ icon: 'movePaneDown', title: 'Move pane down' }, () =>
+          this.chart.movePaneDown(),
+        ),
+      )
+    }
+    for (const b of buttons) b.setAttribute('aria-label', `${b.title} chart`)
+    this.mainButtons = buttons
+    this.mainActions.replaceChildren(...buttons)
+    this.mainActions.hidden = buttons.length === 0
   }
 
   private buildRow(
     handle: IndicatorHandle,
     rect?: PlotRect,
-    canMovePaneUp = false,
+    move?: { up: boolean; down: boolean },
   ): HTMLElement {
     const row = el('div', 'lf-hud-row lf-hud-ind')
     if (!handle.visible) row.dataset.hidden = ''
@@ -185,10 +253,17 @@ export class Hud {
       ),
       button({ icon: 'close', title: 'Remove' }, () => handle.remove()),
     ]
-    if (canMovePaneUp) {
+    if (move?.up) {
       buttons.push(
         button({ icon: 'movePaneUp', title: 'Move pane up' }, () =>
           this.chart.movePaneUp(handle),
+        ),
+      )
+    }
+    if (move?.down) {
+      buttons.push(
+        button({ icon: 'movePaneDown', title: 'Move pane down' }, () =>
+          this.chart.movePaneDown(handle),
         ),
       )
     }
@@ -268,7 +343,7 @@ export class Hud {
   dispose(): void {
     cancelAnimationFrame(this.frame)
     for (const off of this.unsubscribers) off()
-    this.legend.remove()
+    this.mainPane.remove()
     for (const row of this.rows) row.element.remove()
   }
 }

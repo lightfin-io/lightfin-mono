@@ -196,10 +196,11 @@ export class IndicatorController {
     return this.panes
   }
 
-  movePaneUp(index: number): void {
-    const pane = this.panes[index]!
-    this.panes[index] = this.panes[index - 1]!
-    this.panes[index - 1] = pane
+  /** Exchange two pane indicators. Each keeps its place in `instances`. */
+  swapPanes(i: number, j: number): void {
+    const pane = this.panes[i]!
+    this.panes[i] = this.panes[j]!
+    this.panes[j] = pane
   }
 
   recomputeAll(reader: StoreReader): void {

@@ -49,6 +49,10 @@ test('tabbing directly to a pane button reveals its toolbar', async ({
 
   await page.locator('.lf-hud-legend .lf-btn').last().focus()
   await page.keyboard.press('Tab')
+  await expect(
+    page.getByRole('button', { name: 'Move pane down chart' }),
+  ).toBeFocused()
+  await page.keyboard.press('Tab')
   const hide = pane.getByRole('button', { name: /^Hide RSI/ })
   await expect(hide).toBeFocused()
   await expect(hide).toHaveCSS('outline-style', 'solid')
@@ -64,7 +68,7 @@ test('tabbing directly to a pane button reveals its toolbar', async ({
   await expect(toolbar).toHaveCSS('opacity', '1')
 })
 
-test('the pane toolbar moves a sub-pane up with its height', async ({
+test('pane toolbars move a pane up or down, including the chart pane', async ({
   page,
 }) => {
   const initial = await layout(page)
@@ -81,22 +85,75 @@ test('the pane toolbar moves a sub-pane up with its height', async ({
       window.chart.paneLayout().panes.map(pane => pane.indicator.name),
     )
   const moveUp = page.getByRole('button', { name: /^Move pane up/ })
-  await expect(moveUp).toHaveCount(1)
-  await expect(moveUp).toHaveAccessibleName(/^Move pane up MACD/)
+  const moveDown = page.getByRole('button', { name: /^Move pane down/ })
+  await expect(moveUp).toHaveCount(2)
+  await expect(moveDown).toHaveCount(2)
+  await expect(
+    page.getByRole('button', { name: 'Move pane up chart' }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: /^Move pane down MACD/ }),
+  ).toHaveCount(0)
+
   await page.mouse.move(x, before.origin.y + before.panes[1]!.top + 12)
-  await moveUp.click()
+  const moveMacdUp = page.getByRole('button', { name: /^Move pane up MACD/ })
+  await moveMacdUp.click()
 
   expect(await paneOrder()).toEqual(['MACD', 'RSI'])
-  const after = await layout(page)
-  expect(after.main.height).toBeCloseTo(before.main.height)
-  expect(after.panes[0]!.height).toBeCloseTo(before.panes[1]!.height)
-  expect(after.panes[1]!.height).toBeCloseTo(before.panes[0]!.height)
-  await expect(moveUp).toHaveAccessibleName(/^Move pane up RSI/)
-  await expect(page.getByRole('button', { name: /^Hide MACD/ })).toBeFocused()
+  const swapped = await layout(page)
+  expect(swapped.main.top).toBeCloseTo(before.main.top)
+  expect(swapped.main.height).toBeCloseTo(before.main.height)
+  expect(swapped.panes[0]!.height).toBeCloseTo(before.panes[1]!.height)
+  expect(swapped.panes[1]!.height).toBeCloseTo(before.panes[0]!.height)
+  await expect(moveMacdUp).toBeFocused()
 
+  await page.mouse.move(x, swapped.origin.y + swapped.main.height / 2)
+  await page.getByRole('button', { name: 'Move pane down chart' }).click()
+  expect(await paneOrder()).toEqual(['MACD', 'RSI'])
+  const dropped = await layout(page)
+  expect(dropped.panes[0]!.top).toBeCloseTo(0)
+  expect(dropped.main.top).toBeCloseTo(dropped.panes[0]!.height)
+  expect(dropped.main.height).toBeCloseTo(swapped.main.height)
+  expect(dropped.panes[0]!.height).toBeCloseTo(swapped.panes[0]!.height)
+  expect(dropped.panes[1]!.top).toBeCloseTo(
+    dropped.main.top + dropped.main.height,
+  )
+  await expect(
+    page.getByRole('button', { name: 'Move pane down chart' }),
+  ).toBeFocused()
+  await expect(
+    page.getByRole('button', { name: 'Move pane up chart' }),
+  ).toBeVisible()
+  const legend = (await page.locator('.lf-hud-legend').boundingBox())!
+  expect(legend.y).toBeCloseTo(dropped.origin.y + dropped.main.top + 4, 0)
+
+  const dividerY = dropped.origin.y + dropped.main.top
+  await page.mouse.move(x, dividerY)
+  await page.mouse.down()
+  await page.mouse.move(x, dividerY - 40, { steps: 5 })
+  await page.mouse.up()
+  const resized = await layout(page)
+  expect(resized.panes[0]!.height).toBeCloseTo(dropped.panes[0]!.height - 40, 0)
+  expect(resized.main.height).toBeCloseTo(dropped.main.height + 40, 0)
+  expect(resized.panes[1]!.height).toBeCloseTo(dropped.panes[1]!.height, 0)
+
+  await page.mouse.move(
+    x,
+    resized.origin.y + resized.panes[0]!.top + resized.panes[0]!.height / 2,
+  )
   await page.getByRole('button', { name: /^Remove MACD/ }).click()
+  await expect(moveDown).toHaveCount(1)
+  const remaining = await layout(page)
+  await page.mouse.move(
+    x,
+    remaining.origin.y +
+      remaining.panes[0]!.top +
+      remaining.panes[0]!.height / 2,
+  )
+  await page.getByRole('button', { name: /^Remove RSI/ }).click()
   await expect(moveUp).toHaveCount(0)
-  expect(await paneOrder()).toEqual(['RSI'])
+  await expect(moveDown).toHaveCount(0)
+  expect(await paneOrder()).toEqual([])
 })
 
 test('dragging the main pane divider resizes the first sub-pane', async ({

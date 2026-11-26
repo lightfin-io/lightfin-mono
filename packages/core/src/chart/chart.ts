@@ -74,9 +74,18 @@ export interface CrosshairMoveEvent {
 
 /** Where each pane sits, in CSS px relative to the chart element. */
 export interface PaneLayout {
+  /**
+   * The price pane. It starts on top and can be moved between indicator panes.
+   */
   main: PlotRect
-  /** Indicator sub-panes, top to bottom. */
+  /** Indicator sub-panes, top to bottom, skipping the price pane if it sits between them. */
   panes: { indicator: IndicatorHandle; rect: PlotRect }[]
+}
+
+/** One row in the vertical pane stack. `instance` is null for the price pane. */
+interface StackSlot {
+  instance: IndicatorInstance | null
+  rect: PlotRect
 }
 
 /** Payloads of the events {@link Chart.on} can subscribe to. */
@@ -173,10 +182,10 @@ export class Chart {
     primitive: ChartPrimitive
     pointerId: number
   } | null = null
-  // A pane divider being dragged: the sub-pane below it, and both neighbours'
-  // heights when the press started.
+  // A pane divider being dragged: the stack index of the pane below it, and
+  // both neighbours' heights when the press started.
   private paneDrag: {
-    pane: number
+    slot: number
     pointerId: number
     startY: number
     above: number
@@ -184,6 +193,9 @@ export class Chart {
   } | null = null
   // Sub-pane heights the user dragged to, as fractions of the plot height.
   private readonly paneRatios = new WeakMap<IndicatorHandle, number>()
+  // Where the price pane sits in the stack. 0 is the top; indicator panes
+  // keep their own order in the gaps around it.
+  private mainPaneIndex = 0
   private hoverCursor = ''
   private cursor = ''
 
@@ -546,6 +558,7 @@ export class Chart {
       },
       remove: () => {
         if (!this.handleOf.delete(inst)) return
+        if (!inst.overlay) this.forgetPane(inst)
         this.indicatorCtl.remove(inst)
         this.onIndicatorsChanged(!inst.overlay)
       },
@@ -774,16 +787,62 @@ export class Chart {
     }
   }
 
-  /** Swap an indicator pane with the indicator pane immediately above it. */
-  movePaneUp(indicator: IndicatorHandle): void {
-    const index = this.indicatorCtl
-      .paneInstances()
-      .findIndex(instance => this.handleOf.get(instance) === indicator)
-    if (index < 1) return
-    this.endPaneDrag()
-    this.indicatorCtl.movePaneUp(index)
+  /**
+   * Swap a pane with the one directly above it. With no handle, moves the
+   * main price pane. Does nothing when that pane is already at the top.
+   */
+  movePaneUp(indicator?: IndicatorHandle): void {
+    this.movePane(indicator, -1)
+  }
+
+  /**
+   * Swap a pane with the one directly below it. With no handle, moves the
+   * main price pane. Does nothing when that pane is already at the bottom.
+   */
+  movePaneDown(indicator?: IndicatorHandle): void {
+    this.movePane(indicator, 1)
+  }
+
+  private movePane(
+    indicator: IndicatorHandle | undefined,
+    direction: -1 | 1,
+  ): void {
+    const panes = this.indicatorCtl.paneInstances()
+    const count = panes.length
+    if (count === 0) return
+    const mainAt = clamp(this.mainPaneIndex, 0, count)
+
+    if (!indicator) {
+      const dest = mainAt + direction
+      if (dest < 0 || dest > count) return
+      this.endPaneDrag()
+      this.mainPaneIndex = dest
+    } else {
+      const index = panes.findIndex(
+        instance => this.handleOf.get(instance) === indicator,
+      )
+      if (index === -1) return
+      const from = index < mainAt ? index : index + 1
+      const to = from + direction
+      if (to < 0 || to > count) return
+      this.endPaneDrag()
+      if (to === mainAt) this.mainPaneIndex = from
+      else {
+        const other = to < mainAt ? to : to - 1
+        this.indicatorCtl.swapPanes(index, other)
+      }
+    }
     this.invalidateViewport()
     this.events.emit('layoutChange', undefined)
+  }
+
+  /** Drop a pane indicator from the stack, keeping the price pane's place. */
+  private forgetPane(inst: IndicatorInstance): void {
+    const panes = this.indicatorCtl.paneInstances()
+    const index = panes.indexOf(inst)
+    if (index === -1) return
+    if (index < this.mainPaneIndex) this.mainPaneIndex--
+    if (panes.length === 1) this.mainPaneIndex = 0
   }
 
   /**
@@ -802,24 +861,34 @@ export class Chart {
     }
   }
 
-  /** The main (candle) pane rect — the full plot minus any indicator sub-panes. */
+  /** The main (candle) pane rect, wherever it sits in the stack. */
   private mainRect(): PlotRect {
-    const full = this.plotRect()
-    const first = this.paneSlots()[0]
-    return first ? { ...full, height: first.rect.top - full.top } : full
+    return this.layoutSlots().find(slot => slot.instance === null)!.rect
   }
 
   /**
-   * The indicator sub-panes stacked below the main pane, top to bottom. Each
-   * takes the height its divider was dragged to, or a default share; if they
-   * add up to more than {@link MAX_RESIZED_PANES_FRACTION} (e.g. a pane was
-   * added after resizing), all shrink proportionally.
+   * Indicator sub-panes, top to bottom. Each takes the height its divider was
+   * dragged to, or a default share; if they add up to more than
+   * {@link MAX_RESIZED_PANES_FRACTION} (e.g. a pane was added after resizing),
+   * all shrink proportionally. The price pane keeps whatever height is left
+   * and can sit anywhere in the stack.
    */
   private paneSlots(): { instance: IndicatorInstance; rect: PlotRect }[] {
+    const slots: { instance: IndicatorInstance; rect: PlotRect }[] = []
+    for (const slot of this.layoutSlots()) {
+      if (slot.instance)
+        slots.push({ instance: slot.instance, rect: slot.rect })
+    }
+    return slots
+  }
+
+  /** Price pane and indicator panes, top to bottom, filling the plot. */
+  private layoutSlots(): StackSlot[] {
     const full = this.plotRect()
     const insts = this.indicatorCtl.paneInstances()
     const n = insts.length
-    if (n === 0) return []
+    if (n === 0) return [{ instance: null, rect: full }]
+    const mainAt = clamp(this.mainPaneIndex, 0, n)
     const auto = Math.min(INDICATOR_PANE_RATIO, MAX_PANES_FRACTION / n)
     const ratios = insts.map(inst => {
       const handle = this.handleOf.get(inst)
@@ -827,44 +896,53 @@ export class Chart {
     })
     const total = ratios.reduce((a, b) => a + b, 0)
     const fit = Math.min(1, MAX_RESIZED_PANES_FRACTION / total)
-    let top = full.top + full.height * (1 - total * fit)
-    return insts.map((instance, i) => {
-      const height = full.height * ratios[i]! * fit
+    const slots: StackSlot[] = []
+    let top = full.top
+    let indicator = 0
+    for (let i = 0; i <= n; i++) {
+      const height =
+        i === mainAt
+          ? full.height * (1 - total * fit)
+          : full.height * ratios[indicator]! * fit
       const rect = { left: full.left, top, width: full.width, height }
       top += height
-      return { instance, rect }
-    })
+      if (i === mainAt) slots.push({ instance: null, rect })
+      else slots.push({ instance: insts[indicator++]!, rect })
+    }
+    return slots
   }
 
-  /** Index of the sub-pane whose top divider is at `point`, or -1. */
+  /** Stack index of the pane whose top edge is at `point`, or -1. */
   private dividerAt(point: { x: number; y: number }, touch: boolean): number {
     if (point.x < 0 || point.x > this.layers.getSize().width) return -1
     const slop = touch ? DIVIDER_SLOP_TOUCH : DIVIDER_SLOP
-    return this.paneSlots().findIndex(
-      ({ rect }) => Math.abs(point.y - rect.top) <= slop,
-    )
+    const slots = this.layoutSlots()
+    for (let i = 1; i < slots.length; i++) {
+      if (Math.abs(point.y - slots[i]!.rect.top) <= slop) return i
+    }
+    return -1
   }
 
   /**
-   * Start dragging the divider above sub-pane `pane`: pin every sub-pane at
-   * its current height so only the two neighbours of the divider change.
+   * Start dragging the divider above stack slot `slot`: pin every indicator
+   * pane at its current height so only the two neighbours of the divider change.
    */
-  private startPaneDrag(pane: number, y: number, pointerId: number): void {
+  private startPaneDrag(slot: number, y: number, pointerId: number): void {
     const full = this.plotRect()
-    const slots = this.paneSlots()
-    for (const { instance, rect } of slots) {
+    const slots = this.layoutSlots()
+    for (const entry of slots) {
+      if (!entry.instance) continue
       this.paneRatios.set(
-        this.handleOf.get(instance)!,
-        rect.height / full.height,
+        this.handleOf.get(entry.instance)!,
+        entry.rect.height / full.height,
       )
     }
-    const above = pane === 0 ? this.mainRect() : slots[pane - 1]!.rect
     this.paneDrag = {
-      pane,
+      slot,
       pointerId,
       startY: y,
-      above: above.height,
-      below: slots[pane]!.rect.height,
+      above: slots[slot - 1]!.rect.height,
+      below: slots[slot]!.rect.height,
     }
     this.layers.root.setPointerCapture(pointerId)
   }
@@ -872,24 +950,31 @@ export class Chart {
   private dragPane(y: number): void {
     const drag = this.paneDrag!
     const full = this.plotRect()
-    const slots = this.paneSlots()
-    // The pane went away mid-drag (removed from the HUD or by the host).
-    if (!slots[drag.pane]) return
-    const minAbove =
-      drag.pane === 0
-        ? full.height * (1 - MAX_RESIZED_PANES_FRACTION)
-        : MIN_PANE_HEIGHT
+    const slots = this.layoutSlots()
+    const above = slots[drag.slot - 1]
+    const below = slots[drag.slot]
+    // A pane went away mid-drag (removed from the HUD or by the host).
+    if (!above || !below) return
+    const minHeight = (slot: StackSlot) =>
+      slot.instance
+        ? MIN_PANE_HEIGHT
+        : full.height * (1 - MAX_RESIZED_PANES_FRACTION)
     const span = drag.above + drag.below
-    const below = clamp(
+    const minAbove = minHeight(above)
+    const nextBelow = clamp(
       drag.below - (y - drag.startY),
-      Math.min(MIN_PANE_HEIGHT, span - minAbove),
+      Math.min(minHeight(below), span - minAbove),
       span - minAbove,
     )
-    const handleAt = (i: number) => this.handleOf.get(slots[i]!.instance)!
-    this.paneRatios.set(handleAt(drag.pane), below / full.height)
-    if (drag.pane > 0) {
-      this.paneRatios.set(handleAt(drag.pane - 1), (span - below) / full.height)
+    const setRatio = (slot: StackSlot, height: number) => {
+      if (!slot.instance) return
+      this.paneRatios.set(
+        this.handleOf.get(slot.instance)!,
+        height / full.height,
+      )
     }
+    setRatio(below, nextBelow)
+    setRatio(above, span - nextBelow)
     this.invalidateViewport()
     this.events.emit('layoutChange', undefined)
   }
@@ -1297,7 +1382,10 @@ export class Chart {
     // Horizontal gridlines at the main pane's price ticks.
     const ticks = this.visiblePriceTicks(main.height)
     for (const price of ticks) {
-      const y = snap(this.priceScale.priceToY(price, main.height), dpr)
+      const y = snap(
+        main.top + this.priceScale.priceToY(price, main.height),
+        dpr,
+      )
       ctx.moveTo(0, y)
       ctx.lineTo(main.width, y)
     }
@@ -1310,10 +1398,11 @@ export class Chart {
     }
     ctx.stroke()
 
-    // A divider line along the top of each indicator sub-pane.
+    // A divider along the top of every pane except the first.
     ctx.strokeStyle = theme.paneBorderColor ?? theme.axisBorderColor
     ctx.beginPath()
-    for (const { rect } of this.paneSlots()) {
+    for (const { rect } of this.layoutSlots()) {
+      if (rect.top <= plot.top) continue
       const y = snap(rect.top, dpr)
       ctx.moveTo(0, y)
       ctx.lineTo(plot.width, y)
@@ -1470,8 +1559,8 @@ export class Chart {
     const main = this.mainRect()
     const ticks = this.visiblePriceTicks(main.height)
     for (const price of ticks) {
-      const y = this.priceScale.priceToY(price, main.height)
-      if (y < 0 || y > main.height) continue
+      const y = main.top + this.priceScale.priceToY(price, main.height)
+      if (y < main.top || y > main.top + main.height) continue
       ctx.fillText(this.axisPrice(price, ticks), plot.width + 6, y)
     }
 
@@ -1574,15 +1663,15 @@ export class Chart {
   private paintPriceLine(main: PlotRect): void {
     const series = this.series!
     const store = series.store
-    const { width, height } = this.layers.getSize()
+    const { width } = this.layers.getSize()
     const { theme } = this.options
     const dpr = this.layers.getDpr()
 
     const p = store.physical(store.lastIndex)
     const close = store.closes[p]!
     const up = close >= store.opens[p]!
-    const y = this.priceScale.priceToY(close, main.height)
-    if (y < 0 || y > main.height) return
+    const y = main.top + this.priceScale.priceToY(close, main.height)
+    if (y < main.top || y > main.top + main.height) return
 
     const color = series.closeOnly
       ? theme.lineColor
@@ -1604,7 +1693,11 @@ export class Chart {
 
     const text = this.axisPrice(close, this.visiblePriceTicks(main.height))
     const boxH = theme.fontSize + 8
-    const boxY = clamp(y - boxH / 2, 0, height - boxH)
+    const boxY = clamp(
+      y - boxH / 2,
+      main.top,
+      Math.max(main.top, main.top + main.height - boxH),
+    )
     ctx.font = `${theme.fontSize}px ${theme.fontFamily}`
     ctx.textBaseline = 'middle'
     ctx.fillStyle = color

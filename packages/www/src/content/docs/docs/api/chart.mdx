@@ -72,16 +72,22 @@ so its code only ships when used) and returns an `IndicatorHandle`;
 [Indicators reference](/docs/api/indicators) for the catalog, the handle, and
 how to write your own.
 
+`movePaneUp(handle?)` and `movePaneDown(handle?)` swap that pane with the
+neighbour above or below. Leave the handle out to move the price pane. The
+chrome pane toolbars call these; the price pane starts on top and can sit
+between indicator panes. `paneLayout().main` follows it.
+
 ### Instrument & coordinates
 
-| Method                                          | Notes                                            |
-| ----------------------------------------------- | ------------------------------------------------ |
-| `setInstrument(info)` / `instrument()`          | Symbol, precision, timezone (powers the chrome). |
-| `timeToCoordinate(t)`                           | Time → x pixel (or `null` if off-screen).        |
-| `coordinateToTime(x, snap?)`                    | x pixel → time.                                  |
-| `priceToCoordinate(p)` / `coordinateToPrice(y)` | Price ↔ y pixel.                                 |
-| `formatPrice(price)`                            | Format using the instrument's precision.         |
-| `paneLayout()` / `plotRect()`                   | Current pane rectangles (for overlays).          |
+| Method                                          | Notes                                                                                   |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `setInstrument(info)` / `instrument()`          | Symbol, precision, timezone (powers the chrome).                                        |
+| `timeToCoordinate(t)`                           | Time → x pixel (or `null` if off-screen).                                               |
+| `coordinateToTime(x, snap?)`                    | x pixel → time.                                                                         |
+| `priceToCoordinate(p)` / `coordinateToPrice(y)` | Price ↔ y pixel.                                                                        |
+| `formatPrice(price)`                            | Format using the instrument's precision.                                                |
+| `paneLayout()` / `plotRect()`                   | Current pane rectangles (for overlays). The price pane can sit between indicator panes. |
+| `movePaneUp(handle?)` / `movePaneDown(handle?)` | Swap a pane with the neighbour above or below. Omit the handle to move the price pane.  |
 
 ### Viewport
 
