@@ -17,6 +17,24 @@ interface IndexWindow {
   to: number
 }
 
+/**
+ * Inclusive index window for indicator plots. `to` follows the slots on
+ * screen and is not clamped to the last bar, so a value stored ahead of the
+ * data (Ichimoku's leading span) can draw into the empty right margin.
+ * Returns an empty window (`from > to`) when the store has no bars or the
+ * view sits entirely before the first one.
+ */
+export function indicatorSlotWindow(
+  visible: { from: number; to: number },
+  firstIndex: number,
+  lastIndex: number,
+): { from: number; to: number } {
+  if (lastIndex < firstIndex) return { from: 0, to: -1 }
+  const from = Math.max(firstIndex, Math.floor(visible.from))
+  const to = Math.ceil(visible.to)
+  return from <= to ? { from, to } : { from: 0, to: -1 }
+}
+
 /** A live indicator added to the chart: its definition, resolved options, plots, and calc. */
 export class IndicatorInstance {
   // The core doesn't model each indicator's option shape — it just merges

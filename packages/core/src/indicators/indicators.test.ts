@@ -4,16 +4,21 @@ import { StoreReader } from '../data/barReader'
 import { ColumnStore } from '../data/store'
 import type { Bar } from '../data/types'
 import adxDef from './adx'
+import aroonDef from './aroon'
 import atrDef from './atr'
 import bollingerDef from './bollinger'
 import cciDef from './cci'
 import choppinessDef from './choppiness'
+import cmfDef from './cmf'
 import donchianDef from './donchian'
 import emaDef from './ema'
+import hmaDef from './hma'
+import ichimokuDef from './ichimoku'
 import keltnerDef from './keltner'
 import macdDef from './macd'
 import mfiDef from './mfi'
 import obvDef from './obv'
+import psarDef from './psar'
 import rocDef from './roc'
 import rsiDef from './rsi'
 import smaDef from './sma'
@@ -78,6 +83,10 @@ const newDefinitions: [string, AnyDef, Record<string, unknown>][] = [
   ['VWMA', vwmaDef, {}],
   ['Money Flow Index', mfiDef, {}],
   ['Choppiness Index', choppinessDef, {}],
+  ['Hull Moving Average', hmaDef, {}],
+  ['Parabolic SAR', psarDef, {}],
+  ['Chaikin Money Flow', cmfDef, {}],
+  ['Aroon', aroonDef, {}],
 ]
 
 const definitions: [string, AnyDef, Record<string, unknown>][] = [
@@ -467,3 +476,234 @@ describe('Volume MA', () => {
     expect(volumeMaDef.scale).toBe('volume')
   })
 })
+
+it('Hull MA is the smoothed difference of a half-length and full WMA', () => {
+  const store = new ColumnStore()
+  store.setData(closeBars([1, 2, 3, 4, 5, 6]))
+  expect(snapshot(hmaDef, { period: 4 }, store).hma).toEqual([
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    5,
+    6,
+  ])
+})
+
+it('Parabolic SAR trails, clamps to the prior two bars, and flips to the extreme', () => {
+  const store = new ColumnStore()
+  store.setData(
+    ohlc([
+      [10, 8],
+      [11, 9],
+      [12, 10],
+      [13, 10],
+      [12, 9],
+      [11, 8],
+      [10, 7],
+    ]),
+  )
+  const snap = snapshot(
+    psarDef,
+    { afStart: 0.02, afStep: 0.02, afMax: 0.2 },
+    store,
+  )
+  // The first steps sit above the prior low, so the clamp holds SAR there
+  // until the two prior lows have both risen.
+  expect(snap.up).toEqual([
+    NaN,
+    8,
+    8,
+    expect.closeTo(8.24, 5),
+    expect.closeTo(8.6208, 5),
+    NaN,
+    NaN,
+  ])
+  expect(snap.down).toEqual([NaN, NaN, NaN, NaN, NaN, 13, 12.9])
+})
+
+it('Chaikin Money Flow weights closes inside the bar and gaps on bad volume', () => {
+  const store = new ColumnStore()
+  store.setData(
+    ohlc([
+      [10, 8, 9, 100],
+      [12, 10, 12, 100],
+      [10, 8, 8, 100],
+      [10, 10, 10, 50],
+    ]),
+  )
+  expect(snapshot(cmfDef, { period: 2 }, store).cmf).toEqual([
+    NaN,
+    0.5,
+    0,
+    expect.closeTo(-2 / 3, 8),
+  ])
+
+  const gappy = new ColumnStore()
+  gappy.setData(
+    ohlc([
+      [10, 8, 9, 0],
+      [12, 10, 12, 0],
+      [10, 8, 8],
+      [12, 10, 12, 10],
+      [10, 8, 8, 10],
+    ]),
+  )
+  expect(snapshot(cmfDef, { period: 2 }, gappy).cmf).toEqual([
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    0,
+  ])
+})
+
+it('Aroon scores bars since the latest extreme, and ties use the newest bar', () => {
+  const store = new ColumnStore()
+  store.setData(
+    ohlc([
+      [1, 1],
+      [5, 0],
+      [3, 2],
+      [4, 0],
+      [2, 1],
+    ]),
+  )
+  const snap = snapshot(aroonDef, { period: 3 }, store)
+  expect(snap.up![0]).toBeNaN()
+  expect(snap.up![3]).toBeCloseTo(100 / 3, 8)
+  expect(snap.down![3]).toBe(100)
+  expect(snap.up![4]).toBe(0)
+  expect(snap.down![4]).toBeCloseTo(200 / 3, 8)
+})
+
+describe('Ichimoku', () => {
+  const options = { tenkan: 2, kijun: 3, senkou: 4, displacement: 2 }
+
+  function load() {
+    const store = new ColumnStore()
+    store.setData(
+      ohlc([
+        [10, 8, 9],
+        [12, 9, 11],
+        [11, 7, 8],
+        [13, 10, 12],
+        [14, 11, 13],
+        [12, 9, 10],
+      ]),
+    )
+    const calc = ichimokuDef.create({
+      ...ichimokuDef.defaultOptions,
+      ...options,
+    })
+    calc.calculateAll(new StoreReader(store))
+    return { store, calc }
+  }
+
+  it('shifts the cloud forward and the close back', () => {
+    const { store, calc } = load()
+    const at = (key: string) => [0, 1, 2, 3, 4, 5].map(i => calc.value(key, i))
+    expect(at('tenkan')).toEqual([NaN, 10, 9.5, 10, 12, 11.5])
+    expect(at('kijun')).toEqual([NaN, NaN, 9.5, 10, 10.5, 11.5])
+    expect(at('spanA')).toEqual([NaN, NaN, NaN, NaN, 9.5, 10])
+    expect(at('spanB')).toEqual([NaN, NaN, NaN, NaN, NaN, 10])
+    expect(at('chikou')).toEqual([8, 12, 13, 10, NaN, NaN])
+    // The last two source bars project past the data.
+    expect(calc.value('spanA', store.lastIndex + 1)).toBe(11.25)
+    expect(calc.value('spanB', store.lastIndex + 1)).toBe(10.5)
+    expect(calc.value('spanA', store.lastIndex + 2)).toBe(11.5)
+    expect(calc.value('spanB', store.lastIndex + 2)).toBe(10.5)
+    // Equal spans meet in both fills; a span-A lead is the bull cloud only.
+    expect(calc.value('bullHigh', 5)).toBe(10)
+    expect(calc.value('bearLow', 5)).toBe(10)
+    expect(calc.value('bullHigh', 6)).toBe(11.25)
+    expect(calc.value('bearHigh', 6)).toBeNaN()
+  })
+
+  it('a live tick moves the lead and the lagged close, not the cloud already on older bars', () => {
+    const { store, calc } = load()
+    const reader = new StoreReader(store)
+    const settled = calc.value('spanA', store.lastIndex)
+    const last = store.get(store.lastIndex)
+    store.push({ ...last, high: last.high + 4, close: last.close + 4 })
+    calc.updateLast(reader)
+    expect(calc.value('spanA', store.lastIndex)).toBe(settled)
+    expect(calc.value('spanA', store.lastIndex + 2)).toBe(12.5)
+    expect(calc.value('chikou', store.lastIndex - 2)).toBe(last.close + 4)
+  })
+
+  it('matches a full recompute when built one bar at a time and after backfill', () => {
+    const data = bars(81)
+    const resolved = {
+      ...ichimokuDef.defaultOptions,
+      tenkan: 3,
+      kijun: 5,
+      senkou: 8,
+      displacement: 3,
+    }
+    const batchStore = new ColumnStore()
+    batchStore.setData(data)
+    const batch = snapshot(ichimokuDef, resolved, batchStore)
+
+    const liveStore = new ColumnStore()
+    const calc = ichimokuDef.create(resolved)
+    const reader = new StoreReader(liveStore)
+    for (const bar of data) {
+      liveStore.push(bar)
+      calc.updateLast(reader)
+    }
+    for (const { key } of ichimokuDef.plots(resolved)) {
+      for (let i = liveStore.firstIndex; i <= liveStore.lastIndex + 3; i++) {
+        const live = calc.value(key, i)
+        const want =
+          i <= batchStore.lastIndex
+            ? batch[key]![i - batchStore.firstIndex]!
+            : snapshotLead(ichimokuDef, resolved, data, key, i)
+        if (Number.isNaN(want)) expect(live).toBeNaN()
+        else expect(live).toBeCloseTo(want, 10)
+      }
+    }
+
+    const backfill = new ColumnStore()
+    const backReader = new StoreReader(backfill)
+    const backCalc = ichimokuDef.create(resolved)
+    backfill.setData(data.slice(40, 80))
+    backCalc.calculateAll(backReader)
+    backfill.prepend(data.slice(0, 40))
+    backCalc.calculateAll(backReader)
+    backfill.push(data[80]!)
+    backCalc.updateLast(backReader)
+    for (const { key } of ichimokuDef.plots(resolved)) {
+      expect(
+        data.map((_, offset) =>
+          backCalc.value(key, backReader.firstIndex + offset),
+        ),
+      ).toEqual(batch[key])
+    }
+  })
+})
+
+/** One leading value from a fresh recompute, including slots past the last bar. */
+function snapshotLead(
+  def: AnyDef,
+  options: Record<string, unknown>,
+  data: Bar[],
+  key: string,
+  index: number,
+): number {
+  const store = new ColumnStore()
+  store.setData(data)
+  const calc = def.create({ ...def.defaultOptions, ...options })
+  calc.calculateAll(new StoreReader(store))
+  return calc.value(key, index)
+}
+
+/** `[high, low, close?, volume?]`, timed in order. Close defaults to the midpoint. */
+function ohlc(
+  rows: readonly (readonly [number, number, number?, number?])[],
+): Bar[] {
+  return rows.map(([high, low, close, volume], time) => {
+    const price = close ?? (high + low) / 2
+    return { time, open: price, high, low, close: price, volume }
+  })
+}

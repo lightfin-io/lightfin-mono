@@ -23,80 +23,79 @@ change options, re-create the chart.
 For saving preferences and recreating the chart with defaults, see
 [Saving and resetting settings](/docs/guides/saving-settings).
 
-| Option              | Type                         | Notes                                              |
-| ------------------- | ---------------------------- | -------------------------------------------------- |
-| `theme`             | `Partial<ChartTheme>`        | Colors; `DEFAULT_THEME` is the base.               |
-| `crosshairMode`     | `CrosshairMode`              | `'normal'` or `'magnet'` snapping.                 |
-| `volumeVisible`     | `boolean`                    | Volume histogram in the main pane (default off).   |
-| `volumeHeightRatio` | `number`                     | Fraction of plot height it occupies.               |
-| `priceLineVisible`  | `boolean`                    | Dotted last-close line + axis badge (default on).  |
-| `rightOffset`       | `number`                     | Blank bars kept to the right of the newest bar.    |
-| `priceAxisWidth` / `timeAxisHeight` | `number`     | px reserved for the axis strips.                   |
-| `priceDecimals`     | `number`                     | Min decimals on price/crosshair labels (default 2). |
-| `priceFormatter`    | `(price, decimals) => string`| Override price formatting (locale separators, …).  |
-| `locale`            | `string`                     | BCP 47 locale for dates and times. See [Localization](#localization). |
-| `dateFormatters`    | `Partial<DateFormatters>`    | Override individual date and time formats.         |
+| Option                              | Type                          | Notes                                                                 |
+| ----------------------------------- | ----------------------------- | --------------------------------------------------------------------- |
+| `theme`                             | `Partial<ChartTheme>`         | Colors; `DEFAULT_THEME` is the base.                                  |
+| `crosshairMode`                     | `CrosshairMode`               | `'normal'` or `'magnet'` snapping.                                    |
+| `volumeVisible`                     | `boolean`                     | Volume histogram in the main pane (default off).                      |
+| `volumeHeightRatio`                 | `number`                      | Fraction of plot height it occupies.                                  |
+| `priceLineVisible`                  | `boolean`                     | Dotted last-close line + axis badge (default on).                     |
+| `rightOffset`                       | `number`                      | Blank bars kept to the right of the newest bar.                       |
+| `priceAxisWidth` / `timeAxisHeight` | `number`                      | px reserved for the axis strips.                                      |
+| `priceDecimals`                     | `number`                      | Min decimals on price/crosshair labels (default 2).                   |
+| `priceFormatter`                    | `(price, decimals) => string` | Override price formatting (locale separators, …).                     |
+| `locale`                            | `string`                      | BCP 47 locale for dates and times. See [Localization](#localization). |
+| `dateFormatters`                    | `Partial<DateFormatters>`     | Override individual date and time formats.                            |
 
 ## Methods
 
 ### Series
 
-| Method                     | Returns          | Notes                            |
-| -------------------------- | ---------------- | -------------------------------- |
-| `addCandlestickSeries()`   | `Series`         | Also `addBar/Line/AreaSeries()`. |
-| `getSeries()`              | `Series \| null` | The current series.              |
+| Method                   | Returns          | Notes                            |
+| ------------------------ | ---------------- | -------------------------------- |
+| `addCandlestickSeries()` | `Series`         | Also `addBar/Line/AreaSeries()`. |
+| `getSeries()`            | `Series \| null` | The current series.              |
 
 The series type is only the starting renderer — `series.setChartType(type)`
 switches it in place. See [`Series`](/docs/api/series).
 
 ### Data
 
-| Method                   | Returns       | Notes                                      |
-| ------------------------ | ------------- | ------------------------------------------ |
-| `setDataSource(source)`  | `() => void`  | Attach a [`DataSource`](/docs/guides/live-data); returns teardown. |
-| `fitContent()`           | `void`        | Refit the viewport to the data.            |
+| Method                  | Returns      | Notes                                                              |
+| ----------------------- | ------------ | ------------------------------------------------------------------ |
+| `setDataSource(source)` | `() => void` | Attach a [`DataSource`](/docs/guides/live-data); returns teardown. |
+| `fitContent()`          | `void`       | Refit the viewport to the data.                                    |
 
 ### Indicators
 
 ```ts
-const sma = await chart.addIndicator(
-  import('@lightfin/core/indicators/sma'),
-  { period: 20 },
-)
+const sma = await chart.addIndicator(import('@lightfin/core/indicators/sma'), {
+  period: 20,
+})
 ```
 
 `addIndicator(source, options?)` loads an indicator (pass a dynamic `import()`
 so its code only ships when used) and returns an `IndicatorHandle`;
-`chart.indicators()` lists them. Sixteen indicators ship — see the full
+`chart.indicators()` lists them. 27 indicators ship — see the full
 [Indicators reference](/docs/api/indicators) for the catalog, the handle, and
 how to write your own.
 
 ### Instrument & coordinates
 
-| Method                     | Notes                                            |
-| -------------------------- | ------------------------------------------------ |
-| `setInstrument(info)` / `instrument()` | Symbol, precision, timezone (powers the chrome). |
-| `timeToCoordinate(t)`      | Time → x pixel (or `null` if off-screen).        |
-| `coordinateToTime(x, snap?)` | x pixel → time.                                |
-| `priceToCoordinate(p)` / `coordinateToPrice(y)` | Price ↔ y pixel.            |
-| `formatPrice(price)`       | Format using the instrument's precision.         |
-| `paneLayout()` / `plotRect()` | Current pane rectangles (for overlays).       |
+| Method                                          | Notes                                            |
+| ----------------------------------------------- | ------------------------------------------------ |
+| `setInstrument(info)` / `instrument()`          | Symbol, precision, timezone (powers the chrome). |
+| `timeToCoordinate(t)`                           | Time → x pixel (or `null` if off-screen).        |
+| `coordinateToTime(x, snap?)`                    | x pixel → time.                                  |
+| `priceToCoordinate(p)` / `coordinateToPrice(y)` | Price ↔ y pixel.                                 |
+| `formatPrice(price)`                            | Format using the instrument's precision.         |
+| `paneLayout()` / `plotRect()`                   | Current pane rectangles (for overlays).          |
 
 ### Viewport
 
-| Method                       | Notes                                              |
-| ---------------------------- | -------------------------------------------------- |
-| `visibleTimeRange()`         | The `{ from, to }` currently in view, or `null`.   |
-| `setVisibleTimeRange(range)` | Scroll/zoom to a time range (async).               |
-| `scrollToTime(time)`         | Bring a time into view (async).                    |
-| `crosshairMode()` / `setCrosshairMode(mode)` | Read/switch magnet snapping.       |
+| Method                                       | Notes                                            |
+| -------------------------------------------- | ------------------------------------------------ |
+| `visibleTimeRange()`                         | The `{ from, to }` currently in view, or `null`. |
+| `setVisibleTimeRange(range)`                 | Scroll/zoom to a time range (async).             |
+| `scrollToTime(time)`                         | Bring a time into view (async).                  |
+| `crosshairMode()` / `setCrosshairMode(mode)` | Read/switch magnet snapping.                     |
 
 ### Extending
 
-| Method                      | Notes                                                        |
-| --------------------------- | ----------------------------------------------------------- |
-| `onOrderIntent(handler)`    | Opt into the "+" order button; fires with price/coordinate. |
-| `attachPrimitive(primitive)`| Low-level canvas hook — the basis for [price lines](/docs/api/price-lines) and [event tags](/docs/api/event-tags). |
+| Method                       | Notes                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `onOrderIntent(handler)`     | Opt into the "+" order button; fires with price/coordinate.                                                        |
+| `attachPrimitive(primitive)` | Low-level canvas hook — the basis for [price lines](/docs/api/price-lines) and [event tags](/docs/api/event-tags). |
 
 For a form wired to `onOrderIntent`, see the
 [custom order modal guide](/docs/guides/order-modal).
@@ -111,15 +110,15 @@ const off = chart.on('crosshairMove', e => {
 
 `on(type, handler)` subscribes and returns an unsubscribe function.
 
-| Event              | Payload                      | Fires when                         |
-| ------------------ | ---------------------------- | ---------------------------------- |
-| `crosshairMove`    | `CrosshairMoveEvent \| null` | The crosshair moved (or left).     |
-| `crosshairModeChange` | `CrosshairMode`            | The crosshair switched between free and magnet mode. |
-| `dataChange`       | `SeriesChange`               | The series' data or type changed.  |
-| `seriesChange`     | `Series`                     | A new series replaced the previous.|
-| `indicatorsChange` | `void`                       | An indicator was added/removed/shown/reconfigured. |
-| `layoutChange`     | `void`                       | The chart resized or panes changed.|
-| `instrumentChange` | `InstrumentInfo \| null`     | The instrument was set.            |
+| Event                 | Payload                      | Fires when                                           |
+| --------------------- | ---------------------------- | ---------------------------------------------------- |
+| `crosshairMove`       | `CrosshairMoveEvent \| null` | The crosshair moved (or left).                       |
+| `crosshairModeChange` | `CrosshairMode`              | The crosshair switched between free and magnet mode. |
+| `dataChange`          | `SeriesChange`               | The series' data or type changed.                    |
+| `seriesChange`        | `Series`                     | A new series replaced the previous.                  |
+| `indicatorsChange`    | `void`                       | An indicator was added/removed/shown/reconfigured.   |
+| `layoutChange`        | `void`                       | The chart resized or panes changed.                  |
+| `instrumentChange`    | `InstrumentInfo \| null`     | The instrument was set.                              |
 
 Call `chart.remove()` to destroy the instance and release its listeners.
 

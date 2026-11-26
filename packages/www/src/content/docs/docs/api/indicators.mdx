@@ -12,10 +12,9 @@ carries the catalog — each one loads only when you use it. Add one with
 `chart.addIndicator`, passing a **dynamic `import()`** so its code splits out:
 
 ```ts
-const sma = await chart.addIndicator(
-  import('@lightfin/core/indicators/sma'),
-  { period: 20 },
-)
+const sma = await chart.addIndicator(import('@lightfin/core/indicators/sma'), {
+  period: 20,
+})
 ```
 
 `addIndicator(source, options?)` returns a `Promise<IndicatorHandle>`. It needs
@@ -37,27 +36,31 @@ Overlay indicators share the main pane; "own pane" indicators (RSI, MACD, …)
 get a resizable sub-pane. Volume MA draws over the volume histogram and only
 shows while that histogram does.
 
-VWMA and Money Flow Index leave a gap when a window contains missing volume
-or has zero total volume. Choppiness Index uses the true price span, including
-the close immediately before the window when available.
+VWMA, Money Flow Index, and Chaikin Money Flow leave a gap when a window
+contains missing volume or has zero total volume. Choppiness Index uses the
+true price span, including the close immediately before the window when
+available. Ichimoku plots its leading span `displacement` bars ahead of the
+bar that produced it, into the blank margin after the last candle
+(`rightOffset` bars of that lead fit while the view is pinned to the live
+edge).
 
 ## `IndicatorHandle`
 
 `addIndicator` resolves to a handle; `chart.indicators()` returns every handle
 in the order added.
 
-| Member               | Type                              | Notes                                             |
-| -------------------- | --------------------------------- | ------------------------------------------------- |
-| `name`               | `string`                          | Legend name, e.g. `'BB'`.                         |
-| `params`             | `readonly (string \| number)[]`   | Legend params, e.g. `[20, 2]`.                    |
-| `placement`          | `'price' \| 'volume' \| 'pane'`   | Where it draws.                                   |
-| `options`            | `Readonly<Record<string, unknown>>` | Resolved options (defaults + everything set).   |
-| `plots`              | `readonly PlotStyle[]`            | The output series it emits.                       |
-| `visible`            | `boolean`                         | —                                                 |
-| `value(key, index)`  | `number`                          | Cached output for a plot at a logical bar; `NaN` during warmup. |
-| `setVisible(v)`      | `void`                            | Hide/show without losing the cache.               |
-| `setOptions(opts)`   | `void`                            | Merge new options over the current ones and recompute. |
-| `remove()`           | `void`                            | Remove it from the chart.                         |
+| Member              | Type                                | Notes                                                           |
+| ------------------- | ----------------------------------- | --------------------------------------------------------------- |
+| `name`              | `string`                            | Legend name, e.g. `'BB'`.                                       |
+| `params`            | `readonly (string \| number)[]`     | Legend params, e.g. `[20, 2]`.                                  |
+| `placement`         | `'price' \| 'volume' \| 'pane'`     | Where it draws.                                                 |
+| `options`           | `Readonly<Record<string, unknown>>` | Resolved options (defaults + everything set).                   |
+| `plots`             | `readonly PlotStyle[]`              | The output series it emits.                                     |
+| `visible`           | `boolean`                           | —                                                               |
+| `value(key, index)` | `number`                            | Cached output for a plot at a logical bar; `NaN` during warmup. |
+| `setVisible(v)`     | `void`                              | Hide/show without losing the cache.                             |
+| `setOptions(opts)`  | `void`                              | Merge new options over the current ones and recompute.          |
+| `remove()`          | `void`                              | Remove it from the chart.                                       |
 
 ```ts
 sma.setOptions({ period: 50 }) // recomputes in place
@@ -94,7 +97,7 @@ metadata plus a `create()` factory for the compute half. The contract lives in
 `@lightfin/core/indicators` (types only, zero runtime cost to import):
 
 ```ts
-import type { IndicatorDefinition, BarReader } from '@lightfin/core/indicators'
+import type { BarReader, IndicatorDefinition } from '@lightfin/core/indicators'
 
 interface MomentumOptions {
   period: number
@@ -128,7 +131,9 @@ const definition: IndicatorDefinition<MomentumOptions> = {
         const prev = i - o.period
         out.set(
           i,
-          prev >= reader.firstIndex ? reader.close(i) - reader.close(prev) : NaN,
+          prev >= reader.firstIndex
+            ? reader.close(i) - reader.close(prev)
+            : NaN,
         )
       },
     }

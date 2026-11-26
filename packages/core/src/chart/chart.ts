@@ -26,7 +26,11 @@ import { drawVolume } from '../series/volume'
 import { ChartA11y, describeBar, describeView } from './a11y'
 import type { ViewSummary } from './a11y'
 import { Emitter } from './events'
-import { IndicatorController, IndicatorInstance } from './indicators'
+import {
+  IndicatorController,
+  IndicatorInstance,
+  indicatorSlotWindow,
+} from './indicators'
 import type {
   ChartOptions,
   ChartOptionsInput,
@@ -1205,18 +1209,31 @@ export class Chart {
       this.options.volumeVisible && this.series.store.hasVolumeData
         ? this.options.volumeHeightRatio * VOLUME_PRICE_MARGIN
         : 0
-    const plot = this.plotRect()
-    const window = this.series.visibleWindow(this.timeScaleModel, plot.width)
-    const range = this.series.priceRange(window)
-    if (!range) return
-    // Widen the domain to contain overlay indicator lines (EMA, Bollinger) so
-    // they aren't clipped at the edges of the candle-only range.
-    const { low, high } = this.indicatorCtl.extendOverlayRange(
-      window,
-      range.low,
-      range.high,
+    const width = this.plotRect().width
+    const range = this.series.priceRange(
+      this.series.visibleWindow(this.timeScaleModel, width),
     )
-    this.priceScale.autoScale(low, high)
+    // Start from the candles when any are on screen, then widen for overlay
+    // plots — including values drawn past the last bar, into the right margin.
+    const { low, high } = this.indicatorCtl.extendOverlayRange(
+      this.indicatorWindow(width),
+      range?.low ?? Infinity,
+      range?.high ?? -Infinity,
+    )
+    if (low <= high) this.priceScale.autoScale(low, high)
+  }
+
+  /**
+   * Slots on screen for indicator plots. Wider than the candle window: the
+   * right edge is not clamped to the last bar.
+   */
+  private indicatorWindow(width: number): IndexWindow {
+    const store = this.series!.store
+    return indicatorSlotWindow(
+      this.timeScaleModel.visibleRange(width),
+      store.firstIndex,
+      store.lastIndex,
+    )
   }
 
   /** Autoscale each indicator sub-pane's own scale to its visible plot values. */
@@ -1224,10 +1241,7 @@ export class Chart {
     if (!this.series) return
     const panes = this.indicatorCtl.paneInstances()
     if (panes.length === 0) return
-    const window = this.series.visibleWindow(
-      this.timeScaleModel,
-      this.plotRect().width,
-    )
+    const window = this.indicatorWindow(this.plotRect().width)
     for (const inst of panes) inst.autoScalePane(window)
   }
 
@@ -1295,8 +1309,9 @@ export class Chart {
       this.options.theme,
       dpr,
     )
-    if (!this.indicatorCtl.isEmpty && window.from <= window.to) {
-      this.paintIndicators(ctx, window, main, dpr)
+    const slots = this.indicatorWindow(main.width)
+    if (!this.indicatorCtl.isEmpty && slots.from <= slots.to) {
+      this.paintIndicators(ctx, slots, main, dpr)
     }
     for (const p of this.primitives) p.draw?.(ctx, { pane: main, dpr })
   }

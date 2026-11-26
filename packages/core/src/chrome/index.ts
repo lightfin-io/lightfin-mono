@@ -87,6 +87,10 @@ export const builtinIndicators = {
     'Weighted Moving Average (WMA)',
     () => import('../indicators/wma'),
   ),
+  hma: menuEntry(
+    'Hull Moving Average (HMA)',
+    () => import('../indicators/hma'),
+  ),
   vwma: menuEntry(
     'Volume-Weighted Moving Average (VWMA)',
     () => import('../indicators/vwma'),
@@ -96,8 +100,13 @@ export const builtinIndicators = {
     () => import('../indicators/bollinger'),
   ),
   keltner: menuEntry('Keltner Channels', () => import('../indicators/keltner')),
-  donchian: menuEntry('Donchian Channels', () => import('../indicators/donchian')),
+  donchian: menuEntry(
+    'Donchian Channels',
+    () => import('../indicators/donchian'),
+  ),
+  ichimoku: menuEntry('Ichimoku Cloud', () => import('../indicators/ichimoku')),
   supertrend: menuEntry('Supertrend', () => import('../indicators/supertrend')),
+  psar: menuEntry('Parabolic SAR (PSAR)', () => import('../indicators/psar')),
   vwap: menuEntry('VWAP', () => import('../indicators/vwap')),
   rsi: menuEntry(
     'Relative Strength Index (RSI)',
@@ -107,6 +116,11 @@ export const builtinIndicators = {
   mfi: menuEntry(
     'Money Flow Index (MFI)',
     () => import('../indicators/mfi'),
+    false,
+  ),
+  cmf: menuEntry(
+    'Chaikin Money Flow (CMF)',
+    () => import('../indicators/cmf'),
     false,
   ),
   macd: menuEntry('MACD', () => import('../indicators/macd'), false),
@@ -140,6 +154,7 @@ export const builtinIndicators = {
     () => import('../indicators/adx'),
     false,
   ),
+  aroon: menuEntry('Aroon', () => import('../indicators/aroon'), false),
   choppiness: menuEntry(
     'Choppiness Index (CHOP)',
     () => import('../indicators/choppiness'),

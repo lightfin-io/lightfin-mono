@@ -61,11 +61,12 @@ const sma = await chart.addIndicator(import('@lightfin/core/indicators/sma'), {
 
 - **Series** — candlestick, bar, line, and area, switchable in place with
   `setChartType()`. Volume histogram on a hidden sub-scale.
-- **Indicators** — 22 built-ins (SMA, EMA, WMA, VWMA, Bollinger, Keltner,
-  Donchian, Supertrend, VWAP, RSI, MFI, MACD, Stochastic, Stochastic RSI,
-  Williams %R, CCI, ROC, ADX, Choppiness Index, ATR, OBV, Volume MA), overlaid
-  or on a resizable pane. Each is its own subpath so unused ones stay out of
-  the bundle. Custom indicators use the same contract.
+- **Indicators** — 27 built-ins (SMA, EMA, WMA, HMA, VWMA, Bollinger, Keltner,
+  Donchian, Ichimoku, Supertrend, Parabolic SAR, VWAP, RSI, MFI, CMF, MACD,
+  Stochastic, Stochastic RSI, Williams %R, CCI, ROC, ADX, Aroon, Choppiness
+  Index, ATR, OBV, Volume MA), overlaid or on a resizable pane. Each is its
+  own subpath so unused ones stay out of the bundle. Custom indicators use
+  the same contract.
 - **Drawing tools** — 21 types (lines, channels, pitchfork, regression, fibs,
   shapes, brush, labels, position and range measures) with undo/redo, lock/hide,
   and a per-drawing style toolbar. JSON in and out, including a schema an AI

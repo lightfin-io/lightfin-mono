@@ -9,7 +9,7 @@ const features = [
   },
   {
     title: 'Indicators built in, or build your own',
-    body: 'SMA, EMA, Bollinger, RSI, MACD, ATR, Stochastic and Volume MA ship out of the box, each on its own resizable pane, plus a tree-shakeable indicator framework for authoring custom ones.',
+    body: 'SMA, EMA, Bollinger, Ichimoku, Parabolic SAR, RSI, MACD, ATR and more ship out of the box, each on its own resizable pane, plus a tree-shakeable indicator framework for authoring custom ones.',
   },
   {
     title: '25 drawing tools',
@@ -30,13 +30,13 @@ const features = [
 ]
 
 // Bars are to-scale between the two Lightfin bundles; the comparison bar is
-// capped and fades off the track (it's ~47× the full bundle). Sizes for the
-// core are brotli-compressed and enforced in CI (packages/core/.size-limit.json).
+// capped and fades off the track (it's ~35× the full bundle). Sizes are
+// brotli-compressed and match the size-limit checks in packages/core.
 const bundles = [
-  { label: 'Core', size: '14 kB', width: 24, tone: 'lean' },
+  { label: 'Core', size: '15 kB', width: 19, tone: 'lean' },
   {
     label: 'Core + chrome + all indicators & annotations',
-    size: '43 kB',
+    size: '57 kB',
     width: 72,
     tone: 'lean',
   },
@@ -195,7 +195,7 @@ chart.addCandlestickSeries().setData(bars)`
         </div>
         <p class="bundle__note">
           Lightfin sizes are brotli-compressed and enforced in CI. The
-          comparison bar is capped — a 2&nbsp;MB bundle is roughly 47&times; the
+          comparison bar is capped — a 2&nbsp;MB bundle is roughly 35&times; the
           full Lightfin build.
         </p>
       </section>

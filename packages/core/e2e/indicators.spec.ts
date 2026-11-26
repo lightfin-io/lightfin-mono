@@ -15,6 +15,11 @@ test('loads overlays and pane indicators from the Indicators menu', async ({
     ['Volume-Weighted Moving Average (VWMA)', 'VWMA', 'price'],
     ['Money Flow Index (MFI)', 'MFI', 'pane'],
     ['Choppiness Index (CHOP)', 'CHOP', 'pane'],
+    ['Hull Moving Average (HMA)', 'HMA', 'price'],
+    ['Ichimoku Cloud', 'Ichimoku', 'price'],
+    ['Parabolic SAR (PSAR)', 'PSAR', 'price'],
+    ['Chaikin Money Flow (CMF)', 'CMF', 'pane'],
+    ['Aroon', 'Aroon', 'pane'],
   ] as const) {
     await button.click()
     const item = page.getByRole('menuitem', { name: label, exact: true })

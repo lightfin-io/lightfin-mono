@@ -3,13 +3,13 @@
     "name": "core (createChart)",
     "path": "dist/index.js",
     "import": "{ createChart }",
-    "limit": "15 kB"
+    "limit": "15.2 kB"
   },
   {
     "name": "chrome",
     "path": "dist/chrome.js",
     "import": "{ createChrome }",
-    "limit": "27.8 kB"
+    "limit": "30.5 kB"
   },
   {
     "name": "annotations",
@@ -42,7 +42,7 @@
   {
     "name": "all built-in indicators",
     "path": "dist/indicators/*.js",
-    "limit": "11.4 kB"
+    "limit": "13.3 kB"
   },
   {
     "name": "everything (core + chrome + annotations + price lines + indicators)",
@@ -54,6 +54,6 @@
       "dist/event-tags.js",
       "dist/indicators/*.js"
     ],
-    "limit": "57.1 kB"
+    "limit": "59.6 kB"
   }
 ]
