@@ -1,0 +1,81 @@
+.lf-chart {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: auto;
+  touch-action: none;
+  /* The overlay canvas paints the chart's keyboard focus ring. */
+  outline: none;
+}
+
+.lf-chart-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.lf-chart-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.lf-latest-button {
+  position: absolute;
+  z-index: 2; /* Above the optional pane HUD. */
+  margin: 0 8px 8px 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--lf-panelBorderColor, var(--lf-latest-border));
+  background: var(--lf-panel, var(--lf-latest-background));
+  color: var(--lf-textStrong, var(--lf-latest-color));
+  font: 20px var(--lf-fontFamily, var(--lf-latest-font));
+  cursor: pointer;
+  /* Opacity keeps the button in the tab order while the pointer is away. */
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lf-chart:hover > .lf-latest-button:where([data-pane-hover]) {
+  opacity: 0.85;
+  pointer-events: auto;
+}
+
+.lf-chart > .lf-latest-button:hover,
+.lf-chart:focus-visible > .lf-latest-button,
+.lf-chart > .lf-latest-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lf-chart-loading {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  translate: -50% -50%;
+  box-sizing: border-box;
+  border: 3px solid var(--lf-chart-loading-track);
+  border-top-color: var(--lf-chart-loading-accent);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: lf-chart-spin 700ms linear infinite;
+}
+
+.lf-latest-button[hidden],
+.lf-chart-loading[hidden] {
+  display: none;
+}
+
+@keyframes lf-chart-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

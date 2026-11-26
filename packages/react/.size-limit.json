@@ -5,5 +5,12 @@
     "import": "{ LightfinChart, useChartEffect }",
     "ignore": ["react", "react-dom", "react/jsx-runtime", "@lightfin/core"],
     "limit": "2 kB"
+  },
+  {
+    "name": "event tags hook (glue only; react + core external)",
+    "path": "dist/event-tags.js",
+    "import": "{ useEventTags }",
+    "ignore": ["react", "@lightfin/core/event-tags"],
+    "limit": "1 kB"
   }
 ]

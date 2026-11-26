@@ -20,6 +20,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./event-tags": {
+      "types": "./dist/event-tags.d.ts",
+      "import": "./dist/event-tags.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

@@ -1,0 +1,175 @@
+---
+title: Events on the timeline
+description: Plot earnings, dividends, and other events as buttons along the chart, and open your own detail card.
+---
+
+import { Code } from '@astrojs/starlight/components'
+
+import eventChartSource from '../../../../components/EventChart.tsx?raw'
+import EventTagsDemo from '../../../../components/EventTagsDemo.tsx'
+
+`addEventTags()` draws a house-shaped button on the timeline for each event.
+This demo uses **E** for earnings and **D** for dividends. Clicking or tapping
+a button calls `onSelect` with the event and its position so your app can open
+the detail card.
+
+Buttons sit along the bottom of the price pane, just above the time axis.
+With `volumeVisible`, that is the volume band. Buttons that would overlap
+stack upward into extra rows. `time` is Unix seconds UTC, and each button is
+placed on the nearest bar.
+
+## Try it
+
+Click an **E** or **D** along the bottom of the chart. The card opens above
+the button, and the dotted guide stays visible until the card closes. Click
+elsewhere or press Escape to close it. The candles are sample data.
+
+<EventTagsDemo client:only="react" />
+
+## Plain TypeScript
+
+Pass the card to `addEventTags`. While it is showing, an outside click or
+Escape hides it. Wrap the chart so the card can sit on chart-relative
+coordinates: `point` is the top center of the button, in CSS pixels from the
+chart element's top left. `clientPoint` is that same anchor in viewport pixels,
+for a `position: fixed` card.
+
+```html
+<div id="chart-frame" class="event-frame">
+  <div id="chart" style="height: 360px"></div>
+  <div id="event-card" class="event-card" hidden>
+    <strong id="event-title"></strong>
+    <span id="event-body"></span>
+  </div>
+</div>
+```
+
+```css
+.event-frame {
+  position: relative;
+}
+
+.event-card {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, calc(-100% - 8px));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid #2a2e39;
+  border-radius: 6px;
+  background: #1e222d;
+  color: #d1d4dc;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 40%);
+}
+
+.event-card[hidden] {
+  display: none;
+}
+
+.event-card strong {
+  color: #fff;
+}
+
+.event-card span {
+  white-space: nowrap;
+}
+```
+
+Anchor each event on a bar time. `title` and `body` are the card's heading
+and text. Pass `volumeVisible` when the bars include volume.
+
+```ts
+import { createChart } from '@lightfin/core'
+import type { Bar } from '@lightfin/core'
+import { addEventTags } from '@lightfin/core/event-tags'
+import type { ChartEvent } from '@lightfin/core/event-tags'
+
+const events: ChartEvent[] = [
+  {
+    time: 1704146400,
+    symbol: 'E',
+    title: 'Q3 earnings',
+    body: 'EPS 1.24 vs 1.10 est.',
+  },
+  {
+    time: 1704211200,
+    symbol: 'D',
+    symbolColor: '#26a69a',
+    title: 'Dividend',
+    body: '$0.24 / share · ex-date',
+  },
+  {
+    time: 1704268800,
+    symbol: 'E',
+    title: 'Guidance update',
+    body: 'Raised FY outlook',
+  },
+]
+
+export function mountEventChart(bars: readonly Bar[]) {
+  const chart = createChart(document.querySelector<HTMLElement>('#chart')!, {
+    volumeVisible: true,
+  })
+  chart.addCandlestickSeries().setData(bars)
+
+  const card = document.querySelector<HTMLElement>('#event-card')!
+  const title = document.querySelector<HTMLElement>('#event-title')!
+  const body = document.querySelector<HTMLElement>('#event-body')!
+
+  const tags = addEventTags(chart, {
+    events,
+    card,
+    onSelect: (event, pos) => {
+      title.textContent = event.title ?? 'Event'
+      body.textContent = event.body ?? ''
+      body.hidden = !event.body
+      card.style.left = `${pos.point.x}px`
+      card.style.top = `${pos.point.y}px`
+      card.hidden = false
+    },
+  })
+
+  return () => {
+    card.hidden = true
+    tags.remove()
+    chart.remove()
+  }
+}
+```
+
+`setEvents(next)` replaces the whole set, for example when a calendar refresh
+arrives. Call the cleanup above when your app removes the chart.
+
+## React
+
+Call `useEventTags` from `@lightfin/react/event-tags` in a child of
+`<LightfinChart>`. Start with an empty array if the events load later. Pass a
+new array when they arrive to repaint the tags while preserving the viewport.
+A callback ref passes the card element to the hook. The example positions it
+with `point` and clears its selection through `onDismiss`.
+
+<EventTagsDemo client:only="react" />
+
+<Code code={eventChartSource} lang="tsx" title="EventChart.tsx" />
+
+## Symbols and colors
+
+Set `symbol` to the text you want in the badge. The chart draws it in bold
+white. `symbolColor` sets the badge fill and defaults to the theme's
+`lineColor`.
+
+```ts
+const split: ChartEvent = {
+  time: 1704326400,
+  symbol: 'S',
+  symbolColor: '#7e57c2',
+  title: 'Stock split',
+  body: '4-for-1',
+}
+```
+
+Every field is listed in the [event tags reference](/docs/api/event-tags).

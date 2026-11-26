@@ -30,7 +30,7 @@ For saving preferences and recreating the chart with defaults, see
 | `volumeVisible`                     | `boolean`                     | Volume histogram in the main pane (default off).                      |
 | `volumeHeightRatio`                 | `number`                      | Fraction of plot height it occupies.                                  |
 | `priceLineVisible`                  | `boolean`                     | Dotted last-close line + axis badge (default on).                     |
-| `baselinePrice`                     | `number`                      | Baseline reference price (defaults to the scaled domain midpoint).   |
+| `baselinePrice`                     | `number`                      | Baseline reference price (defaults to the scaled domain midpoint).    |
 | `rightOffset`                       | `number`                      | Blank bars kept to the right of the newest bar.                       |
 | `priceAxisWidth` / `timeAxisHeight` | `number`                      | px reserved for the axis strips.                                      |
 | `priceDecimals`                     | `number`                      | Min decimals on price/crosshair labels (default 2).                   |
@@ -42,11 +42,11 @@ For saving preferences and recreating the chart with defaults, see
 
 ### Series
 
-| Method                   | Returns          | Notes                            |
-| ------------------------ | ---------------- | -------------------------------- |
-| `addSeries(type?)`        | `Series`         | Starts with any `ChartType`. Defaults to `'candlestick'`. |
-| `addCandlestickSeries()` | `Series`         | Also `addBar/Line/AreaSeries()`. |
-| `getSeries()`            | `Series \| null` | The current series.              |
+| Method                   | Returns          | Notes                                                     |
+| ------------------------ | ---------------- | --------------------------------------------------------- |
+| `addSeries(type?)`       | `Series`         | Starts with any `ChartType`. Defaults to `'candlestick'`. |
+| `addCandlestickSeries()` | `Series`         | Also `addBar/Line/AreaSeries()`.                          |
+| `getSeries()`            | `Series \| null` | The current series.                                       |
 
 The series type is only the starting renderer — `series.setChartType(type)`
 switches it in place. See [`Series`](/docs/api/series).
@@ -109,7 +109,9 @@ for keyboard navigation and zoom controls.
 | `attachPrimitive(primitive)` | Low-level canvas hook — the basis for [price lines](/docs/api/price-lines) and [event tags](/docs/api/event-tags). |
 
 For a form wired to `onOrderIntent`, see the
-[custom order modal guide](/docs/guides/order-modal).
+[custom order modal guide](/docs/guides/order-modal). For earnings and
+dividend buttons on the timeline, see
+[Events on the timeline](/docs/guides/timeline-events).
 
 ## Events & lifecycle
 

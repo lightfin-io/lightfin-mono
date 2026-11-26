@@ -12,7 +12,9 @@
       "@lightfin/core": ["../core/src/index.ts"],
       "@lightfin/core/annotations": ["../core/src/annotations/index.ts"],
       "@lightfin/core/chrome": ["../core/src/chrome/index.ts"],
-      "@lightfin/react": ["../react/src/index.ts"]
+      "@lightfin/core/event-tags": ["../core/src/eventTags/index.ts"],
+      "@lightfin/react": ["../react/src/index.ts"],
+      "@lightfin/react/event-tags": ["../react/src/event-tags.ts"]
     }
   }
 }

@@ -44,7 +44,7 @@ export class Hud {
   private readonly clock = el('span', 'lf-hud-dim')
   private readonly ohlc: Record<'o' | 'h' | 'l' | 'c' | 'chg', HTMLSpanElement>
   private readonly volumeRow = el('div', 'lf-hud-row')
-  private readonly volumeValue = el('span')
+  private readonly volumeValue = el('span', 'lf-hud-value')
   private hoverIndex: number | null = null
   private structureDirty = true
   private frame = 0
@@ -59,14 +59,14 @@ export class Hud {
     const values = {} as Record<'o' | 'h' | 'l' | 'c' | 'chg', HTMLSpanElement>
     for (const key of ['o', 'h', 'l', 'c'] as const) {
       const pair = el('span')
-      values[key] = el('span')
+      values[key] = el('span', 'lf-hud-value')
       pair.append(
         el('span', 'lf-hud-dim', `${key.toUpperCase()} `),
         values[key],
       )
       head.append(pair)
     }
-    values.chg = el('span')
+    values.chg = el('span', 'lf-hud-value')
     head.append(values.chg)
     this.ohlc = values
     this.volumeRow.append(el('span', 'lf-hud-dim', 'Vol'), this.volumeValue)
@@ -305,7 +305,7 @@ export class Hud {
     const close = store.closes[p]!
     const prevClose =
       index > store.firstIndex ? store.closes[store.physical(index - 1)]! : open
-    const color = close >= open ? 'var(--lf-upColor)' : 'var(--lf-downColor)'
+    const down = close < open
     const fmt = (price: number) => this.chart.formatPrice(price)
 
     this.ohlc.o.textContent = fmt(open)
@@ -314,21 +314,22 @@ export class Hud {
     this.ohlc.c.textContent = fmt(close)
     this.ohlc.chg.textContent = formatChange(close - prevClose, prevClose, fmt)
     for (const key of ['o', 'h', 'l', 'c'] as const) {
-      this.ohlc[key].style.color = color
+      this.ohlc[key].toggleAttribute('data-down', down)
     }
-    this.ohlc.chg.style.color =
-      close >= prevClose ? 'var(--lf-upColor)' : 'var(--lf-downColor)'
+    this.ohlc.chg.toggleAttribute('data-down', close < prevClose)
 
     this.volumeValue.textContent = formatVolume(store.volumes[p]!)
-    this.volumeValue.style.color = color
+    this.volumeValue.toggleAttribute('data-down', down)
 
     for (const { handle, values } of this.rows) {
       handle.plots.forEach((plot, i) => {
         const v = handle.value(plot.key, index)
         const span = values[i]!
         span.textContent = this.formatValue(handle, v)
-        span.style.color =
-          v < 0 && plot.negativeColor ? plot.negativeColor : plot.color
+        span.style.setProperty(
+          '--lf-hud-plot-color',
+          v < 0 && plot.negativeColor ? plot.negativeColor : plot.color,
+        )
       })
     }
   }

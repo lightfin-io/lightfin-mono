@@ -14,7 +14,10 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     lib: {
-      entry: { index: resolve(root, 'src/index.ts') },
+      entry: {
+        index: resolve(root, 'src/index.ts'),
+        'event-tags': resolve(root, 'src/event-tags.ts'),
+      },
       formats: ['es'],
     },
     rollupOptions: {
@@ -23,6 +26,7 @@ export default defineConfig({
         'react-dom',
         'react/jsx-runtime',
         '@lightfin/core',
+        '@lightfin/core/event-tags',
       ],
       output: {
         entryFileNames: '[name].js',

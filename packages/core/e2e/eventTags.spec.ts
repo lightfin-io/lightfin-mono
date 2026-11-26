@@ -7,14 +7,14 @@ test('click an event tag to open the host detail card', async ({ page }) => {
   await page.waitForFunction(() => window.chartEvents?.length > 0)
   const { origin, main } = await layout(page)
 
-  // The tag sits at the bottom of the main pane, centered on its event time.
+  // Click the roof just above the tag's body, centered on its event time.
   const first = await page.evaluate(() => window.chartEvents[0]!)
   const x = await page.evaluate(
     t => window.chart.timeToCoordinate(t)!,
     first.time,
   )
   const tagX = origin.x + x
-  const tagY = origin.y + main.top + main.height - 14
+  const tagY = origin.y + main.top + main.height - 25
 
   // Hover shows the pointer cursor; clicking opens the demo's card, and a
   // click away from it dismisses it — a pan never starts from the tag.

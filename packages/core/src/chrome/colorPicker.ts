@@ -97,7 +97,7 @@ export function colorPicker(
   for (const color of PALETTE) {
     const b = el('button', 'lf-color')
     b.type = 'button'
-    b.style.background = color
+    b.style.setProperty('--lf-swatch-color', color)
     b.title = color
     b.setAttribute('aria-label', color)
     b.setAttribute('aria-pressed', String(!!parsed && color === base))

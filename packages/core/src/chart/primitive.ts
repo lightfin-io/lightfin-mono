@@ -46,6 +46,15 @@ export interface ChartPrimitive {
    */
   drawOverlay?(ctx: CanvasRenderingContext2D, view: PrimitiveView): void
   /**
+   * Draw a replacement for the vertical crosshair on mouse or pen hover.
+   * Return true if drawn. The topmost replacement wins.
+   */
+  drawCrosshairTimeLine?(
+    ctx: CanvasRenderingContext2D,
+    view: PrimitiveView,
+    point: { x: number; y: number },
+  ): boolean
+  /**
    * A press started. Return true to claim it: it won't pan, and its moves and
    * release go to this primitive alone (the pointer is captured).
    */

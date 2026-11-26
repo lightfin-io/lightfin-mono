@@ -10,8 +10,8 @@ stays framework-free — `@lightfin/core` and `react` are both peer dependencies
 ## The basics
 
 ```tsx
-import { LightfinChart, useChartEffect } from '@lightfin/react'
 import type { Bar } from '@lightfin/core'
+import { LightfinChart, useChartEffect } from '@lightfin/react'
 
 function Candles({ bars }: { bars: Bar[] }) {
   useChartEffect(
@@ -45,8 +45,8 @@ call `setDataSource` — it returns a teardown, which is exactly what a
 `useChartEffect` cleanup wants:
 
 ```tsx
-import { LightfinChart, useChartEffect } from '@lightfin/react'
 import type { DataSource } from '@lightfin/core'
+import { LightfinChart, useChartEffect } from '@lightfin/react'
 
 function LiveCandles({ source }: { source: DataSource }) {
   useChartEffect(
@@ -101,6 +101,8 @@ setter. To re-create the chart with fresh options, give `<LightfinChart>` a new
 while that handler is set.
 
 Try a complete form and live demo in the
-[custom order modal guide](/docs/guides/order-modal).
+[custom order modal guide](/docs/guides/order-modal). Earnings and dividend
+buttons are covered in
+[Events on the timeline](/docs/guides/timeline-events).
 
 See the [`<LightfinChart>` reference](/docs/api/react) for the full prop list.

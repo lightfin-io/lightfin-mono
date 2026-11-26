@@ -1,17 +1,22 @@
 // @vitest-environment jsdom
 import { createChart } from '@lightfin/core'
 import type { Chart, InstrumentInfo } from '@lightfin/core'
+import { addEventTags } from '@lightfin/core/event-tags'
+import type { ChartEvent } from '@lightfin/core/event-tags'
 import { act, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LightfinChart } from './LightfinChart'
+import { useEventTags } from './event-tags'
+import type { UseEventTagsOptions } from './event-tags'
 import { useChart, useChartEffect } from './index'
 
 // Construct no real chart — jsdom has no canvas 2D context or ResizeObserver.
 // We own the wrapper logic (lifecycle, event latching, context); the real
 // engine is covered by the core package's Playwright suite.
 vi.mock('@lightfin/core', () => ({ createChart: vi.fn() }))
+vi.mock('@lightfin/core/event-tags', () => ({ addEventTags: vi.fn() }))
 
 /** A fake chart that records subscriptions and can emit to them. */
 function makeFakeChart() {
@@ -188,5 +193,57 @@ describe('useChartEffect', () => {
       /must be used inside <LightfinChart>/,
     )
     spy.mockRestore()
+  })
+})
+
+describe('useEventTags', () => {
+  it('updates late events and handlers on the attached layer and removes it on unmount', () => {
+    const attach = vi.mocked(addEventTags)
+    const handle = { setEvents: vi.fn(), remove: vi.fn() }
+    attach.mockReset()
+    attach.mockReturnValue(handle)
+
+    function Tags(props: UseEventTagsOptions) {
+      useEventTags(props)
+      return null
+    }
+
+    const card = document.createElement('div')
+    const firstSelect = vi.fn()
+    const firstDismiss = vi.fn()
+    const render = (props: UseEventTagsOptions) =>
+      act(() =>
+        root.render(
+          <LightfinChart>
+            <Tags {...props} />
+          </LightfinChart>,
+        ),
+      )
+
+    render({ events: [], card, onSelect: firstSelect, onDismiss: firstDismiss })
+    expect(handle.setEvents).toHaveBeenLastCalledWith([])
+
+    const events: readonly ChartEvent[] = [{ time: 1704067200, symbol: 'E' }]
+    const onSelect = vi.fn()
+    const onDismiss = vi.fn()
+    render({ events, card, onSelect, onDismiss })
+    expect(attach).toHaveBeenCalledTimes(1)
+    expect(handle.setEvents).toHaveBeenLastCalledWith(events)
+    expect(handle.remove).not.toHaveBeenCalled()
+
+    const [chart, options] = attach.mock.calls[0]!
+    const position = { point: { x: 20, y: 40 }, clientPoint: { x: 30, y: 50 } }
+    expect(chart).toBe(fakeChart())
+    expect(options.card).toBe(card)
+    options.onSelect?.(events[0]!, position)
+    options.onDismiss?.()
+    expect(onSelect).toHaveBeenCalledWith(events[0], position)
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+    expect(firstSelect).not.toHaveBeenCalled()
+    expect(firstDismiss).not.toHaveBeenCalled()
+
+    act(() => root.unmount())
+    expect(handle.remove).toHaveBeenCalledTimes(1)
+    root = createRoot(container)
   })
 })

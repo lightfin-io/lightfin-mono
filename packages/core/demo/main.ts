@@ -145,15 +145,13 @@ const eventPopup = document.createElement('div')
 eventPopup.className = 'event-popup'
 eventPopup.hidden = true
 document.body.append(eventPopup)
-const closeEventPopup = () => {
-  eventPopup.hidden = true
-}
 const tags = addEventTags(chart, {
   events: [],
+  card: eventPopup,
   onSelect: (event, pos) => {
     eventPopup.innerHTML = ''
     const h = document.createElement('strong')
-    h.textContent = event.title ?? event.type ?? 'Event'
+    h.textContent = event.title ?? event.symbol ?? 'Event'
     const p = document.createElement('span')
     p.textContent = event.body ?? ''
     eventPopup.append(h, p)
@@ -161,9 +159,6 @@ const tags = addEventTags(chart, {
     eventPopup.style.top = `${pos.clientPoint.y - 10}px`
     eventPopup.hidden = false
   },
-})
-document.addEventListener('pointerdown', e => {
-  if (!eventPopup.contains(e.target as Node)) closeEventPopup()
 })
 // Seed the tags once there's data to anchor them to, then leave them put.
 // The initial load may land during this module's top-level awaits above, so
@@ -181,19 +176,20 @@ const seedEvents = () => {
   const events: ChartEvent[] = [
     {
       time: at(0.3),
-      type: 'earnings',
+      symbol: 'E',
       title: 'Q3 earnings',
       body: 'EPS 1.24 vs 1.10 est. · Revenue 8.6B',
     },
     {
       time: at(0.55),
-      type: 'dividend',
+      symbol: 'D',
+      symbolColor: chart.getOptions().theme.upColor,
       title: 'Dividend',
       body: '$0.24 / share · ex-date',
     },
     {
       time: at(0.8),
-      type: 'earnings',
+      symbol: 'E',
       title: 'Guidance update',
       body: 'Raised FY outlook',
     },

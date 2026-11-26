@@ -13,9 +13,10 @@ export class ChartA11y {
     this.root = root
     root.setAttribute('role', 'group')
     root.setAttribute('aria-roledescription', 'chart')
-    this.description = hidden()
+    const doc = root.ownerDocument
+    this.description = hidden(doc)
     this.description.id = `lf-chart-desc-${++seq}`
-    this.live = hidden()
+    this.live = hidden(doc)
     this.live.setAttribute('aria-live', 'polite')
     root.setAttribute('aria-describedby', this.description.id)
     root.append(this.description, this.live)
@@ -37,16 +38,9 @@ export class ChartA11y {
 let seq = 0
 
 /** Visually hidden but read by screen readers. */
-function hidden(): HTMLElement {
-  const el = document.createElement('div')
-  Object.assign(el.style, {
-    position: 'absolute',
-    width: '1px',
-    height: '1px',
-    overflow: 'hidden',
-    clipPath: 'inset(50%)',
-    whiteSpace: 'nowrap',
-  })
+function hidden(doc: Document): HTMLElement {
+  const el = doc.createElement('div')
+  el.className = 'lf-chart-sr-only'
   return el
 }
 

@@ -1,0 +1,17 @@
+.lf-annotation-editor {
+  position: absolute;
+  z-index: 3;
+  min-width: 10em;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--lf-editor-border);
+  border-radius: 2px;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  background: var(--lf-editor-background);
+  color: var(--lf-editor-color);
+  font: var(--lf-editor-font);
+  line-height: 1.3;
+}

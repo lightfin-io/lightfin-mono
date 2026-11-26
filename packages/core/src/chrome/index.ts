@@ -349,16 +349,16 @@ export function createChrome(
 
   acquireStyles()
   const vars = themeVars(chart.getOptions().theme)
-  const restoreHost = {
-    position: host.style.position,
-    vars: Object.keys(vars).map(k => [k, host.style.getPropertyValue(k)]),
-  }
+  const restoreVars = Object.keys(vars).map(
+    key =>
+      [
+        key,
+        host.style.getPropertyValue(key),
+        host.style.getPropertyPriority(key),
+      ] as const,
+  )
   for (const [k, v] of Object.entries(vars)) host.style.setProperty(k, v)
-  if (getComputedStyle(host).position === 'static') {
-    host.style.position = 'relative'
-  }
   host.classList.add('lf-host')
-  root.classList.add('lf-chart')
 
   const defaultInterval = options.interval ?? null
   const defaultCrosshairMode = chart.crosshairMode()
@@ -551,9 +551,9 @@ export function createChrome(
         .querySelectorAll(':scope > .lf-backdrop, :scope > .lf-menu')
         .forEach(n => n.remove())
       host.classList.remove('lf-host')
-      root.classList.remove('lf-chart')
-      host.style.position = restoreHost.position
-      for (const [k, v] of restoreHost.vars) host.style.setProperty(k!, v!)
+      for (const [key, value, priority] of restoreVars) {
+        host.style.setProperty(key, value, priority)
+      }
       releaseStyles()
     },
   }

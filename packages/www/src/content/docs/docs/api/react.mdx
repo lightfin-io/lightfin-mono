@@ -60,3 +60,10 @@ function Sma({ period }: { period: number }) {
 
 Returns the `Chart` from context (or `null` before it's created) — for
 components that need it outside an effect.
+
+## `useEventTags(options)`
+
+Import `useEventTags` from `@lightfin/react/event-tags` and call it in a child
+of `<LightfinChart>`. Pass `events` and optionally `card`, `onSelect`, and
+`onDismiss`. The hook keeps the tags attached and repaints when the events
+array changes. See the [timeline events guide](/docs/guides/timeline-events).

@@ -105,3 +105,31 @@ test('Tab reveals the return button via chart focus and Enter returns focus to t
     latestTime,
   )
 })
+
+test('host CSS can override control styles and Chrome theme defaults', async ({
+  page,
+}) => {
+  await openDemo(page)
+  const style = await page.addStyleTag({
+    content: `
+      #chart.lf-host {
+        --lf-textStrong: #bfdbfe;
+        --lf-panel: #182230;
+      }
+      #chart .lf-latest-button { border-radius: 50%; }
+    `,
+  })
+  await style.evaluate(el => document.head.prepend(el))
+
+  const chart = page.locator('.lf-chart')
+  await chart.focus()
+  await page.keyboard.press('Home')
+  const button = page.getByRole('button', { name: 'Jump to latest bar' })
+  await expect(button).toHaveCSS('border-radius', '50%')
+  await expect(button).toHaveCSS('background-color', 'rgb(24, 34, 48)')
+  await expect(button).toHaveCSS('color', 'rgb(191, 219, 254)')
+  await expect(page.locator('.lf-hud-title')).toHaveCSS(
+    'color',
+    'rgb(191, 219, 254)',
+  )
+})

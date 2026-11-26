@@ -15,7 +15,7 @@
     "name": "annotations",
     "path": "dist/annotations.js",
     "import": "{ createAnnotations }",
-    "limit": "12.1 kB"
+    "limit": "12.2 kB"
   },
   {
     "name": "annotations schema (for AI tools)",
@@ -54,6 +54,6 @@
       "dist/event-tags.js",
       "dist/indicators/*.js"
     ],
-    "limit": "64.1 kB"
+    "limit": "64.3 kB"
   }
 ]

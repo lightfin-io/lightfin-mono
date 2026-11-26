@@ -109,7 +109,7 @@ const REMEMBERED: readonly (keyof AnnotationStyle)[] = [
 ]
 
 const linePreview = (width: number, dash = '') =>
-  `<svg viewBox="0 0 22 18" aria-hidden="true" style="width:22px"><path d="M1 9h20" stroke="currentColor" stroke-width="${width}" stroke-dasharray="${dash}"/></svg>`
+  `<svg viewBox="0 0 22 18" aria-hidden="true" class="lf-line-preview"><path d="M1 9h20" stroke="currentColor" stroke-width="${width}" stroke-dasharray="${dash}"/></svg>`
 
 const endsOf = (v: LineEnds | undefined) => ({
   start: v === 'start' || v === 'both',
@@ -198,7 +198,7 @@ export function createDrawingToolbar(
     const swatch = el('span', 'lf-swatch')
     b.append(swatch)
     syncers.push(() => {
-      swatch.style.background = get(style()) ?? 'transparent'
+      swatch.style.setProperty('--lf-swatch-color', get(style()) ?? '')
     })
     return withPopover(
       b,
@@ -278,7 +278,10 @@ export function createDrawingToolbar(
           })
           it.setAttribute('role', 'menuitemradio')
           it.setAttribute('aria-checked', String(f.family === family))
-          if (f.family) it.style.fontFamily = f.family
+          if (f.family) {
+            it.classList.add('lf-font-preview')
+            it.style.setProperty('--lf-preview-font', f.family)
+          }
           return it
         })
         const sizes = el('div', 'lf-sizes')

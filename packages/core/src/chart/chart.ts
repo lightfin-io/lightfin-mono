@@ -226,16 +226,12 @@ export class Chart {
   private readonly loading: LoadingIndicator
   private readonly latestButton: HTMLButtonElement
   private latestButtonPane: PlotRect | null = null
-  private latestPointer: { x: number; y: number } | null = null
+  private hoverPoint: { x: number; y: number } | null = null
 
   constructor(container: HTMLElement, options: ChartOptionsInput = {}) {
     this.options = resolveOptions(options)
     this.layers = new LayerManager(container)
-    this.loading = new LoadingIndicator(this.layers.root)
-    this.loading.setColors(
-      this.options.theme.axisBorderColor,
-      this.options.theme.lineColor,
-    )
+    this.loading = new LoadingIndicator(this.layers.root, this.options.theme)
     this.scheduler = new FrameScheduler(dirty => this.paint(dirty))
     this.latestButton = createLatestButton(this.layers.root, this.options)
     this.latestButton.addEventListener('click', this.jumpToLatest)
@@ -248,7 +244,7 @@ export class Chart {
     })
     this.crosshair = new CrosshairController(this.layers.root, {
       onMove: point => {
-        this.latestPointer = point
+        this.hoverPoint = point
         this.syncLatestHover()
         this.onPointerCrosshair(point)
       },
@@ -261,8 +257,6 @@ export class Chart {
     this.a11y = new ChartA11y(root)
     this.refreshLabel()
     root.tabIndex = 0
-    // The canvases would cover a CSS outline; the overlay paints the ring.
-    root.style.outline = 'none'
     root.addEventListener('keydown', this.onKeyDown)
     root.addEventListener('focus', this.onFocus)
     root.addEventListener('blur', this.onBlur)
@@ -1062,7 +1056,7 @@ export class Chart {
     const button = this.latestButton
     if (button.hidden) return
     const main = this.latestButtonPane!
-    const point = this.latestPointer
+    const point = this.hoverPoint
     button.toggleAttribute(
       'data-pane-hover',
       point !== null &&
@@ -1674,10 +1668,20 @@ export class Chart {
       const ctx = this.layers.getContext('overlay')
       const view = { pane: main, dpr: this.layers.getDpr() }
       for (const p of this.primitives) p.drawOverlay?.(ctx, view)
-      if (this.options.priceLineVisible) this.paintPriceLine(main)
-      if (this.crosshairPoint) {
-        hover = this.paintCrosshair(this.crosshairPoint)
+      const point = this.crosshairPoint
+      let replacesTimeLine = false
+      // The mouse/pen crosshair shares the hover point. Touch and keyboard have
+      // their own crosshair positions.
+      if (point && point === this.hoverPoint) {
+        for (let i = this.primitives.length - 1; i >= 0; i--) {
+          if (this.primitives[i]!.drawCrosshairTimeLine?.(ctx, view, point)) {
+            replacesTimeLine = true
+            break
+          }
+        }
       }
+      if (this.options.priceLineVisible) this.paintPriceLine(main)
+      if (point) hover = this.paintCrosshair(point, !replacesTimeLine)
     }
     if (this.focusRing) {
       const ctx = this.layers.getContext('overlay')
@@ -1972,7 +1976,10 @@ export class Chart {
    * the order button when enabled. Returns whether the pointer is over that
    * button.
    */
-  private paintCrosshair(point: { x: number; y: number }): boolean {
+  private paintCrosshair(
+    point: { x: number; y: number },
+    showTimeLine: boolean,
+  ): boolean {
     const { width, height } = this.layers.getSize()
     const { theme } = this.options
     const ts = this.timeScaleModel
@@ -1994,8 +2001,10 @@ export class Chart {
     ctx.lineWidth = 1
     ctx.setLineDash([4, 4])
     ctx.beginPath()
-    ctx.moveTo(lineX, 0)
-    ctx.lineTo(lineX, height)
+    if (showTimeLine) {
+      ctx.moveTo(lineX, 0)
+      ctx.lineTo(lineX, height)
+    }
     ctx.moveTo(0, lineY)
     ctx.lineTo(width, lineY)
     ctx.stroke()

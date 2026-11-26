@@ -13,8 +13,8 @@
  * import { addEventTags } from '@lightfin/core/event-tags'
  * const tags = addEventTags(chart, {
  *   events: [
- *     { time: 1700000000, type: 'earnings', title: 'Q3 earnings', body: 'EPS 1.24 vs 1.10 est.' },
- *     { time: 1701200000, type: 'dividend', title: 'Dividend', body: '$0.24 / share' },
+ *     { time: 1700000000, symbol: 'E', title: 'Q3 earnings', body: 'EPS 1.24 vs 1.10 est.' },
+ *     { time: 1701200000, symbol: 'D', symbolColor: '#26a69a', title: 'Dividend', body: '$0.24 / share' },
  *   ],
  *   onSelect: (e, pos) => openMyCard(e, pos.clientPoint),
  * })
@@ -29,16 +29,10 @@ import type { UTCTimestamp } from '../data/types'
 export interface ChartEvent {
   /** When the event happens, in Unix seconds UTC (matched to the nearest bar). */
   time: UTCTimestamp
-  /**
-   * Event kind. `'earnings'` and `'dividend'` get default letters (E/D) and
-   * colors; any other string is shown by its first letter unless `label` is
-   * set. Passed back unchanged on select.
-   */
-  type?: string
-  /** Character drawn in the tag. Defaults from {@link ChartEvent.type}. */
-  label?: string
-  /** Tag fill color. Defaults from {@link ChartEvent.type}, then the theme. */
-  color?: string
+  /** Bold white text drawn in the tag. Defaults to a bullet. */
+  symbol?: string
+  /** Tag fill and hover guide color. Defaults to the theme's `lineColor`. */
+  symbolColor?: string
   /** Heading for the host's popover (not drawn by the library). */
   title?: string
   /** Body text for the host's popover (not drawn by the library). */
@@ -56,29 +50,29 @@ export interface EventTagPosition {
 }
 
 export interface EventTagsOptions {
-  events: ChartEvent[]
+  events: readonly ChartEvent[]
   /** A tag was clicked or tapped; render the host's detail popover here. */
   onSelect?: (event: ChartEvent, pos: EventTagPosition) => void
+  /**
+   * The host's detail card. While it is showing (`hidden` is false), an
+   * event guide stays visible. An outside press or Escape hides the card.
+   */
+  card?: HTMLElement
+  /** Called along with hiding {@link EventTagsOptions.card}. */
+  onDismiss?: () => void
 }
 
 export interface EventTags {
   /** Replace the whole set of events; the tags repaint. */
-  setEvents(events: ChartEvent[]): void
+  setEvents(events: readonly ChartEvent[]): void
   remove(): void
 }
 
-const DEFAULTS: Record<
-  string,
-  { label: string; themeColor: 'lineColor' | 'upColor' }
-> = {
-  earnings: { label: 'E', themeColor: 'lineColor' },
-  dividend: { label: 'D', themeColor: 'upColor' },
-}
-
-// Tag box: a rounded badge sitting just above the time axis. Rows stack
+// Tag box: a house-shaped badge sitting just above the time axis. Rows stack
 // upward when neighbouring tags would overlap.
 const PAD_X = 5
-const BOX_H = 16
+const ROOF_H = 5
+const BOX_H = 16 + ROOF_H
 const BOTTOM_GAP = 6
 const ROW_GAP = 3
 // Min horizontal gap (CSS px) between two tags before the later one stacks up.
@@ -89,6 +83,9 @@ const CLICK_SLOP = 4
 
 interface TagRect {
   event: ChartEvent
+  index: number
+  symbol: string
+  color: string
   cx: number
   left: number
   top: number
@@ -103,40 +100,29 @@ export function addEventTags(
   chart: Chart,
   options: EventTagsOptions,
 ): EventTags {
+  const { theme } = chart.getOptions()
+  const font = `bold ${theme.fontSize}px ${theme.fontFamily}`
+  const { card, onDismiss: dismiss } = options
   let events = [...options.events].sort((a, b) => a.time - b.time)
-  let hoveredIndex = -1
+  let selectedIndex = -1
   // Set on pointerDown over a tag; cleared on release. Tracks whether the
   // pointer wandered far enough to be a drag rather than a click.
   let press: { index: number; x: number; y: number; moved: boolean } | null =
     null
 
-  const themeColor = (ev: ChartEvent): string => {
-    const { theme } = chart.getOptions()
-    if (ev.color) return ev.color
-    const def = ev.type ? DEFAULTS[ev.type] : undefined
-    return def ? theme[def.themeColor] : theme.lineColor
-  }
-  const labelOf = (ev: ChartEvent): string => {
-    if (ev.label) return ev.label
-    const def = ev.type ? DEFAULTS[ev.type] : undefined
-    if (def) return def.label
-    return ev.type ? ev.type.charAt(0).toUpperCase() : '•'
-  }
-
   // Current on-screen rectangles, recomputed on demand (cheap — few events)
   // so draw and hit-testing always agree with the live viewport.
-  const layout = (): TagRect[] => {
-    const { main } = chart.paneLayout()
-    const { theme } = chart.getOptions()
-    const measure = measureCtx(theme.fontSize, theme.fontFamily)
+  const layout = (main = chart.paneLayout().main): TagRect[] => {
+    const measure = measureCtx(font)
     const rowRight: number[] = []
     const rects: TagRect[] = []
-    for (const event of events) {
+    for (const [index, event] of events.entries()) {
       const cx = chart.timeToCoordinate(event.time)
       if (cx == null) continue
+      const symbol = event.symbol || '•'
       const width = Math.max(
         BOX_H,
-        measure.measureText(labelOf(event)).width + PAD_X * 2,
+        measure.measureText(symbol).width + PAD_X * 2,
       )
       const left = cx - width / 2
       if (left + width < main.left || left > main.left + main.width) continue
@@ -145,13 +131,24 @@ export function addEventTags(
       rowRight[row] = left + width
       const top =
         main.top + main.height - BOTTOM_GAP - BOX_H - row * (BOX_H + ROW_GAP)
-      rects.push({ event, cx, left, top, width })
+      const color = event.symbolColor || theme.lineColor
+      rects.push({ event, index, symbol, color, cx, left, top, width })
     }
     return rects
   }
 
-  const hitIndex = (point: { x: number; y: number }): number => {
-    const rects = layout()
+  const hitTag = (
+    point: { x: number; y: number },
+    pane = chart.paneLayout().main,
+  ): TagRect | undefined => {
+    if (
+      point.x < pane.left ||
+      point.x > pane.left + pane.width ||
+      point.y < pane.top ||
+      point.y > pane.top + pane.height
+    )
+      return
+    const rects = layout(pane)
     // Topmost (last drawn) first.
     for (let i = rects.length - 1; i >= 0; i--) {
       const r = rects[i]!
@@ -161,74 +158,112 @@ export function addEventTags(
         point.y >= r.top &&
         point.y <= r.top + BOX_H
       ) {
-        // Map back to the index in `events` for select/hover state.
-        return events.indexOf(r.event)
+        return r
       }
     }
-    return -1
   }
 
   const handle: PrimitiveHandle = chart.attachPrimitive({
-    draw: (ctx, view) =>
-      drawTags(ctx, view, layout(), themeColor, labelOf, chart),
+    draw: (ctx, view) => drawTags(ctx, view, layout(view.pane), font),
     drawOverlay: (ctx, view) => {
-      if (hoveredIndex < 0) return
-      const r = layout().find(t => events.indexOf(t.event) === hoveredIndex)
-      if (r) drawHighlight(ctx, view, r)
+      if (card?.hidden !== false || selectedIndex < 0) return
+      const tag = layout(view.pane).find(r => r.index === selectedIndex)
+      if (tag && guideFits(tag, view.pane)) drawGuide(ctx, view, tag)
+    },
+    drawCrosshairTimeLine: (ctx, view, point) => {
+      const { pane } = view
+      const tag = hitTag(point, pane)
+      if (!tag || !guideFits(tag, pane)) return false
+      if (tag.index !== selectedIndex || card?.hidden !== false) {
+        drawGuide(ctx, view, tag)
+      }
+      drawHighlight(ctx, view, tag)
+      return true
     },
     pointerDown: e => {
-      const index = hitIndex(e.point)
-      if (index < 0) return false
+      const tag = hitTag(e.point)
+      if (!tag) return false
       e.source.preventDefault()
-      press = { index, x: e.point.x, y: e.point.y, moved: false }
+      press = { index: tag.index, x: e.point.x, y: e.point.y, moved: false }
       return true
     },
     pointerMove: (e, dragging) => {
-      if (press && dragging) {
-        if (
-          Math.abs(e.point.x - press.x) > CLICK_SLOP ||
-          Math.abs(e.point.y - press.y) > CLICK_SLOP
-        ) {
-          press.moved = true
-        }
-        return
-      }
-      // Hover (mouse/pen): highlight the tag under the pointer.
-      const index = hitIndex(e.point)
-      if (index !== hoveredIndex) {
-        hoveredIndex = index
-        handle.redraw('overlay')
+      if (
+        press &&
+        dragging &&
+        (Math.abs(e.point.x - press.x) > CLICK_SLOP ||
+          Math.abs(e.point.y - press.y) > CLICK_SLOP)
+      ) {
+        press.moved = true
       }
     },
     pointerUp: e => {
       const p = press
       press = null
-      if (!p || p.moved) return
-      if (hitIndex(e.point) !== p.index) return
-      const event = events[p.index]
-      if (event) options.onSelect?.(event, position(chart, event.time))
+      if (!p || p.moved || e.source.type === 'pointercancel') return
+      const tag = hitTag(e.point)
+      if (tag?.index !== p.index) return
+      if (card) {
+        selectedIndex = tag.index
+        handle.redraw('overlay')
+      }
+      options.onSelect?.(tag.event, position(chart, tag))
     },
-    cursor: e => (hitIndex(e.point) >= 0 ? 'pointer' : null),
+    cursor: e => (hitTag(e.point) ? 'pointer' : null),
   })
+
+  // React and other hosts can open or close the card after the pointer event.
+  const cardObserver =
+    card &&
+    new MutationObserver(() => {
+      if (card.hidden) selectedIndex = -1
+      handle.redraw('overlay')
+    })
+  if (cardObserver && card)
+    cardObserver.observe(card, { attributeFilter: ['hidden'] })
+
+  // Capture phase, so this runs before the chart takes pointer capture on the press.
+  const cardOpen = () => (card ? !card.hidden : dismiss != null)
+  const closeCard = () => {
+    if (card) card.hidden = true
+    dismiss?.()
+  }
+  const onPointerDown = (event: PointerEvent) => {
+    if (!cardOpen()) return
+    const target = event.target
+    if (target instanceof Node && card?.contains(target)) return
+    closeCard()
+  }
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || !cardOpen()) return
+    event.preventDefault()
+    event.stopPropagation()
+    closeCard()
+  }
+  if (card || dismiss) {
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown, true)
+  }
 
   return {
     setEvents(next) {
+      const selected = events[selectedIndex]
       events = [...next].sort((a, b) => a.time - b.time)
-      hoveredIndex = -1
+      selectedIndex = selected ? events.indexOf(selected) : -1
       press = null
       handle.redraw()
     },
     remove() {
+      cardObserver?.disconnect()
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown, true)
       handle.detach()
     },
   }
 }
 
 /** The tag's top-center anchor, in both chart-relative and client coordinates. */
-function position(chart: Chart, time: UTCTimestamp): EventTagPosition {
-  const { main } = chart.paneLayout()
-  const cx = chart.timeToCoordinate(time) ?? main.left
-  const top = main.top + main.height - BOTTOM_GAP - BOX_H
+function position(chart: Chart, { cx, top }: TagRect): EventTagPosition {
   const box = chart.element.getBoundingClientRect()
   return {
     point: { x: cx, y: top },
@@ -240,66 +275,93 @@ function drawTags(
   ctx: CanvasRenderingContext2D,
   { pane, dpr }: PrimitiveView,
   rects: TagRect[],
-  themeColor: (ev: ChartEvent) => string,
-  labelOf: (ev: ChartEvent) => string,
-  chart: Chart,
+  font: string,
 ): void {
-  const { theme } = chart.getOptions()
   ctx.save()
   // Keep tags inside the main pane.
   ctx.beginPath()
   ctx.rect(pane.left, pane.top, pane.width, pane.height)
   ctx.clip()
-  ctx.font = `${theme.fontSize}px ${theme.fontFamily}`
+  ctx.font = font
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   for (const r of rects) {
-    const color = themeColor(r.event)
-    roundRect(ctx, r.left, r.top, r.width, BOX_H, 3, dpr)
-    ctx.fillStyle = color
+    housePath(ctx, r.left, r.top, r.width, BOX_H, dpr)
+    ctx.fillStyle = r.color
     ctx.fill()
-    ctx.fillStyle = theme.background
-    ctx.fillText(labelOf(r.event), r.cx, r.top + BOX_H / 2 + 0.5)
+    ctx.fillStyle = '#fff'
+    ctx.fillText(r.symbol, r.cx, r.top + (ROOF_H + BOX_H) / 2 + 0.5)
   }
+  ctx.restore()
+}
+
+function guideFits(tag: TagRect, pane: PrimitiveView['pane']): boolean {
+  return (
+    tag.cx >= pane.left &&
+    tag.cx <= pane.left + pane.width &&
+    tag.top > pane.top
+  )
+}
+
+function drawGuide(
+  ctx: CanvasRenderingContext2D,
+  { pane, dpr }: PrimitiveView,
+  r: TagRect,
+): void {
+  ctx.save()
+  const x = (Math.round(r.cx * dpr) + 0.5) / dpr
+  ctx.beginPath()
+  ctx.moveTo(x, r.top)
+  ctx.lineTo(x, pane.top)
+  ctx.strokeStyle = r.color
+  ctx.lineWidth = 1
+  ctx.setLineDash([4, 4])
+  ctx.stroke()
   ctx.restore()
 }
 
 function drawHighlight(
   ctx: CanvasRenderingContext2D,
-  { pane, dpr }: PrimitiveView,
+  { dpr }: PrimitiveView,
   r: TagRect,
 ): void {
-  if (r.cx < pane.left || r.cx > pane.left + pane.width) return
   ctx.save()
-  roundRect(ctx, r.left - 1, r.top - 1, r.width + 2, BOX_H + 2, 4, dpr)
+  housePath(ctx, r.left - 1, r.top - 1, r.width + 2, BOX_H + 2, dpr)
   ctx.strokeStyle = 'rgba(255,255,255,0.9)'
   ctx.lineWidth = 1.5
+  ctx.lineJoin = 'round'
+  ctx.setLineDash([])
   ctx.stroke()
   ctx.restore()
 }
 
-/** A device-pixel-snapped rounded rectangle path. */
-function roundRect(
+/** A device-pixel-snapped house with a peaked roof and a flat base. */
+function housePath(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
   h: number,
-  radius: number,
   dpr: number,
 ): void {
   const snap = (v: number) => Math.round(v * dpr) / dpr
+  const left = snap(x)
+  const right = snap(x + w)
+  const eaves = snap(y + ROOF_H)
+  const bottom = snap(y + h)
   ctx.beginPath()
-  ctx.roundRect(snap(x), snap(y), snap(w), snap(h), radius)
+  ctx.moveTo(snap(x + w / 2), snap(y))
+  ctx.lineTo(right, eaves)
+  ctx.lineTo(right, bottom)
+  ctx.lineTo(left, bottom)
+  ctx.lineTo(left, eaves)
+  ctx.closePath()
 }
 
 /** A detached canvas 2D context for text measurement only. */
 let shared: CanvasRenderingContext2D | null = null
-function measureCtx(
-  fontSize: number,
-  fontFamily: string,
-): CanvasRenderingContext2D {
+function measureCtx(font: string): CanvasRenderingContext2D {
   shared ??= document.createElement('canvas').getContext('2d')!
-  shared.font = `${fontSize}px ${fontFamily}`
+  shared.font = font
   return shared
 }

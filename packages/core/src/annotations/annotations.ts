@@ -6,6 +6,7 @@ import type {
   PrimitiveHandle,
   PrimitiveView,
 } from '../chart/primitive'
+import editorCss from './editor.css?inline'
 import { fibLevels } from './fib'
 import type { Fit, Px } from './geometry'
 import { fitCloses } from './geometry'
@@ -127,10 +128,7 @@ export class Annotations {
     const root = chart.element
     // Focusable so Delete/Escape reach it after a click on the chart.
     this.ownsTabIndex = !root.hasAttribute('tabindex')
-    if (this.ownsTabIndex) {
-      root.tabIndex = -1
-      root.style.outline = 'none'
-    }
+    if (this.ownsTabIndex) root.tabIndex = -1
     root.addEventListener('keydown', this.onKeyDown)
     root.addEventListener('dblclick', this.onDblClick)
     this.handle = chart.attachPrimitive({
@@ -457,10 +455,7 @@ export class Annotations {
     const root = this.chart.element
     root.removeEventListener('keydown', this.onKeyDown)
     root.removeEventListener('dblclick', this.onDblClick)
-    if (this.ownsTabIndex) {
-      root.removeAttribute('tabindex')
-      root.style.outline = ''
-    }
+    if (this.ownsTabIndex) root.removeAttribute('tabindex')
     this.events.clear()
   }
 
@@ -989,29 +984,25 @@ export class Annotations {
         ? { x: last.x, y: last.y - lh / 2 }
         : { x: last.x + 8, y: last.y - lh - 8 }
     const boxed = ann.type === 'callout'
-    const input = document.createElement('textarea')
+    const root = this.chart.element
+    const css = root.ownerDocument.createElement('style')
+    css.textContent = editorCss
+    const input = root.ownerDocument.createElement('textarea')
+    input.className = 'lf-annotation-editor'
     input.value = ann.text ?? ''
     input.rows = 1
     input.setAttribute('aria-label', 'Drawing text')
-    Object.assign(input.style, {
-      position: 'absolute',
-      zIndex: '3',
-      left: `${at.x - pad}px`,
-      top: `${at.y - pad}px`,
-      minWidth: '10em',
-      margin: '0',
-      padding: `${pad - 1}px`,
-      border: `1px solid ${style.color}`,
-      borderRadius: '2px',
-      outline: 'none',
-      resize: 'none',
-      overflow: 'hidden',
-      whiteSpace: 'pre',
+    input.style.left = `${at.x - pad}px`
+    input.style.top = `${at.y - pad}px`
+    const editorTheme = {
+      border: style.color,
       background: boxed ? (style.fill ?? style.color) : theme.background,
       color: style.textColor,
       font: style.font,
-      lineHeight: `${lh}px`,
-    })
+    }
+    for (const [key, value] of Object.entries(editorTheme)) {
+      input.style.setProperty(`--lf-editor-${key}`, value)
+    }
     const fit = () => {
       input.style.width = '0'
       input.style.height = '0'
@@ -1025,6 +1016,7 @@ export class Annotations {
       done = true
       this.editor = null
       input.remove()
+      css.remove()
       const text = input.value.trim()
       if (commit && text) {
         if (text === ann.text) this.handle.redraw()
@@ -1061,7 +1053,7 @@ export class Annotations {
 
     this.editor = { ann, finish }
     this.handle.redraw()
-    this.chart.element.append(input)
+    root.append(css, input)
     fit()
     input.focus()
     input.select()

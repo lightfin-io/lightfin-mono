@@ -12,6 +12,10 @@ const root = import.meta.dirname
 export default defineConfig({
   resolve: {
     alias: {
+      '@lightfin/core/event-tags': resolve(
+        root,
+        '../core/src/eventTags/index.ts',
+      ),
       '@lightfin/core': resolve(root, '../core/src/index.ts'),
     },
   },

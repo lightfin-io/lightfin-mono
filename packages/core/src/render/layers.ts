@@ -1,3 +1,5 @@
+import css from './chart.css?inline'
+
 /**
  * The layered canvas stack. Each layer is an absolutely-positioned
  * <canvas> in a stack so a crosshair move never repaints candles and a candle
@@ -41,21 +43,16 @@ export class LayerManager {
   private dpr = 1
 
   constructor(container: HTMLElement) {
-    this.root = document.createElement('div')
-    this.root.style.position = 'relative'
-    this.root.style.width = '100%'
-    this.root.style.height = '100%'
-    this.root.style.overflow = 'hidden'
+    const doc = container.ownerDocument
+    this.root = doc.createElement('div')
+    this.root.className = 'lf-chart'
+    const style = doc.createElement('style')
+    style.textContent = css
+    this.root.appendChild(style)
 
     for (const name of LAYER_ORDER) {
-      const canvas = document.createElement('canvas')
-      canvas.style.position = 'absolute'
-      canvas.style.inset = '0'
-      canvas.style.width = '100%'
-      canvas.style.height = '100%'
-      // The series/background layers must not eat pointer events meant for
-      // the interaction surface; the container handles them.
-      canvas.style.pointerEvents = 'none'
+      const canvas = doc.createElement('canvas')
+      canvas.className = 'lf-chart-layer'
       const ctx = canvas.getContext('2d')
       if (!ctx) throw new Error('lightfin: 2D canvas context unavailable')
       this.root.appendChild(canvas)

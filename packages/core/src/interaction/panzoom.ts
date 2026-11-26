@@ -62,8 +62,6 @@ export class PanZoomController {
     this.handlers = handlers
     this.rect = el.getBoundingClientRect()
 
-    el.style.touchAction = 'none'
-    el.style.pointerEvents = 'auto'
     el.addEventListener('pointerdown', this.onPointerDown)
     el.addEventListener('pointermove', this.onPointerMove)
     el.addEventListener('pointerup', this.onPointerUp)
