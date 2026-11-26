@@ -56,8 +56,13 @@
      opens up to 1.5rem on wide screens. Match the marketing nav lockup. */
   gap: 0.6rem;
 }
-.site-title img {
+.site-title::before {
+  content: '';
+  flex: 0 0 20px;
   height: 20px;
+  background-color: currentColor;
+  mask: url('../assets/logo.svg') center / contain no-repeat;
+  print-color-adjust: exact;
 }
 
 /* Keep the theme-variable table's first column (the property names) on one line

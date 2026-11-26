@@ -13,10 +13,6 @@ export default defineConfig({
     starlight({
       title: 'Lightfin',
       favicon: '/favicon.svg',
-      logo: {
-        src: './src/assets/logo.svg',
-        alt: 'Lightfin',
-      },
       description:
         'A small, dependency-free web charting library with TradingView-grade candlesticks, indicators and drawing tools.',
       social: [
