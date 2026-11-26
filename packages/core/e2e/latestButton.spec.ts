@@ -114,7 +114,6 @@ test('host CSS can override control styles and Chrome theme defaults', async ({
     content: `
       #chart.lf-host {
         --lf-textStrong: #bfdbfe;
-        --lf-panel: #182230;
       }
       #chart .lf-latest-button { border-radius: 50%; }
     `,
@@ -126,7 +125,7 @@ test('host CSS can override control styles and Chrome theme defaults', async ({
   await page.keyboard.press('Home')
   const button = page.getByRole('button', { name: 'Jump to latest bar' })
   await expect(button).toHaveCSS('border-radius', '50%')
-  await expect(button).toHaveCSS('background-color', 'rgb(24, 34, 48)')
+  await expect(button).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await expect(button).toHaveCSS('color', 'rgb(191, 219, 254)')
   await expect(page.locator('.lf-hud-title')).toHaveCSS(
     'color',

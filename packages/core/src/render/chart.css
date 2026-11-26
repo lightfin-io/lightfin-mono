@@ -34,10 +34,12 @@
   height: 32px;
   padding: 0;
   border-radius: 4px;
-  border: 1px solid var(--lf-panelBorderColor, var(--lf-latest-border));
-  background: var(--lf-panel, var(--lf-latest-background));
-  color: var(--lf-textStrong, var(--lf-latest-color));
-  font: 20px var(--lf-fontFamily, var(--lf-latest-font));
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--lf-textStrong);
+  font-size: 20px;
+  font-family: var(--lf-fontFamily, inherit);
   cursor: pointer;
   /* Opacity keeps the button in the tab order while the pointer is away. */
   opacity: 0;

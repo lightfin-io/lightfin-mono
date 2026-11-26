@@ -54,6 +54,8 @@ export default defineConfig({
     open: true,
   },
   build: {
+    // Match the library build. The default target predates light-dark().
+    target: ['chrome123', 'edge123', 'firefox120', 'safari17.5', 'ios17.5'],
     outDir: resolve(root, 'dist-demo'),
     emptyOutDir: true,
     rollupOptions: {
