@@ -124,6 +124,7 @@ export const ICONS = {
   close: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M4.5 4.5l9 9M13.5 4.5l-9 9"/>
   </svg>`,
+  movePaneUp: chartIcon('<path d="M9 14V4m-4 4 4-4 4 4"/>'),
   search: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="7.75" cy="7.75" r="4.75"/>
     <path d="M11.5 11.5l3.5 3.5"/>

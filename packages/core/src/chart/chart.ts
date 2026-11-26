@@ -774,6 +774,18 @@ export class Chart {
     }
   }
 
+  /** Swap an indicator pane with the indicator pane immediately above it. */
+  movePaneUp(indicator: IndicatorHandle): void {
+    const index = this.indicatorCtl
+      .paneInstances()
+      .findIndex(instance => this.handleOf.get(instance) === indicator)
+    if (index < 1) return
+    this.endPaneDrag()
+    this.indicatorCtl.movePaneUp(index)
+    this.invalidateViewport()
+    this.events.emit('layoutChange', undefined)
+  }
+
   /**
    * Full plot rect (all panes) in CSS px, excluding the axis strips. Shared x
    * extent for every pane; the vertical space is split between the main price
@@ -880,6 +892,15 @@ export class Chart {
     }
     this.invalidateViewport()
     this.events.emit('layoutChange', undefined)
+  }
+
+  private endPaneDrag(): void {
+    const drag = this.paneDrag
+    if (!drag) return
+    this.paneDrag = null
+    if (this.element.hasPointerCapture(drag.pointerId)) {
+      this.element.releasePointerCapture(drag.pointerId)
+    }
   }
 
   /**
@@ -1740,10 +1761,7 @@ export class Chart {
 
   private onPointerUp = (e: PointerEvent): void => {
     if (this.paneDrag?.pointerId === e.pointerId) {
-      this.paneDrag = null
-      if (this.layers.root.hasPointerCapture(e.pointerId)) {
-        this.layers.root.releasePointerCapture(e.pointerId)
-      }
+      this.endPaneDrag()
       return
     }
     const active = this.activePrimitive

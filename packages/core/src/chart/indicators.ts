@@ -142,15 +142,19 @@ export class IndicatorInstance {
  */
 export class IndicatorController {
   private readonly instances: IndicatorInstance[] = []
+  private readonly panes: IndicatorInstance[] = []
 
   add(instance: IndicatorInstance, reader: StoreReader): void {
     instance.recompute(reader)
     this.instances.push(instance)
+    if (!instance.overlay) this.panes.push(instance)
   }
 
   remove(instance: IndicatorInstance): void {
     const i = this.instances.indexOf(instance)
     if (i !== -1) this.instances.splice(i, 1)
+    const pane = this.panes.indexOf(instance)
+    if (pane !== -1) this.panes.splice(pane, 1)
   }
 
   /** Swap `prev` for `next` in place (keeping draw/pane order), computing `next`. */
@@ -164,6 +168,8 @@ export class IndicatorController {
     next.visible = prev.visible
     next.recompute(reader)
     this.instances[i] = next
+    const pane = this.panes.indexOf(prev)
+    if (pane !== -1) this.panes[pane] = next
   }
 
   /** Every instance, in the order added. */
@@ -185,9 +191,15 @@ export class IndicatorController {
     return this.instances.some(i => i.visible && i.onVolumeScale)
   }
 
-  /** Pane indicators (own sub-pane), in the order they were added. */
-  paneInstances(): IndicatorInstance[] {
-    return this.instances.filter(i => !i.overlay)
+  /** Pane indicators, in display order. */
+  paneInstances(): readonly IndicatorInstance[] {
+    return this.panes
+  }
+
+  movePaneUp(index: number): void {
+    const pane = this.panes[index]!
+    this.panes[index] = this.panes[index - 1]!
+    this.panes[index - 1] = pane
   }
 
   recomputeAll(reader: StoreReader): void {

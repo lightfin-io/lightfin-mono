@@ -1,4 +1,4 @@
-import type { Chart } from '../chart/chart'
+import type { Chart, PlotRect } from '../chart/chart'
 import type { IndicatorHandle } from '../indicators/types'
 import { button, el } from './dom'
 import { formatChange, formatClock, formatVolume } from './format'
@@ -6,9 +6,9 @@ import { openIndicatorSettings } from './modals'
 
 interface IndicatorRow {
   handle: IndicatorHandle
+  element: HTMLElement
   values: HTMLSpanElement[]
-  /** Hide/show, settings, remove — in that order. */
-  actions: HTMLElement[]
+  actions: HTMLButtonElement[]
 }
 
 export interface HudContext {
@@ -33,7 +33,6 @@ export class Hud {
   private readonly chart: Chart
   private readonly ctx: HudContext
   private readonly legend = el('div', 'lf-hud lf-hud-legend')
-  private paneLegends: HTMLElement[] = []
   private rows: IndicatorRow[] = []
   private readonly title = el('span', 'lf-hud-title')
   private readonly meta = el('span', 'lf-hud-dim')
@@ -126,18 +125,14 @@ export class Hud {
     this.clock.hidden = !this.ctx.showClock
     this.tick(new Date())
 
-    // Rows are recreated, so carry keyboard focus over to the same control
-    // (e.g. after toggling visibility or applying settings).
+    // Rows are recreated, so carry focus over to the same control.
+    const active = document.activeElement
     let refocus: { handle: IndicatorHandle; action: number } | null = null
     for (const row of this.rows) {
-      const action = row.actions.indexOf(document.activeElement as HTMLElement)
+      const action = row.actions.findIndex(button => button === active)
       if (action !== -1) refocus = { handle: row.handle, action }
+      row.element.remove()
     }
-
-    for (const node of this.legend.querySelectorAll('.lf-hud-ind'))
-      node.remove()
-    for (const pane of this.paneLegends) pane.remove()
-    this.paneLegends = []
     this.rows = []
 
     const layout = this.chart.paneLayout()
@@ -150,21 +145,22 @@ export class Hud {
       if (handle.placement === 'pane') continue
       this.legend.append(this.buildRow(handle))
     }
-    for (const { indicator, rect } of layout.panes) {
-      const pane = el('div', 'lf-hud')
-      pane.style.top = `${rect.top + 2}px`
-      pane.append(this.buildRow(indicator))
-      this.chart.element.append(pane)
-      this.paneLegends.push(pane)
+    for (const [index, { indicator, rect }] of layout.panes.entries()) {
+      this.chart.element.append(this.buildRow(indicator, rect, index > 0))
     }
 
     if (refocus) {
       const row = this.rows.find(r => r.handle === refocus.handle)
-      row?.actions[refocus.action]?.focus()
+      const target = row?.actions[refocus.action] ?? row?.actions[0]
+      target?.focus()
     }
   }
 
-  private buildRow(handle: IndicatorHandle): HTMLElement {
+  private buildRow(
+    handle: IndicatorHandle,
+    rect?: PlotRect,
+    canMovePaneUp = false,
+  ): HTMLElement {
     const row = el('div', 'lf-hud-row lf-hud-ind')
     if (!handle.visible) row.dataset.hidden = ''
     const title = [handle.name, ...handle.params].join(' ')
@@ -176,7 +172,7 @@ export class Hud {
     // The chart pans on pointerdown and captures the pointer, which would
     // swallow these buttons' clicks.
     actions.addEventListener('pointerdown', e => e.stopPropagation())
-    actions.append(
+    const buttons = [
       button(
         {
           icon: handle.visible ? 'eye' : 'eyeOff',
@@ -188,14 +184,32 @@ export class Hud {
         openIndicatorSettings(this.ctx.host, handle),
       ),
       button({ icon: 'close', title: 'Remove' }, () => handle.remove()),
-    )
-    const buttons = [...actions.children] as HTMLElement[]
+    ]
+    if (canMovePaneUp) {
+      buttons.push(
+        button({ icon: 'movePaneUp', title: 'Move pane up' }, () =>
+          this.chart.movePaneUp(handle),
+        ),
+      )
+    }
     for (const b of buttons) {
       b.setAttribute('aria-label', `${b.title} ${title}`)
     }
+    actions.append(...buttons)
     row.append(label, values, actions)
-    this.rows.push({ handle, values: valueEls, actions: buttons })
-    return row
+
+    let element = row
+    if (rect) {
+      element = el('div', 'lf-hud lf-hud-pane')
+      element.style.top = `${rect.top}px`
+      element.style.width = `${rect.width}px`
+      element.style.height = `${rect.height}px`
+      element.setAttribute('role', 'group')
+      element.setAttribute('aria-label', `${title} pane`)
+      element.append(row)
+    }
+    this.rows.push({ handle, element, values: valueEls, actions: buttons })
+    return element
   }
 
   private update(): void {
@@ -255,6 +269,6 @@ export class Hud {
     cancelAnimationFrame(this.frame)
     for (const off of this.unsubscribers) off()
     this.legend.remove()
-    for (const pane of this.paneLegends) pane.remove()
+    for (const row of this.rows) row.element.remove()
   }
 }

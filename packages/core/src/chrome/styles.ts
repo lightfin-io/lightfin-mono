@@ -138,19 +138,30 @@ const CSS = `
   text-shadow: 0 0 2px var(--lf-background), 0 0 4px var(--lf-background);
 }
 .lf-hud-legend { top: 4px; }
+.lf-hud-pane { left: 0; box-sizing: border-box; padding-top: 2px; overflow: hidden; pointer-events: auto; }
 .lf-hud-row { display: flex; align-items: center; gap: 6px; height: 20px; white-space: nowrap; }
 .lf-hud-title { color: var(--lf-textStrong); font-size: 13px; }
 .lf-hud-dim { opacity: 0.7; }
 .lf-hud-ind {
-  width: max-content; margin-left: -4px; padding: 0 4px; border-radius: 4px;
+  width: max-content; height: 22px; margin-left: -4px; padding: 0 4px; border-radius: 4px;
   pointer-events: auto;
 }
-.lf-hud-ind:hover, .lf-hud-ind:focus-within { background: var(--lf-hudHover); }
+.lf-hud-legend .lf-hud-ind:is(:hover, :focus-within) { background: var(--lf-hudHover); }
+.lf-hud-pane .lf-hud-ind { margin-left: 4px; pointer-events: none; }
 .lf-hud-ind[data-hidden] .lf-hud-label, .lf-hud-ind[data-hidden] .lf-hud-values { opacity: 0.45; }
 .lf-hud-values { display: inline-flex; gap: 6px; }
-.lf-hud-actions { display: inline-flex; opacity: 0; }
-.lf-hud-ind:hover .lf-hud-actions, .lf-hud-ind:focus-within .lf-hud-actions { opacity: 1; }
-.lf-hud-actions .lf-btn { padding: 1px; }
+.lf-hud-actions { display: inline-flex; gap: 2px; opacity: 0; }
+.lf-hud-pane .lf-hud-actions {
+  position: absolute; top: 2px; right: 8px;
+  background: var(--lf-hudHover); border-radius: 4px;
+}
+.lf-hud-legend .lf-hud-ind:hover .lf-hud-actions,
+.lf-hud-pane:hover .lf-hud-actions,
+.lf-hud-actions:focus-within { opacity: 1; pointer-events: auto; }
+@media (hover: none) {
+  .lf-hud-pane .lf-hud-actions { opacity: 1; pointer-events: auto; }
+}
+.lf-hud-actions .lf-btn { padding: 3px; }
 .lf-hud-actions .lf-btn svg { width: 16px; height: 16px; }
 
 .lf-backdrop {
