@@ -11,6 +11,7 @@ import { CrosshairController } from '../interaction/crosshair'
 import type { ButtonRect, OrderIntentEvent } from '../interaction/orderIntent'
 import { hitsButton, orderButtonRect } from '../interaction/orderIntent'
 import { PanZoomController } from '../interaction/panzoom'
+import { createLatestButton } from '../render/latestButton'
 import { LayerManager } from '../render/layers'
 import { LoadingIndicator } from '../render/loadingIndicator'
 import { FrameScheduler } from '../render/scheduler'
@@ -106,6 +107,8 @@ export interface ChartEventMap {
 
 const MIN_BAR_WIDTH = 0.5
 const MAX_BAR_WIDTH = 200
+// How far past the right edge the newest bar must be, in CSS pixels.
+const LATEST_BAR_BUFFER = 24
 // A DataSource's first page fills the plot at about this bar width.
 const INITIAL_BAR_WIDTH = 8
 // The fewest bars asked of a DataSource at once, so a zoomed-in view doesn't
@@ -221,6 +224,9 @@ export class Chart {
   private feed: DataFeed | null = null
   // Spins over the main pane while the feed's initial page is in flight.
   private readonly loading: LoadingIndicator
+  private readonly latestButton: HTMLButtonElement
+  private latestButtonPane: PlotRect | null = null
+  private latestPointer: { x: number; y: number } | null = null
 
   constructor(container: HTMLElement, options: ChartOptionsInput = {}) {
     this.options = resolveOptions(options)
@@ -231,6 +237,8 @@ export class Chart {
       this.options.theme.lineColor,
     )
     this.scheduler = new FrameScheduler(dirty => this.paint(dirty))
+    this.latestButton = createLatestButton(this.layers.root, this.options)
+    this.latestButton.addEventListener('click', this.jumpToLatest)
 
     this.panzoom = new PanZoomController(this.layers.root, {
       onPan: dx => this.onPan(dx),
@@ -239,7 +247,11 @@ export class Chart {
       onHold: point => this.onPointerCrosshair(point),
     })
     this.crosshair = new CrosshairController(this.layers.root, {
-      onMove: point => this.onPointerCrosshair(point),
+      onMove: point => {
+        this.latestPointer = point
+        this.syncLatestHover()
+        this.onPointerCrosshair(point)
+      },
     })
     const root = this.layers.root
     root.addEventListener('pointermove', this.onPointerMove)
@@ -260,9 +272,14 @@ export class Chart {
     // track exactly the space left for them.
     this.resizeObserver = new ResizeObserver(() => this.syncSize())
     this.resizeObserver.observe(this.layers.root)
-    this.events.on('layoutChange', () =>
-      this.loading.reposition(this.paneLayout().main),
-    )
+    this.events.on('layoutChange', () => {
+      const main = this.mainRect()
+      this.loading.reposition(main)
+      this.latestButtonPane = main
+      this.latestButton.style.bottom = `${this.layers.getSize().height - (main.top + main.height)}px`
+      this.syncLatestButton()
+      this.syncLatestHover()
+    })
     this.syncSize()
   }
 
@@ -464,6 +481,7 @@ export class Chart {
     this.series = series
     this.reader = new StoreReader(series.store)
     this.clearKeyboardCrosshair()
+    this.syncLatestButton()
     this.refreshLabel()
     this.events.emit('seriesChange', series)
     if (this.feed) this.setDataSource(this.feed.source)
@@ -995,9 +1013,11 @@ export class Chart {
    */
   fitContent(): void {
     const store = this.series?.store
-    if (!store || store.size === 0) return
     const plot = this.plotRect()
-    if (plot.width <= 0) return
+    if (!store || store.size === 0 || plot.width <= 0) {
+      this.syncLatestButton()
+      return
+    }
     const slots = store.size + this.options.rightOffset
     this.timeScaleModel.barWidth = clamp(
       plot.width / slots,
@@ -1012,6 +1032,45 @@ export class Chart {
     )
     this.syncFollowing()
     this.invalidateViewport()
+  }
+
+  private jumpToLatest = (): void => {
+    if (this.latestButton.hidden) return
+    this.timeScaleModel.scrollIndex = this.maxScrollIndex()
+    this.afterProgrammaticScroll()
+  }
+
+  private syncLatestButton(): void {
+    const store = this.series?.store
+    const main = this.latestButtonPane
+    const ts = this.timeScaleModel
+    const hidden =
+      !store?.size ||
+      !main ||
+      Math.min(main.width, main.height) < 40 ||
+      (store.lastIndex - ts.scrollIndex) * ts.barWidth <=
+        main.width + LATEST_BAR_BUFFER
+    const button = this.latestButton
+    if (button.hidden === hidden) return
+    const restoreFocus = hidden && button.matches(':focus')
+    button.hidden = hidden
+    if (restoreFocus) this.layers.root.focus({ preventScroll: true })
+    if (!hidden) this.syncLatestHover()
+  }
+
+  private syncLatestHover(): void {
+    const button = this.latestButton
+    if (button.hidden) return
+    const main = this.latestButtonPane!
+    const point = this.latestPointer
+    button.toggleAttribute(
+      'data-pane-hover',
+      point !== null &&
+        point.x >= main.left &&
+        point.x < main.left + main.width &&
+        point.y >= main.top &&
+        point.y < main.top + main.height,
+    )
   }
 
   private onPan(dx: number): void {
@@ -1092,6 +1151,7 @@ export class Chart {
   /** Mark the viewport-dependent layers dirty (data or pan/zoom changed). */
   private invalidateViewport(): void {
     this.scheduler.invalidate('background', 'series', 'axes', 'overlay')
+    this.syncLatestButton()
     // The keyboard crosshair stays on its bar as the view moves (e.g. a new
     // bar scrolls a following view).
     if (this.keyboardIndex !== null && this.crosshairPoint) {
@@ -2045,6 +2105,7 @@ export class Chart {
     root.removeEventListener('keydown', this.onKeyDown)
     root.removeEventListener('focus', this.onFocus)
     root.removeEventListener('blur', this.onBlur)
+    this.latestButton.removeEventListener('click', this.jumpToLatest)
     this.resizeObserver.disconnect()
     this.panzoom.dispose()
     this.crosshair.dispose()
