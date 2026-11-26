@@ -35,7 +35,7 @@ the same bars, time slots and viewport.
 | `area`            | Area              | A close line with a shaded area below it.                                                                           |
 | `hlcArea`         | HLC area          | Separate shaded bands between the close and each of the high and low lines.                                         |
 | `baseline`        | Baseline          | A close line shaded above and below `baselinePrice`, which defaults to the midpoint of the scaled price domain.     |
-| `columns`         | Columns           | Columns from zero to each close, colored by bar direction.                                                          |
+| `columns`         | Columns           | Columns to each close, based at zero when visible or at the nearest scale edge.                                     |
 
 Heikin Ashi uses the smoothed values for autoscale and magnet snapping.
 `series.bars()`, indicators, the OHLC legend and the last-price line use the

@@ -88,3 +88,36 @@ test('the chart type menu uses the panel border color', async ({ page }) => {
     'rgb(51, 68, 85)',
   )
 })
+
+test('the columns chart shows small moves in high prices', async ({ page }) => {
+  await openDemo(page)
+  await page.evaluate(() => {
+    const chart = window.chart
+    for (const indicator of chart.indicators()) indicator.remove()
+    const bars = [60_400, 60_500, 60_700].map((close, index) => ({
+      time: 1_700_000_000 + index * 60,
+      open: close - 10,
+      high: close + 20,
+      low: close - 20,
+      close,
+      volume: 100,
+    }))
+    chart.setDataSource({
+      getBars: ({ before }) => (before === undefined ? bars : []),
+    })
+  })
+  await page.waitForFunction(
+    () => window.chart.getSeries()?.bars()[0]?.close === 60_400,
+  )
+  await page.getByRole('button', { name: /^Chart type:/ }).click()
+  await page.getByRole('menuitemradio', { name: 'Columns' }).click()
+  await nextFrame(page)
+
+  const priceSpan = await page.evaluate(() => {
+    const chart = window.chart
+    const pixels =
+      chart.priceToCoordinate(60_400) - chart.priceToCoordinate(60_700)
+    return pixels / chart.paneLayout().main.height
+  })
+  expect(priceSpan).toBeGreaterThan(0.7)
+})

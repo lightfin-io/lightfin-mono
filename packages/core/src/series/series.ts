@@ -181,8 +181,8 @@ export class Series {
     if (window.from > window.to || store.size === 0) return null
     const lows = this.closeOnly ? store.closes : store.lows
     const highs = this.closeOnly ? store.closes : store.highs
-    let low = this.type === 'columns' ? 0 : Infinity
-    let high = this.type === 'columns' ? 0 : -Infinity
+    let low = Infinity
+    let high = -Infinity
     const opens = this.type === 'heikinAshi' ? this.heikinOpens : undefined
     for (let i = window.from; i <= window.to; i++) {
       const p = store.physical(i)

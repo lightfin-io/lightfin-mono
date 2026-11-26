@@ -159,12 +159,12 @@ describe('Series.priceRange', () => {
     },
   )
 
-  it('includes zero in the column range', () => {
+  it('scales columns to the visible closes for positive and negative prices', () => {
     const s = series()
     s.setChartType('columns')
-    expect(s.priceRange({ from: 0, to: 3 })).toEqual({ low: 0, high: 10 })
+    expect(s.priceRange({ from: 0, to: 3 })).toEqual({ low: 4, high: 10 })
     s.setData([bar(10, -5, -4, -8, -7)])
-    expect(s.priceRange({ from: 0, to: 0 })).toEqual({ low: -7, high: 0 })
+    expect(s.priceRange({ from: 0, to: 0 })).toEqual({ low: -7, high: -7 })
   })
 })
 

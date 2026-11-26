@@ -5,7 +5,7 @@ import type { PriceScale } from '../scales/priceScale'
 import type { TimeScale } from '../scales/timeScale'
 import type { IndexWindow } from './series'
 
-/** One close-to-zero column per bar, colored by the bar's direction. */
+/** One column per close, colored by bar direction. */
 export function drawColumns(
   ctx: CanvasRenderingContext2D,
   store: ColumnStore,
@@ -17,8 +17,11 @@ export function drawColumns(
   dpr: number,
 ): void {
   const width = Math.max(1, Math.floor(timeScale.barWidth * 0.8 * dpr)) / dpr
-  const zero =
-    Math.round((plot.top + priceScale.priceToY(0, plot.height)) * dpr) / dpr
+  // Use zero when it's in view and the nearest scale edge otherwise.
+  const basePrice = Math.max(priceScale.min, Math.min(0, priceScale.max))
+  const baseY =
+    Math.round((plot.top + priceScale.priceToY(basePrice, plot.height)) * dpr) /
+    dpr
   const up = new Path2D()
   const down = new Path2D()
   for (let i = window.from; i <= window.to; i++) {
@@ -32,9 +35,9 @@ export function drawColumns(
     const path = close >= store.opens[p]! ? up : down
     path.rect(
       x,
-      Math.min(y, zero),
+      Math.min(y, baseY),
       width,
-      Math.max(1 / dpr, Math.abs(zero - y)),
+      Math.max(1 / dpr, Math.abs(baseY - y)),
     )
   }
   ctx.fillStyle = theme.upColor
