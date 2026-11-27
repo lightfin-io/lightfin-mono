@@ -39,26 +39,26 @@ export interface ChartTheme {
    * color in its options — an explicit `color`/`macdColor`/etc. always wins.
    */
   indicatorPalette: string[]
-  /** Emphasized text in chrome buttons and the HUD. */
-  textStrong: string
-  /** Fill for hovered chrome buttons, and for the open or selected chart-type button. */
+  /** Emphasized text on toolbar buttons, the HUD title, and the jump-to-latest button. */
+  strongTextColor: string
+  /** Fill for a hovered toolbar button, and for the open chart-type button. */
   buttonHoverBg: string
-  /** Background for hovered or focused indicator rows in the HUD. */
-  hudHover: string
+  /** Fill for a hovered or focused HUD row, and for the HUD action buttons. */
+  hudHoverBg: string
   /** Fill for menus, dialogs, and the floating drawing toolbar. */
-  overlayBg: string
-  /** Primary text on those panels. */
-  overlayTextColor: string
-  /** Secondary text on those panels: labels, placeholders, and section titles. */
-  overlayMutedColor: string
-  /** Borders and dividers on those panels. */
-  overlayDivColor: string
-  /** Fill for a hovered or selected row on those panels. */
-  overlayHoverBg: string
-  /** Input fill on those panels. */
-  overlayFieldBg: string
+  panelBg: string
+  /** Primary text on menus, dialogs, and the drawing toolbar. */
+  panelTextColor: string
+  /** Labels, placeholders, and section titles on menus, dialogs, and the drawing toolbar. */
+  panelMutedTextColor: string
+  /** Borders and dividers on menus, dialogs, and the drawing toolbar. */
+  panelBorderColor: string
+  /** Fill for a hovered or selected control on menus, dialogs, and the drawing toolbar. */
+  panelHoverBg: string
+  /** Input fill on menus and dialogs. */
+  panelInputBg: string
   /** Scrollbar thumb. Menus and dialogs inherit it from the host. */
-  scrollbarColor: string
+  scrollbarThumbColor: string
   /** Scrollbar track. */
   scrollbarTrackColor: string
   /**
@@ -244,16 +244,16 @@ export const DEFAULT_THEME: ChartTheme = {
     '#ec407a',
     '#9ccc65',
   ],
-  textStrong: '#d1d4dc',
+  strongTextColor: '#d1d4dc',
   buttonHoverBg: 'rgba(157, 178, 189, 0.16)',
-  hudHover: 'rgba(19, 23, 34, 0.7)',
-  overlayBg: '#222631',
-  overlayTextColor: '#d1d4dc',
-  overlayMutedColor: '#9db2bd',
-  overlayDivColor: '#2a2e39',
-  overlayHoverBg: 'rgba(157, 178, 189, 0.16)',
-  overlayFieldBg: '#131722',
-  scrollbarColor: '#676a72',
+  hudHoverBg: 'rgba(19, 23, 34, 0.7)',
+  panelBg: '#222631',
+  panelTextColor: '#d1d4dc',
+  panelMutedTextColor: '#9db2bd',
+  panelBorderColor: '#2a2e39',
+  panelHoverBg: 'rgba(157, 178, 189, 0.16)',
+  panelInputBg: '#131722',
+  scrollbarThumbColor: '#676a72',
   scrollbarTrackColor: '#2e323c',
   colorScheme: 'dark',
 }

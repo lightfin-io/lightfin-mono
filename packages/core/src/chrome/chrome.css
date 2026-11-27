@@ -10,19 +10,19 @@
   --lf-upColor: var(--lf-theme-upColor);
   --lf-downColor: var(--lf-theme-downColor);
   --lf-fontFamily: var(--lf-theme-fontFamily);
-  --lf-textStrong: var(--lf-theme-textStrong);
+  --lf-strongTextColor: var(--lf-theme-strongTextColor);
   --lf-buttonHoverBg: var(--lf-theme-buttonHoverBg);
-  --lf-hudHover: var(--lf-theme-hudHover);
-  --lf-overlayBg: var(--lf-theme-overlayBg);
-  --lf-overlayTextColor: var(--lf-theme-overlayTextColor);
-  --lf-overlayMutedColor: var(--lf-theme-overlayMutedColor);
-  --lf-overlayDivColor: var(--lf-theme-overlayDivColor);
-  --lf-overlayHoverBg: var(--lf-theme-overlayHoverBg);
-  --lf-overlayFieldBg: var(--lf-theme-overlayFieldBg);
-  --lf-scrollbarColor: var(--lf-theme-scrollbarColor);
+  --lf-hudHoverBg: var(--lf-theme-hudHoverBg);
+  --lf-panelBg: var(--lf-theme-panelBg);
+  --lf-panelTextColor: var(--lf-theme-panelTextColor);
+  --lf-panelMutedTextColor: var(--lf-theme-panelMutedTextColor);
+  --lf-panelBorderColor: var(--lf-theme-panelBorderColor);
+  --lf-panelHoverBg: var(--lf-theme-panelHoverBg);
+  --lf-panelInputBg: var(--lf-theme-panelInputBg);
+  --lf-scrollbarThumbColor: var(--lf-theme-scrollbarThumbColor);
   --lf-scrollbarTrackColor: var(--lf-theme-scrollbarTrackColor);
   scrollbar-width: thin;
-  scrollbar-color: var(--lf-scrollbarColor) var(--lf-scrollbarTrackColor);
+  scrollbar-color: var(--lf-scrollbarThumbColor) var(--lf-scrollbarTrackColor);
 }
 /* scrollbar-color inherits from the host. scrollbar-width does not, in
    Chromium, so the thin width has to be set on each element. */
@@ -56,11 +56,11 @@
   display: inline-flex; align-items: center; gap: 4px;
   white-space: nowrap; cursor: pointer;
 }
-.lf-btn:hover { background: var(--lf-buttonHoverBg); color: var(--lf-textStrong); }
+.lf-btn:hover { background: var(--lf-buttonHoverBg); color: var(--lf-strongTextColor); }
 .lf-menu .lf-btn:hover,
 .lf-drawing-toolbar .lf-btn:hover,
 .lf-modal .lf-btn:hover {
-  background: var(--lf-overlayHoverBg); color: var(--lf-overlayTextColor);
+  background: var(--lf-panelHoverBg); color: var(--lf-panelTextColor);
 }
 .lf-btn:is(:disabled, [aria-disabled='true']) { opacity: 0.4; cursor: default; }
 .lf-btn:is(:disabled, [aria-disabled='true']):hover { background: transparent; color: inherit; }
@@ -70,14 +70,14 @@
 .lf-btn svg { display: block; width: 18px; height: 18px; }
 .lf-chart-type { gap: 1px; }
 .lf-chart-type svg + svg { width: 12px; height: 12px; }
-.lf-chart-type[aria-expanded='true'] { background: var(--lf-buttonHoverBg); color: var(--lf-textStrong); }
+.lf-chart-type[aria-expanded='true'] { background: var(--lf-buttonHoverBg); color: var(--lf-strongTextColor); }
 .lf-clock { padding: 0 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .lf-menu {
   position: absolute; z-index: 20; min-width: 220px; max-height: 60%;
   overflow-y: auto; padding: 4px; border-radius: 6px;
-  background: var(--lf-overlayBg); color: var(--lf-overlayTextColor);
-  border: 1px solid var(--lf-overlayDivColor);
+  background: var(--lf-panelBg); color: var(--lf-panelTextColor);
+  border: 1px solid var(--lf-panelBorderColor);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); font: 13px/18px var(--lf-fontFamily);
 }
 .lf-menu .lf-btn { display: flex; width: 100%; padding: 6px 10px; gap: 8px; }
@@ -86,15 +86,15 @@
 .lf-drawing-toolbar .lf-btn[aria-pressed='true'],
 .lf-modal .lf-btn[aria-pressed='true'] { color: var(--lf-lineColor); }
 .lf-menu .lf-btn svg { flex: none; }
-.lf-menu-label { padding: 6px 10px 2px; font-size: 11px; color: var(--lf-overlayMutedColor); }
+.lf-menu-label { padding: 6px 10px 2px; font-size: 11px; color: var(--lf-panelMutedTextColor); }
 
 .lf-menu-chart-types {
   width: 210px; min-width: 0; max-width: calc(100% - 10px);
   max-height: calc(100% - 44px); box-sizing: border-box; overscroll-behavior: contain;
 }
-.lf-chart-type-divider { border-top: 1px solid var(--lf-overlayDivColor); margin: 4px; }
+.lf-chart-type-divider { border-top: 1px solid var(--lf-panelBorderColor); margin: 4px; }
 .lf-menu-chart-types .lf-btn[aria-checked='true'] {
-  color: var(--lf-overlayTextColor); background: var(--lf-overlayHoverBg);
+  color: var(--lf-panelTextColor); background: var(--lf-panelHoverBg);
 }
 .lf-menu-chart-types .lf-btn[aria-checked='true']::after {
   content: ''; width: 8px; height: 4px; margin-inline-start: auto;
@@ -106,14 +106,14 @@
 .lf-menu-indicators .lf-btn svg { margin-inline-start: auto; width: 12px; height: 12px; }
 .lf-menu-search {
   display: flex; align-items: center; gap: 6px; margin: -4px -4px 4px;
-  padding: 7px 10px; border-bottom: 1px solid var(--lf-overlayDivColor); color: var(--lf-overlayMutedColor);
+  padding: 7px 10px; border-bottom: 1px solid var(--lf-panelBorderColor); color: var(--lf-panelMutedTextColor);
 }
 .lf-menu-search svg { flex: none; width: 15px; height: 15px; }
 .lf-menu-search-input {
   flex: 1; min-width: 0; padding: 2px 0; border: 0; background: transparent;
-  color: var(--lf-overlayTextColor); font: inherit; outline: none;
+  color: var(--lf-panelTextColor); font: inherit; outline: none;
 }
-.lf-menu-search-input::placeholder { color: var(--lf-overlayMutedColor); }
+.lf-menu-search-input::placeholder { color: var(--lf-panelMutedTextColor); }
 .lf-menu-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 .lf-menu-list { overflow-y: auto; }
 .lf-menu-empty { padding: 8px 10px; opacity: 0.6; }
@@ -131,12 +131,12 @@
 
 .lf-drawing-toolbar {
   position: absolute; z-index: 4; padding: 2px 4px; overflow: visible;
-  border: 1px solid var(--lf-overlayDivColor); border-radius: 6px;
-  background: var(--lf-overlayBg); color: var(--lf-overlayTextColor);
+  border: 1px solid var(--lf-panelBorderColor); border-radius: 6px;
+  background: var(--lf-panelBg); color: var(--lf-panelTextColor);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 .lf-drawing-toolbar[hidden] { display: none; }
-.lf-drawing-toolbar .lf-sep { background: var(--lf-overlayDivColor); }
+.lf-drawing-toolbar .lf-sep { background: var(--lf-panelBorderColor); }
 .lf-grip { cursor: grab; opacity: 0.6; touch-action: none; }
 .lf-grip svg { display: block; width: 12px; height: 18px; }
 .lf-swatch-btn { flex-direction: column; gap: 1px; padding: 3px 4px 2px; }
@@ -175,7 +175,7 @@
 }
 .lf-hud-pane { left: 0; box-sizing: border-box; padding-top: 2px; overflow: hidden; pointer-events: auto; }
 .lf-hud-row { display: flex; align-items: center; gap: 6px; height: 20px; white-space: nowrap; }
-.lf-hud-title { color: var(--lf-textStrong); font-size: 13px; }
+.lf-hud-title { color: var(--lf-strongTextColor); font-size: 13px; }
 .lf-hud-dim { opacity: 0.7; }
 .lf-hud-value { color: var(--lf-upColor); }
 .lf-hud-value:where([data-down]) { color: var(--lf-downColor); }
@@ -183,7 +183,7 @@
   width: max-content; height: 22px; margin-left: -4px; padding: 0 4px; border-radius: 4px;
   pointer-events: auto;
 }
-.lf-hud-legend .lf-hud-ind:is(:hover, :focus-within) { background: var(--lf-hudHover); }
+.lf-hud-legend .lf-hud-ind:is(:hover, :focus-within) { background: var(--lf-hudHoverBg); }
 .lf-hud-pane .lf-hud-ind { margin-left: 4px; pointer-events: none; }
 .lf-hud-ind[data-hidden] .lf-hud-label, .lf-hud-ind[data-hidden] .lf-hud-values { opacity: 0.45; }
 .lf-hud-values { display: inline-flex; gap: 6px; }
@@ -192,7 +192,7 @@
 .lf-hud-pane .lf-hud-actions,
 .lf-hud-main > .lf-hud-actions {
   position: absolute; top: 2px; right: 8px;
-  background: var(--lf-hudHover); border-radius: 4px;
+  background: var(--lf-hudHoverBg); border-radius: 4px;
 }
 .lf-hud-legend .lf-hud-ind:hover .lf-hud-actions,
 .lf-hud-main:hover > .lf-hud-actions,
@@ -212,30 +212,30 @@
 .lf-modal {
   min-width: 280px; max-width: calc(100% - 32px); max-height: calc(100% - 32px);
   overflow-y: auto; padding: 16px; border-radius: 8px;
-  background: var(--lf-overlayBg);
-  border: 1px solid var(--lf-overlayDivColor);
-  color: var(--lf-overlayTextColor); font: 13px/18px var(--lf-fontFamily);
+  background: var(--lf-panelBg);
+  border: 1px solid var(--lf-panelBorderColor);
+  color: var(--lf-panelTextColor); font: 13px/18px var(--lf-fontFamily);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 .lf-modal h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
-.lf-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--lf-overlayDivColor); }
+.lf-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--lf-panelBorderColor); }
 .lf-tabs .lf-btn { border-radius: 4px 4px 0 0; }
 .lf-field { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 8px 0; }
-.lf-field label { color: var(--lf-overlayMutedColor); }
+.lf-field label { color: var(--lf-panelMutedTextColor); }
 .lf-input {
   min-width: 0; width: 150px; padding: 4px 6px; border-radius: 4px;
-  border: 1px solid var(--lf-overlayDivColor); background: var(--lf-overlayFieldBg);
-  color: var(--lf-overlayTextColor); font: inherit;
+  border: 1px solid var(--lf-panelBorderColor); background: var(--lf-panelInputBg);
+  color: var(--lf-panelTextColor); font: inherit;
 }
 .lf-input[type='color'] { width: 48px; height: 26px; padding: 1px 2px; }
 .lf-input[type='checkbox'] { width: auto; }
 .lf-input:focus { outline: 1px solid var(--lf-lineColor); outline-offset: -1px; }
-.lf-fib-levels { margin: 12px 0 8px; border: 1px solid var(--lf-overlayDivColor); border-radius: 4px; }
+.lf-fib-levels { margin: 12px 0 8px; border: 1px solid var(--lf-panelBorderColor); border-radius: 4px; }
 .lf-fib-levels div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 8px; }
 .lf-fib-levels label { display: flex; align-items: center; gap: 4px; }
 .lf-error { min-height: 18px; color: var(--lf-downColor); font-size: 12px; }
 .lf-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.lf-actions .lf-btn { border: 1px solid var(--lf-overlayDivColor); padding: 5px 14px; }
+.lf-actions .lf-btn { border: 1px solid var(--lf-panelBorderColor); padding: 5px 14px; }
 .lf-actions .lf-btn-primary,
 .lf-actions .lf-btn-primary:hover {
   background: var(--lf-lineColor); border-color: var(--lf-lineColor); color: #fff;

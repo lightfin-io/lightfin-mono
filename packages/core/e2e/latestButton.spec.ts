@@ -113,7 +113,7 @@ test('host CSS can override control styles and Chrome theme defaults', async ({
   const style = await page.addStyleTag({
     content: `
       #chart.lf-host {
-        --lf-textStrong: #bfdbfe;
+        --lf-strongTextColor: #bfdbfe;
       }
       #chart .lf-latest-button { border-radius: 50%; }
     `,

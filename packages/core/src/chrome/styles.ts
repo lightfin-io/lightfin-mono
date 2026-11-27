@@ -28,16 +28,16 @@ const chromeThemeKeys = [
   'upColor',
   'downColor',
   'fontFamily',
-  'textStrong',
+  'strongTextColor',
   'buttonHoverBg',
-  'hudHover',
-  'overlayBg',
-  'overlayTextColor',
-  'overlayMutedColor',
-  'overlayDivColor',
-  'overlayHoverBg',
-  'overlayFieldBg',
-  'scrollbarColor',
+  'hudHoverBg',
+  'panelBg',
+  'panelTextColor',
+  'panelMutedTextColor',
+  'panelBorderColor',
+  'panelHoverBg',
+  'panelInputBg',
+  'scrollbarThumbColor',
   'scrollbarTrackColor',
 ] as const satisfies readonly (keyof ChartTheme)[]
 
@@ -45,7 +45,7 @@ const chromeThemeKeys = [
  * Theme values for the inline styles `createChrome` sets on the host. The
  * names are `--lf-theme-*` because an inline custom property beats a host
  * stylesheet. `chrome.css` copies each one onto the public `--lf-*` name, so
- * a host rule can replace `--lf-background` or `--lf-overlayBg` without
+ * a host rule can replace `--lf-background` or `--lf-panelBg` without
  * `!important`.
  */
 export function themeVars(theme: Readonly<ChartTheme>): Record<string, string> {

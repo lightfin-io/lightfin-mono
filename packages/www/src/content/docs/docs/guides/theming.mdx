@@ -36,7 +36,7 @@ semi-transparent so the candles and gridlines read through them.
 
 ## A light theme
 
-Set the chart, chrome, and overlay colors together for a light theme.
+Set the chart, toolbar, and panel colors together for a light theme.
 `colorScheme` controls native browser controls, such as range sliders.
 
 ```ts
@@ -47,16 +47,16 @@ createChart(container, {
     axisTextColor: '#50545e',
     axisBorderColor: '#e0e3eb',
     crosshairColor: '#9598a1',
-    textStrong: '#131722',
+    strongTextColor: '#131722',
     buttonHoverBg: 'rgba(80, 84, 94, 0.16)',
-    hudHover: 'rgba(255, 255, 255, 0.7)',
-    overlayBg: '#ebebeb',
-    overlayTextColor: '#131722',
-    overlayMutedColor: '#50545e',
-    overlayDivColor: '#d7d7d7',
-    overlayHoverBg: 'rgba(80, 84, 94, 0.16)',
-    overlayFieldBg: '#ffffff',
-    scrollbarColor: '#8f8f8f',
+    hudHoverBg: 'rgba(255, 255, 255, 0.7)',
+    panelBg: '#ebebeb',
+    panelTextColor: '#131722',
+    panelMutedTextColor: '#50545e',
+    panelBorderColor: '#d7d7d7',
+    panelHoverBg: 'rgba(80, 84, 94, 0.16)',
+    panelInputBg: '#ffffff',
+    scrollbarThumbColor: '#8f8f8f',
     scrollbarTrackColor: '#dedede',
     colorScheme: 'light',
   },
@@ -68,19 +68,21 @@ createChart(container, {
 The [chrome](/docs/api/chrome) copies the theme values it uses to CSS custom
 properties on the host element. Each name is `--lf-` followed by the exact
 theme property name, including its capitalization. For example, `lineColor`
-becomes `--lf-lineColor`, and `hudHover` becomes `--lf-hudHover`.
+becomes `--lf-lineColor`, and `hudHoverBg` becomes `--lf-hudHoverBg`.
 
-Menus, dialogs, the indicator search, and the drawing toolbar use their own
-colors: `--lf-overlayBg`, `--lf-overlayTextColor`, `--lf-overlayMutedColor`,
-`--lf-overlayDivColor`, `--lf-overlayHoverBg`, and `--lf-overlayFieldBg`.
-Scrollbars use `--lf-scrollbarColor` for the thumb and
-`--lf-scrollbarTrackColor` for the track. The host sets `scrollbar-color`
-(it inherits) and a thin `scrollbar-width` on itself and everything inside
-it, so every scrollbar picks them up. Toolbars keep their scrollbars hidden.
+On the chrome, a `Bg` name is a fill, a `TextColor` name is text, and a
+`BorderColor` name is a border or divider. `strongTextColor`, `buttonHoverBg`,
+and `hudHoverBg` paint the toolbars and the HUD. Menus, dialogs, and the
+drawing toolbar are panels, with `panelBg`, `panelTextColor`,
+`panelMutedTextColor`, `panelBorderColor`, `panelHoverBg`, and
+`panelInputBg`. Scrollbars use `scrollbarThumbColor` for the thumb and
+`scrollbarTrackColor` for the track.
+The host sets `scrollbar-color` (it inherits) and a thin `scrollbar-width`
+on itself and everything inside it, so every scrollbar picks them up.
+Toolbars keep their scrollbars hidden.
 
-`textStrong`, `buttonHoverBg`, and `hudHover` paint the toolbars and the HUD.
-The overlay colors paint everything that floats above the chart. Set both
-groups in `theme` when the chart background changes.
+Set the toolbar colors and the panel colors together when the chart
+background changes.
 
 ## Indicator colors
 

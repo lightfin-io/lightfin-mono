@@ -85,10 +85,10 @@ test('menus and scrollbars use their own colors', async ({ page }) => {
     }
     const readColors = {
       background: read('--lf-background'),
-      overlay: read('--lf-overlayBg'),
-      border: read('--lf-overlayDivColor'),
-      text: read('--lf-overlayTextColor'),
-      scrollbar: read('--lf-scrollbarColor'),
+      panel: read('--lf-panelBg'),
+      border: read('--lf-panelBorderColor'),
+      text: read('--lf-panelTextColor'),
+      scrollbar: read('--lf-scrollbarThumbColor'),
       track: read('--lf-scrollbarTrackColor'),
     }
     probe.remove()
@@ -97,7 +97,7 @@ test('menus and scrollbars use their own colors', async ({ page }) => {
   expect(
     new Set([
       colors.background,
-      colors.overlay,
+      colors.panel,
       colors.border,
       colors.scrollbar,
       colors.track,
@@ -106,7 +106,7 @@ test('menus and scrollbars use their own colors', async ({ page }) => {
 
   await page.getByRole('button', { name: /^Chart type:/ }).click()
   const menu = page.getByRole('menu', { name: 'Chart type' })
-  await expect(menu).toHaveCSS('background-color', colors.overlay)
+  await expect(menu).toHaveCSS('background-color', colors.panel)
   await expect(menu).toHaveCSS('color', colors.text)
   await expect(menu).toHaveCSS('border-top-color', colors.border)
   await expect(menu).toHaveCSS('scrollbar-width', 'thin')
@@ -116,7 +116,7 @@ test('menus and scrollbars use their own colors', async ({ page }) => {
   )
 
   await host.evaluate(el => {
-    el.style.setProperty('--lf-overlayDivColor', '#334455')
+    el.style.setProperty('--lf-panelBorderColor', '#334455')
   })
   await expect(menu).toHaveCSS('border-top-color', 'rgb(51, 68, 85)')
   await expect(menu.getByRole('separator').first()).toHaveCSS(
