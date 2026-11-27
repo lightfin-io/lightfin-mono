@@ -2,6 +2,8 @@
 
 .lf-host {
   display: flex; flex-direction: column;
+  /* A pan is a drag; labels under it (toolbars, legend) must not highlight. */
+  user-select: none;
   color-scheme: var(--lf-theme-color-scheme);
   --lf-background: var(--lf-theme-background);
   --lf-axisTextColor: var(--lf-theme-axisTextColor);
@@ -27,6 +29,7 @@
 /* scrollbar-color inherits from the host. scrollbar-width does not, in
    Chromium, so the thin width has to be set on each element. */
 .lf-host * { scrollbar-width: thin; }
+.lf-host :is(input, textarea) { user-select: text; }
 .lf-host > .lf-chart, .lf-host > .lf-body { flex: 1 1 0; min-height: 0; }
 .lf-body { display: flex; min-width: 0; min-height: 0; }
 .lf-body > .lf-chart { flex: 1 1 0; min-width: 0; min-height: 0; }

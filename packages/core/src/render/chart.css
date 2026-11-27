@@ -7,6 +7,12 @@
   touch-action: none;
   /* The overlay canvas paints the chart's keyboard focus ring. */
   outline: none;
+  /* Legend text lives here; a pan across it would otherwise select it. */
+  user-select: none;
+}
+
+.lf-chart :is(input, textarea) {
+  user-select: text;
 }
 
 .lf-chart-layer {
