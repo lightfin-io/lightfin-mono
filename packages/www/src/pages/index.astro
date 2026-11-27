@@ -35,12 +35,18 @@ const features = [
   {
     icon: 'react',
     title: 'React bindings',
-    body: 'A thin <LightfinChart> wrapper plus a useChartEffect hook wire features imperatively onto the chart while the core stays framework-free.',
+    body: [
+      'A thin ',
+      { code: '<LightfinChart>' },
+      ' wrapper plus a ',
+      { code: 'useChartEffect' },
+      ' hook wire features imperatively onto the chart while the core stays framework-free.',
+    ],
   },
   {
     icon: 'package',
     title: 'Zero dependencies',
-    body: 'Not one transitive package — no supply-chain surface to audit, no CVEs to chase. The whole library is yours to review, which risk and compliance teams tend to ask about.',
+    body: 'Not one transitive package — no supply-chain surface to audit, no CVEs to chase. The whole library is yours to review.',
   },
 ] as const
 
@@ -154,7 +160,7 @@ chart.addCandlestickSeries().setData(bars)`
             <article class="feature">
               <div class="feature__icon"><FeatureIcon name={f.icon} /></div>
               <h2>{f.title}</h2>
-              <p>{f.body}</p>
+              <p>{Array.isArray(f.body) ? f.body.map(part => typeof part === 'string' ? part : <code>{part.code}</code>) : f.body}</p>
             </article>
           ))
         }
