@@ -1,38 +1,48 @@
 ---
+import { Code, Icon } from '@astrojs/starlight/components'
 import logo from '../assets/logo.svg'
+import FeatureIcon from '../components/FeatureIcon.astro'
 import LiveChart from '../components/LiveChart.tsx'
+import SignalWave from '../components/SignalWave.astro'
 import {
   bundles,
   competitorMultiple,
   reactSize,
 } from '../data/bundle-sizes'
+import '../styles/landing.css'
 
 const features = [
   {
+    icon: 'candles',
     title: 'Professional-grade charting',
     body: 'Switch between 13 styles, including candles, Heikin Ashi, lines and areas. Pan, zoom and inspect prices with the crosshair, volume overlay and current-price line.',
   },
   {
+    icon: 'indicators',
     title: 'Indicators built in, or build your own',
     body: 'SMA, EMA, Bollinger, Ichimoku, Parabolic SAR, RSI, MACD, ATR and more ship out of the box, each on its own resizable pane, plus a tree-shakeable indicator framework for authoring custom ones.',
   },
   {
+    icon: 'drawing',
     title: '25 drawing tools',
     body: 'Trend lines, channels, Fibonacci, Gann Fan, Elliott waves, Head and Shoulders, shapes, and measurements, with undo/redo and per-drawing styles.',
   },
   {
+    icon: 'live',
     title: 'Live data, any source',
     body: 'Bars in, chart out. Attach a DataSource for history backfill and a live stream; follow-mode keeps the latest candle in view.',
   },
   {
+    icon: 'react',
     title: 'React bindings',
     body: 'A thin <LightfinChart> wrapper plus a useChartEffect hook wire features imperatively onto the chart while the core stays framework-free.',
   },
   {
+    icon: 'package',
     title: 'Zero dependencies',
     body: 'Not one transitive package — no supply-chain surface to audit, no CVEs to chase. The whole library is yours to review, which risk and compliance teams tend to ask about.',
   },
-]
+] as const
 
 const perfStats = [
   { value: '500k', unit: 'candles', note: 'panned & zoomed in real time' },
@@ -67,7 +77,7 @@ const chart = createChart(document.querySelector('#chart'), {
 chart.addCandlestickSeries().setData(bars)`
 ---
 
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <script
       is:inline
@@ -105,19 +115,7 @@ chart.addCandlestickSeries().setData(bars)`
           aria-label="GitHub (opens in a new tab)"
         >
           GitHub
-          <svg
-            aria-hidden="true"
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M9 3h4v4m0-4L7 9M7 4H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V9" />
-          </svg>
+          <Icon name="github" size="1rem" />
         </a>
       </nav>
     </header>
@@ -125,7 +123,7 @@ chart.addCandlestickSeries().setData(bars)`
     <main>
       <section class="hero">
         <div class="hero__copy">
-          <h1>Financial charts,<br />without the weight.</h1>
+          <h1>Financial charts,<br /><em>without the weight.</em></h1>
           <p class="hero__lede">
             A dependency-free charting library with professional-grade
             candlesticks, indicators, drawing tools and live data — while
@@ -134,26 +132,28 @@ chart.addCandlestickSeries().setData(bars)`
           <div class="hero__cta">
             <a class="btn btn--primary" href="/docs/getting-started">Get started</a>
             <a class="btn" href="https://github.com/lightfin-io/lightfin-mono">
-              View on GitHub
+              <Icon name="github" size="1.1rem" /> View on GitHub
             </a>
           </div>
           <code class="hero__install">{install}</code>
         </div>
+        <div class="hero__art"><SignalWave /></div>
       </section>
 
-      <section class="hero__demo">
-        <LiveChart client:only="react" height={520} />
-        <p class="hero__caption">
+      <figure class="hero__demo">
+        <div class="demo__canvas"><LiveChart client:only="react" height={520} /></div>
+        <figcaption class="hero__caption">
           A real <code>@lightfin/core</code> chart with its full chrome,
           streaming live BTC/USDT from Binance.
-        </p>
-      </section>
+        </figcaption>
+      </figure>
 
       <section class="features">
         {
           features.map(f => (
             <article class="feature">
-              <h3>{f.title}</h3>
+              <div class="feature__icon"><FeatureIcon name={f.icon} /></div>
+              <h2>{f.title}</h2>
               <p>{f.body}</p>
             </article>
           ))
@@ -224,7 +224,7 @@ chart.addCandlestickSeries().setData(bars)`
         </div>
       </section>
 
-      <section class="code">
+      <section class="quickstart">
         <div class="code__copy">
           <h2>Bars in, chart out.</h2>
           <p>
@@ -235,7 +235,7 @@ chart.addCandlestickSeries().setData(bars)`
           </p>
           <a class="btn btn--primary" href="/docs/getting-started">Read the docs</a>
         </div>
-        <pre class="code__block"><code>{snippet}</code></pre>
+        <div class="code__block"><Code code={snippet} lang="ts" wrap /></div>
       </section>
     </main>
 
@@ -247,436 +247,15 @@ chart.addCandlestickSeries().setData(bars)`
       </nav>
     </footer>
 
-    <style is:global>
-      :root {
-        --bg: #0b0e13;
-        --bg-soft: #121722;
-        --panel: #151b27;
-        --border: #222b3a;
-        --fg: #e6edf6;
-        --fg-dim: #9aa7b8;
-        --accent: #3fb6a8;
-        --accent-fg: #04110f;
-        --radius: 12px;
-        color-scheme: dark;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      html {
-        scroll-behavior: smooth;
-      }
-      body {
-        margin: 0;
-        background:
-          radial-gradient(60rem 40rem at 70% -10%, rgba(63, 182, 168, 0.12), transparent),
-          var(--bg);
-        color: var(--fg);
-        font:
-          16px/1.6 system-ui,
-          -apple-system,
-          'Segoe UI',
-          sans-serif;
-        -webkit-font-smoothing: antialiased;
-      }
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-      code {
-        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-      }
-
-      .nav {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        max-width: 1120px;
-        margin: 0 auto;
-        padding: 1.25rem 1.5rem;
-      }
-      .nav__brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.6rem;
-        font-weight: 700;
-        letter-spacing: -0.01em;
-      }
-      .nav__mark {
-        width: auto;
-        height: 20px;
-        display: block;
-      }
-      .nav__links {
-        display: flex;
-        gap: 1.5rem;
-        color: var(--fg-dim);
-        font-size: 0.95rem;
-      }
-      .nav__links a:hover {
-        color: var(--fg);
-      }
-      .nav__github {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-      }
-
-      main {
-        max-width: 1120px;
-        margin: 0 auto;
-        padding: 0 1.5rem;
-      }
-
-      .hero {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        padding: 3.5rem 0 2rem;
-      }
-      .hero h1 {
-        font-size: clamp(2.2rem, 4.5vw, 3.4rem);
-        line-height: 1.05;
-        letter-spacing: -0.03em;
-        margin: 0 0 1.2rem;
-      }
-      .hero__lede {
-        color: var(--fg-dim);
-        font-size: 1.1rem;
-        max-width: 52ch;
-      }
-      .hero__cta {
-        display: flex;
-        gap: 0.75rem;
-        margin: 1.75rem 0 1.25rem;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-      .hero__install {
-        display: inline-block;
-        padding: 0.55rem 0.85rem;
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        color: var(--fg-dim);
-        font-size: 0.9rem;
-      }
-      .hero__install::before {
-        content: '$ ';
-        color: var(--accent);
-      }
-      .hero__demo {
-        width: 100%;
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 0.75rem;
-        margin-bottom: 2.5rem;
-        box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.9);
-      }
-      .hero__caption {
-        margin: 0.75rem 0.25rem 0.25rem;
-        font-size: 0.85rem;
-        color: var(--fg-dim);
-        text-align: center;
-      }
-
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.65rem 1.1rem;
-        border-radius: 8px;
-        border: 1px solid var(--border);
-        background: var(--bg-soft);
-        color: var(--fg);
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: border-color 0.15s ease;
-      }
-      .btn:hover {
-        border-color: #33465c;
-      }
-      .btn--primary {
-        background: var(--accent);
-        color: var(--accent-fg);
-        border-color: transparent;
-      }
-
-      .features {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        padding: 2rem 0 4rem;
-      }
-      .feature {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 1.4rem;
-      }
-      .feature h3 {
-        margin: 0 0 0.5rem;
-        font-size: 1.05rem;
-      }
-      .feature p {
-        margin: 0;
-        color: var(--fg-dim);
-        font-size: 0.95rem;
-      }
-
-      .bundle {
-        padding: 1rem 0 4rem;
-      }
-      .bundle__head {
-        max-width: 60ch;
-        margin-bottom: 2.25rem;
-      }
-      .bundle__head h2 {
-        font-size: clamp(1.6rem, 3vw, 2.2rem);
-        letter-spacing: -0.02em;
-        margin: 0 0 0.75rem;
-      }
-      .bundle__head p {
-        margin: 0;
-        color: var(--fg-dim);
-        font-size: 1.05rem;
-      }
-      .bundle__bars {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-      }
-      .bar__label {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 0.55rem;
-      }
-      .bar__name {
-        color: var(--fg);
-        font-size: 0.95rem;
-        font-weight: 600;
-      }
-      .bar__size {
-        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: var(--accent);
-        white-space: nowrap;
-      }
-      .bar[data-tone='heavy'] .bar__size {
-        color: #f0a98a;
-      }
-      .bar__track {
-        position: relative;
-        height: 14px;
-        border-radius: 999px;
-        background: var(--bg-soft);
-        border: 1px solid var(--border);
-        overflow: hidden;
-      }
-      .bar__fill {
-        display: block;
-        height: 100%;
-        width: 0;
-        border-radius: 999px;
-        background: linear-gradient(90deg, var(--accent), #6fe3d4);
-        box-shadow: 0 0 24px -4px rgba(63, 182, 168, 0.6);
-        transition: width 1s cubic-bezier(0.22, 0.61, 0.36, 1);
-      }
-      .bar[data-tone='heavy'] .bar__fill {
-        background: linear-gradient(
-          90deg,
-          #7a3b2e 0%,
-          #c76a4d 55%,
-          rgba(199, 106, 77, 0) 100%
-        );
-        box-shadow: none;
-      }
-      .bundle.is-visible .bar__fill {
-        width: var(--w);
-      }
-      .bundle__note {
-        margin: 1.75rem 0 0;
-        color: var(--fg-dim);
-        font-size: 0.85rem;
-        max-width: 60ch;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .bar__fill {
-          transition: none;
-          width: var(--w);
-        }
-      }
-
-      .perf {
-        padding: 1rem 0 4rem;
-      }
-      .perf__head {
-        max-width: 60ch;
-        margin-bottom: 2.25rem;
-      }
-      .perf__head h2 {
-        font-size: clamp(1.6rem, 3vw, 2.2rem);
-        letter-spacing: -0.02em;
-        margin: 0 0 0.75rem;
-      }
-      .perf__head p {
-        margin: 0;
-        color: var(--fg-dim);
-        font-size: 1.05rem;
-      }
-      .perf__stats {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
-      .stat {
-        background: linear-gradient(180deg, var(--panel), var(--bg-soft));
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 1.5rem 1.4rem;
-      }
-      .stat__value {
-        display: flex;
-        align-items: baseline;
-        gap: 0.4rem;
-        font-size: clamp(2rem, 4vw, 2.8rem);
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        line-height: 1;
-        color: var(--accent);
-      }
-      .stat__unit {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--fg-dim);
-        letter-spacing: 0;
-      }
-      .stat__note {
-        margin-top: 0.6rem;
-        color: var(--fg-dim);
-        font-size: 0.9rem;
-      }
-      .perf__grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-      }
-      .perf__card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 1.4rem;
-        position: relative;
-      }
-      .perf__card::before {
-        content: '';
-        position: absolute;
-        left: 1.4rem;
-        top: 1.4rem;
-        width: 24px;
-        height: 3px;
-        border-radius: 2px;
-        background: linear-gradient(90deg, var(--accent), #6fe3d4);
-      }
-      .perf__card h3 {
-        margin: 1rem 0 0.5rem;
-        font-size: 1.05rem;
-      }
-      .perf__card p {
-        margin: 0;
-        color: var(--fg-dim);
-        font-size: 0.95rem;
-      }
-
-      .code {
-        display: grid;
-        grid-template-columns: 1fr 1.2fr;
-        gap: 2.5rem;
-        align-items: center;
-        padding: 2rem 0 5rem;
-      }
-      .code h2 {
-        font-size: clamp(1.6rem, 3vw, 2.2rem);
-        letter-spacing: -0.02em;
-        margin: 0 0 0.75rem;
-      }
-      .code__copy p {
-        color: var(--fg-dim);
-        margin: 0 0 1.5rem;
-      }
-      .code__block {
-        margin: 0;
-        padding: 1.4rem;
-        background: #0d1420;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow-x: auto;
-        font-size: 0.9rem;
-        line-height: 1.6;
-        color: #cdd9e8;
-      }
-
-      .footer {
-        border-top: 1px solid var(--border);
-        margin-top: 2rem;
-        padding: 2rem 1.5rem;
-        max-width: 1120px;
-        margin-inline: auto;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        color: var(--fg-dim);
-        font-size: 0.9rem;
-      }
-      .footer nav {
-        display: flex;
-        gap: 1.25rem;
-      }
-      .footer a:hover {
-        color: var(--fg);
-      }
-
-      @media (max-width: 860px) {
-        .code {
-          grid-template-columns: 1fr;
-          gap: 2rem;
-        }
-        .features {
-          grid-template-columns: 1fr;
-        }
-        .perf__stats {
-          grid-template-columns: 1fr;
-        }
-        .perf__grid {
-          grid-template-columns: 1fr;
-        }
-        .nav__github {
-          display: none;
-        }
-      }
-    </style>
-
     <script>
-      // Grow the bundle bars once they scroll into view.
-      const bundle = document.getElementById('bundle')
-      if (bundle) {
-        const observer = new IntersectionObserver(
-          (entries, obs) => {
-            for (const entry of entries) {
-              if (entry.isIntersecting) {
-                entry.target.classList.add('is-visible')
-                obs.unobserve(entry.target)
-              }
-            }
-          },
-          { threshold: 0.35 },
-        )
+      const bundle = document.querySelector('.bundle__bars')
+      if (bundle && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const observer = new IntersectionObserver(([entry]) => {
+          if (entry?.isIntersecting) {
+            entry.target.classList.add('is-visible')
+            observer.disconnect()
+          }
+        })
         observer.observe(bundle)
       }
     </script>

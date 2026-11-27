@@ -1,0 +1,45 @@
+---
+/* Each contour follows the same surface from a different depth. SVG keeps
+   the illustration sharp at every width without a canvas or animation loop. */
+const contours = Array.from({ length: 62 }, (_, i) => {
+  const t = i / 61
+  const bend = Math.sin(t * Math.PI)
+  const path = `M ${-40 + t * 70} ${295 + t * 35}
+    C ${65 + t * 56} ${308 + t * 65}, ${102 + t * 65} ${240 - bend * 20}, ${147 + t * 65} ${237 + t * 20}
+    C ${213 + t * 70} ${230 + t * 28}, ${229 + t * 89} ${76 - bend * 80}, ${306 + t * 56} ${50 + t * 65 - 27 * bend}
+    C ${367 + t * 66} ${29 + t * 89}, ${344 + t * 96} ${233 + t * 45}, ${427 + t * 67} ${202 + t * 41}
+    S ${496 + t * 80} ${122 + t * 60}, ${617 + t * 55} ${133 + t * 56}`
+  // Sub-pixel precision is enough for this static illustration.
+  return path.replace(/-?\d+\.\d+/g, n => Number(n).toFixed(1))
+})
+---
+
+<svg class="wave" viewBox="0 0 620 365" fill="none" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="wave-ink" x1="0" y1="0" x2="620" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#23857c" stop-opacity="0" />
+      <stop offset=".17" stop-color="#31b8a6" />
+      <stop offset=".53" stop-color="#b9ffe5" />
+      <stop offset=".72" stop-color="#51d9bd" />
+      <stop offset=".88" stop-color="#58b6bc" stop-opacity=".65" />
+      <stop offset="1" stop-color="#399baf" stop-opacity="0" />
+    </linearGradient>
+    <pattern id="wave-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" stroke="#579e91" stroke-opacity=".24" />
+      <path d="M0 3V0H3" stroke="#8cf2d3" stroke-opacity=".44" />
+    </pattern>
+    <radialGradient id="grid-fade">
+      <stop offset=".38" stop-color="white" />
+      <stop offset="1" stop-color="white" stop-opacity="0" />
+    </radialGradient>
+    <mask id="wave-mask"><rect width="620" height="365" fill="url(#grid-fade)" /></mask>
+  </defs>
+  <rect width="620" height="365" fill="url(#wave-grid)" mask="url(#wave-mask)" />
+  <g stroke="url(#wave-ink)" stroke-width=".95">
+    {contours.map(d => <path {d} />)}
+  </g>
+</svg>
+
+<style>
+  .wave { display: block; width: 100%; height: auto; }
+</style>
