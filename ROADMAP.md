@@ -1,1 +1,3 @@
 - Up to 8 charts in a grid (sharing same chrome)
+- More drawing tools
+- More indicators
