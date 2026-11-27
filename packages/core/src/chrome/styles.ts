@@ -31,14 +31,22 @@ const chromeThemeKeys = [
   'textStrong',
   'buttonHoverBg',
   'hudHover',
+  'overlayBg',
+  'overlayTextColor',
+  'overlayMutedColor',
+  'overlayDivColor',
+  'overlayHoverBg',
+  'overlayFieldBg',
+  'scrollbarColor',
+  'scrollbarTrackColor',
 ] as const satisfies readonly (keyof ChartTheme)[]
 
 /**
  * Theme values for the inline styles `createChrome` sets on the host. The
  * names are `--lf-theme-*` because an inline custom property beats a host
  * stylesheet. `chrome.css` copies each one onto the public `--lf-*` name, so
- * a host rule can replace `--lf-background` — and the panel and scrollbar
- * colors mixed from it — without `!important`.
+ * a host rule can replace `--lf-background` or `--lf-overlayBg` without
+ * `!important`.
  */
 export function themeVars(theme: Readonly<ChartTheme>): Record<string, string> {
   const vars: Record<string, string> = {

@@ -39,15 +39,31 @@ export interface ChartTheme {
    * color in its options — an explicit `color`/`macdColor`/etc. always wins.
    */
   indicatorPalette: string[]
-  /** Emphasized text in chrome buttons, inputs, dialogs, and the HUD. */
+  /** Emphasized text in chrome buttons and the HUD. */
   textStrong: string
   /** Fill for hovered chrome buttons, and for the open or selected chart-type button. */
   buttonHoverBg: string
   /** Background for hovered or focused indicator rows in the HUD. */
   hudHover: string
+  /** Fill for menus, dialogs, and the floating drawing toolbar. */
+  overlayBg: string
+  /** Primary text on those panels. */
+  overlayTextColor: string
+  /** Secondary text on those panels: labels, placeholders, and section titles. */
+  overlayMutedColor: string
+  /** Borders and dividers on those panels. */
+  overlayDivColor: string
+  /** Fill for a hovered or selected row on those panels. */
+  overlayHoverBg: string
+  /** Input fill on those panels. */
+  overlayFieldBg: string
+  /** Scrollbar thumb. Menus and dialogs inherit it from the host. */
+  scrollbarColor: string
+  /** Scrollbar track. */
+  scrollbarTrackColor: string
   /**
-   * `dark` or `light`. Sets native browser controls, and whether menus,
-   * dialogs, and scrollbars lighten or darken `background`.
+   * `dark` or `light`. Sets `color-scheme` for native controls such as range
+   * sliders and checkboxes.
    */
   colorScheme: 'dark' | 'light'
 }
@@ -231,6 +247,14 @@ export const DEFAULT_THEME: ChartTheme = {
   textStrong: '#d1d4dc',
   buttonHoverBg: 'rgba(157, 178, 189, 0.16)',
   hudHover: 'rgba(19, 23, 34, 0.7)',
+  overlayBg: '#222631',
+  overlayTextColor: '#d1d4dc',
+  overlayMutedColor: '#9db2bd',
+  overlayDivColor: '#2a2e39',
+  overlayHoverBg: 'rgba(157, 178, 189, 0.16)',
+  overlayFieldBg: '#131722',
+  scrollbarColor: '#676a72',
+  scrollbarTrackColor: '#2e323c',
   colorScheme: 'dark',
 }
 

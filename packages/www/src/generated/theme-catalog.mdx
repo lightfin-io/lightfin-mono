@@ -18,9 +18,17 @@
 | `fontFamily` | `string` | `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` | Font stack for all chart text — axis labels, crosshair, legend. |
 | `fontSize` | `number` | `11` | Base font size in px for chart text. |
 | `indicatorPalette` | `string[]` | `#2962ff` `#ff6d00` `#7e57c2` `#26a69a` `#ec407a` `#9ccc65` | Default colors assigned to indicator plots in the order they're added, cycled when more indicators are added than colors in the list. Only applies to a plot whose indicator didn't receive an explicit color in its options — an explicit `color`/`macdColor`/etc. always wins. |
-| `textStrong` | `string` | `#d1d4dc` | Emphasized text in chrome buttons, inputs, dialogs, and the HUD. |
+| `textStrong` | `string` | `#d1d4dc` | Emphasized text in chrome buttons and the HUD. |
 | `buttonHoverBg` | `string` | `rgba(157, 178, 189, 0.16)` | Fill for hovered chrome buttons, and for the open or selected chart-type button. |
 | `hudHover` | `string` | `rgba(19, 23, 34, 0.7)` | Background for hovered or focused indicator rows in the HUD. |
-| `colorScheme` | `'dark' \| 'light'` | `dark` | `dark` or `light`. Sets native browser controls, and whether menus, dialogs, and scrollbars lighten or darken `background`. |
+| `overlayBg` | `string` | `#222631` | Fill for menus, dialogs, and the floating drawing toolbar. |
+| `overlayTextColor` | `string` | `#d1d4dc` | Primary text on those panels. |
+| `overlayMutedColor` | `string` | `#9db2bd` | Secondary text on those panels: labels, placeholders, and section titles. |
+| `overlayDivColor` | `string` | `#2a2e39` | Borders and dividers on those panels. |
+| `overlayHoverBg` | `string` | `rgba(157, 178, 189, 0.16)` | Fill for a hovered or selected row on those panels. |
+| `overlayFieldBg` | `string` | `#131722` | Input fill on those panels. |
+| `scrollbarColor` | `string` | `#676a72` | Scrollbar thumb. Menus and dialogs inherit it from the host. |
+| `scrollbarTrackColor` | `string` | `#2e323c` | Scrollbar track. |
+| `colorScheme` | `'dark' \| 'light'` | `dark` | `dark` or `light`. Sets `color-scheme` for native controls such as range sliders and checkboxes. |
 
-20 theme properties. Defaults are from `DEFAULT_THEME`; pass any subset as `theme` and the rest fall back to it.
+28 theme properties. Defaults are from `DEFAULT_THEME`; pass any subset as `theme` and the rest fall back to it.

@@ -72,43 +72,51 @@ test('the chart type menu supports keyboard navigation and reflects API changes'
   await expect(trigger).toBeFocused()
 })
 
-test('menus and scrollbars derive their colors from the background', async ({
-  page,
-}) => {
+test('menus and scrollbars use their own colors', async ({ page }) => {
   await openDemo(page)
   const host = page.locator('.lf-host')
   await expect(host).toHaveCSS('scrollbar-width', 'thin')
-  const derived = await host.evaluate(el => {
+  const colors = await host.evaluate(el => {
     const probe = document.createElement('div')
     el.append(probe)
     const read = (name: string) => {
       probe.style.color = `var(${name})`
       return getComputedStyle(probe).color
     }
-    const colors = {
+    const readColors = {
       background: read('--lf-background'),
-      panel: read('--lf-panel'),
-      border: read('--lf-panelBorderColor'),
-      scrollbar: read('--lf-scrollbar'),
-      track: read('--lf-scrollbarTrack'),
+      overlay: read('--lf-overlayBg'),
+      border: read('--lf-overlayDivColor'),
+      text: read('--lf-overlayTextColor'),
+      scrollbar: read('--lf-scrollbarColor'),
+      track: read('--lf-scrollbarTrackColor'),
     }
     probe.remove()
-    return colors
+    return readColors
   })
-  expect(new Set(Object.values(derived)).size).toBe(5)
+  expect(
+    new Set([
+      colors.background,
+      colors.overlay,
+      colors.border,
+      colors.scrollbar,
+      colors.track,
+    ]).size,
+  ).toBe(5)
 
   await page.getByRole('button', { name: /^Chart type:/ }).click()
   const menu = page.getByRole('menu', { name: 'Chart type' })
-  await expect(menu).toHaveCSS('background-color', derived.panel)
-  await expect(menu).toHaveCSS('border-top-color', derived.border)
+  await expect(menu).toHaveCSS('background-color', colors.overlay)
+  await expect(menu).toHaveCSS('color', colors.text)
+  await expect(menu).toHaveCSS('border-top-color', colors.border)
   await expect(menu).toHaveCSS('scrollbar-width', 'thin')
   await expect(menu.getByRole('separator').first()).toHaveCSS(
     'border-top-color',
-    derived.border,
+    colors.border,
   )
 
   await host.evaluate(el => {
-    el.style.setProperty('--lf-panelBorderColor', '#334455')
+    el.style.setProperty('--lf-overlayDivColor', '#334455')
   })
   await expect(menu).toHaveCSS('border-top-color', 'rgb(51, 68, 85)')
   await expect(menu.getByRole('separator').first()).toHaveCSS(

@@ -11,11 +11,9 @@ const root = import.meta.dirname
  */
 export default defineConfig({
   build: {
-    // Vite's default is Baseline Widely Available (Chrome 111 / Safari 16.4),
-    // which predates light-dark(). Lightning CSS would then rewrite it, and
-    // that polyfill only works beside a literal color-scheme. These versions
-    // ship light-dark, color-mix, and the rest of the CSS we use.
-    target: ['chrome123', 'edge123', 'firefox120', 'safari17.5', 'ios17.5'],
+    // Baseline Widely Available. The Chrome 123 / Safari 17.5 floor was only
+    // there so Lightning CSS would leave light-dark() alone.
+    target: ['chrome111', 'edge111', 'firefox114', 'safari16.4', 'ios16.4'],
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: true,

@@ -13,6 +13,14 @@ const LIGHT_CHART_THEME: ChartTheme = {
   textStrong: '#131722',
   buttonHoverBg: 'rgba(92, 107, 116, 0.16)',
   hudHover: 'rgba(255, 255, 255, 0.7)',
+  overlayBg: '#ebebeb',
+  overlayTextColor: '#131722',
+  overlayMutedColor: '#5c6b74',
+  overlayDivColor: '#d7d7d7',
+  overlayHoverBg: 'rgba(92, 107, 116, 0.16)',
+  overlayFieldBg: '#ffffff',
+  scrollbarColor: '#8f8f8f',
+  scrollbarTrackColor: '#dedede',
   colorScheme: 'light',
 }
 
