@@ -34,7 +34,10 @@ export function menuItem(
 ): HTMLButtonElement {
   const b = button({ icon: opts.icon }, onClick)
   b.className = 'lf-btn'
-  b.append(opts.label)
+  // Own element so an icon appended beside the label stays out of the name.
+  const label = el('span')
+  label.textContent = opts.label
+  b.append(label)
   b.setAttribute('role', opts.role ?? 'menuitem')
   return b
 }

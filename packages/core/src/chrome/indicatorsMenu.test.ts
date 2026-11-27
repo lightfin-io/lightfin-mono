@@ -81,9 +81,15 @@ function closeMenu(host: HTMLElement): void {
   if (button.getAttribute('aria-expanded') === 'true') button.click()
 }
 
+function itemLabel(item: Element): string {
+  const label = item.querySelector(':scope > span')
+  if (!label) throw new Error('menu item label missing')
+  return label.textContent ?? ''
+}
+
 function menuLabels(host: HTMLElement): string[] {
   return [...openMenu(host).querySelectorAll('[role="menuitem"]')].map(
-    item => item.textContent ?? '',
+    itemLabel,
   )
 }
 
@@ -119,7 +125,7 @@ describe('indicators menu', () => {
     chrome = ctx.chrome
     const marked = [...openMenu(ctx.host).querySelectorAll('[role="menuitem"]')]
       .filter(item => item.querySelector('svg'))
-      .map(item => item.textContent)
+      .map(itemLabel)
     const paneNames = await Promise.all(
       BUILTIN_INDICATORS.map(async entry => {
         const loaded = await entry.load()
@@ -197,7 +203,7 @@ describe('indicators menu', () => {
     search.dispatchEvent(new Event('input'))
     const visible = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
       .filter(item => !item.hidden)
-      .map(item => item.textContent)
+      .map(itemLabel)
     expect(visible).toEqual(['My Oscillator'])
     expect(menu.querySelector<HTMLElement>('.lf-menu-empty')!.hidden).toBe(true)
 
