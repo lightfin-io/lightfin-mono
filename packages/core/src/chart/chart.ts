@@ -124,6 +124,8 @@ const MAX_PANES_FRACTION = 0.6
 // height, so the main price pane always keeps the rest.
 const MAX_RESIZED_PANES_FRACTION = 0.8
 const MIN_PANE_HEIGHT = 32
+// Leave room for the indicator legend (2px top padding, 22px row, 2px gap).
+const INDICATOR_PANE_TOP_PADDING = 26
 // How close (CSS px) to a pane divider a press grabs it.
 const DIVIDER_SLOP = 4
 const DIVIDER_SLOP_TOUCH = 10
@@ -1517,7 +1519,8 @@ export class Chart {
     }
 
     // Pane indicators draw in their own sub-panes, each on its own scale.
-    for (const { instance, rect } of this.paneSlots()) {
+    for (const { instance, rect: pane } of this.paneSlots()) {
+      const rect = indicatorPlotRect(pane)
       ctx.save()
       ctx.beginPath()
       ctx.rect(rect.left, rect.top, rect.width, rect.height)
@@ -1619,8 +1622,9 @@ export class Chart {
     }
 
     // Indicator sub-pane price labels (fewer, on each pane's own scale).
-    for (const { instance, rect } of this.paneSlots()) {
+    for (const { instance, rect: pane } of this.paneSlots()) {
       if (!instance.visible) continue
+      const rect = indicatorPlotRect(pane)
       const scale = instance.scale!
       const paneTicks = scaleTicks(
         scale,
@@ -1712,7 +1716,11 @@ export class Chart {
   } {
     for (const { instance, rect } of this.paneSlots()) {
       if (y >= rect.top && y <= rect.top + rect.height) {
-        return { rect, scale: instance.scale!, isMain: false }
+        return {
+          rect: indicatorPlotRect(rect),
+          scale: instance.scale!,
+          isMain: false,
+        }
       }
     }
     return { rect: this.mainRect(), scale: this.priceScale, isMain: true }
@@ -2126,6 +2134,16 @@ export class Chart {
 
 function clamp(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value
+}
+
+/** The drawable part of an indicator pane, below its legend. */
+function indicatorPlotRect(rect: PlotRect): PlotRect {
+  const topPadding = clamp(rect.height - 1, 0, INDICATOR_PANE_TOP_PADDING)
+  return {
+    ...rect,
+    top: rect.top + topPadding,
+    height: rect.height - topPadding,
+  }
 }
 
 /** Snap a CSS-px coordinate to a whole device pixel for crisp 1px lines. */
