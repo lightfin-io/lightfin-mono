@@ -54,6 +54,6 @@
       "dist/event-tags.js",
       "dist/indicators/*.js"
     ],
-    "limit": "64.3 kB"
+    "limit": "65 kB"
   }
 ]

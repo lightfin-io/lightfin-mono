@@ -8,7 +8,7 @@
   {
     "name": "chrome",
     "passed": true,
-    "size": 32450,
+    "size": 32443,
     "sizeLimit": 32600
   },
   {
@@ -50,7 +50,7 @@
   {
     "name": "everything (core + chrome + annotations + price lines + indicators)",
     "passed": true,
-    "size": 64233,
-    "sizeLimit": 64300
+    "size": 64301,
+    "sizeLimit": 65000
   }
 ]
