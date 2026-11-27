@@ -11,7 +11,7 @@
   --lf-downColor: var(--lf-theme-downColor);
   --lf-fontFamily: var(--lf-theme-fontFamily);
   --lf-textStrong: var(--lf-theme-textStrong);
-  --lf-hover: var(--lf-theme-hover);
+  --lf-buttonHoverBg: var(--lf-theme-buttonHoverBg);
   --lf-hudHover: var(--lf-theme-hudHover);
   /* Menus, dialogs, and scrollbars step off the chart background.
      light-dark flips the mix so a light color scheme darkens. Fills repeat
@@ -65,7 +65,7 @@
   display: inline-flex; align-items: center; gap: 4px;
   white-space: nowrap; cursor: pointer;
 }
-.lf-btn:hover { background: var(--lf-hover); color: var(--lf-textStrong); }
+.lf-btn:hover { background: var(--lf-buttonHoverBg); color: var(--lf-textStrong); }
 .lf-btn:is(:disabled, [aria-disabled='true']) { opacity: 0.4; cursor: default; }
 .lf-btn:is(:disabled, [aria-disabled='true']):hover { background: transparent; color: inherit; }
 .lf-btn:focus-visible { outline: 1px solid var(--lf-lineColor); outline-offset: -1px; }
@@ -74,7 +74,7 @@
 .lf-btn svg { display: block; width: 18px; height: 18px; }
 .lf-chart-type { gap: 1px; }
 .lf-chart-type svg + svg { width: 12px; height: 12px; }
-.lf-chart-type[aria-expanded='true'] { background: var(--lf-hover); color: var(--lf-textStrong); }
+.lf-chart-type[aria-expanded='true'] { background: var(--lf-buttonHoverBg); color: var(--lf-textStrong); }
 .lf-clock { padding: 0 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .lf-menu {
@@ -96,7 +96,7 @@
 }
 .lf-chart-type-divider { border-top: 1px solid var(--lf-panelBorderColor); margin: 4px; }
 .lf-menu-chart-types .lf-btn[aria-checked='true'] {
-  color: var(--lf-textStrong); background: var(--lf-hover);
+  color: var(--lf-textStrong); background: var(--lf-buttonHoverBg);
 }
 .lf-menu-chart-types .lf-btn[aria-checked='true']::after {
   content: ''; width: 8px; height: 4px; margin-inline-start: auto;

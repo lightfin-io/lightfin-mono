@@ -41,8 +41,8 @@ export interface ChartTheme {
   indicatorPalette: string[]
   /** Emphasized text in chrome buttons, inputs, dialogs, and the HUD. */
   textStrong: string
-  /** Background for hovered chrome buttons. */
-  hover: string
+  /** Fill for hovered chrome buttons, and for the open or selected chart-type button. */
+  buttonHoverBg: string
   /** Background for hovered or focused indicator rows in the HUD. */
   hudHover: string
   /**
@@ -229,7 +229,7 @@ export const DEFAULT_THEME: ChartTheme = {
     '#9ccc65',
   ],
   textStrong: '#d1d4dc',
-  hover: 'rgba(157, 178, 189, 0.16)',
+  buttonHoverBg: 'rgba(157, 178, 189, 0.16)',
   hudHover: 'rgba(19, 23, 34, 0.7)',
   colorScheme: 'dark',
 }

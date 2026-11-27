@@ -11,7 +11,7 @@ const LIGHT_CHART_THEME: ChartTheme = {
   axisBorderColor: '#d7dde1',
   crosshairColor: '#9aa4ad',
   textStrong: '#131722',
-  hover: 'rgba(92, 107, 116, 0.16)',
+  buttonHoverBg: 'rgba(92, 107, 116, 0.16)',
   hudHover: 'rgba(255, 255, 255, 0.7)',
   colorScheme: 'light',
 }
