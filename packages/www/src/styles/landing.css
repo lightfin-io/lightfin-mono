@@ -68,8 +68,8 @@ main,
   letter-spacing: -0.045em;
 }
 .nav__mark {
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 .nav__links,
 .footer nav {
@@ -172,7 +172,8 @@ main,
   box-shadow: 0 1.3rem 4rem -2.25rem #000;
 }
 .demo__canvas {
-  min-height: 520px;
+  /* Definite height so the chart's height: 100% resolves. min-height does not. */
+  height: 520px;
   border-radius: 0.5rem;
   background: #0b0f14;
 }
@@ -421,14 +422,16 @@ main,
   }
   .hero {
     display: block;
-    padding-block: 2.5rem 0;
+    padding-block: 2.5rem 1.5rem;
   }
   .hero h1 {
     font-size: clamp(2.7rem, 9.8vw, 4rem);
   }
   .hero__art {
-    width: min(100%, 28rem);
-    margin: -0.25rem auto 0;
+    display: none;
+  }
+  .demo__canvas {
+    height: 420px;
   }
   .features,
   .bundle,

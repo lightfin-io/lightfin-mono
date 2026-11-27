@@ -32,7 +32,8 @@ export default function LiveChart({ height = 420 }: LiveChartProps) {
 }
 
 export interface LiveChartProps {
-  height?: number
+  /** Pixel height, or any CSS height. `"100%"` fills a parent with a definite height. */
+  height?: number | string
 }
 
 function DemoChart() {
