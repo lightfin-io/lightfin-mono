@@ -61,6 +61,6 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "size": "size-limit",
-    "size:json": "size-limit --json > size.json"
+    "size:json": "bun ../../scripts/size-json.ts"
   }
 }

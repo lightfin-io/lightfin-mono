@@ -32,7 +32,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "size": "size-limit",
-    "size:json": "size-limit --json > size.json"
+    "size:json": "bun ../../scripts/size-json.ts"
   },
   "peerDependencies": {
     "@lightfin/core": "*",

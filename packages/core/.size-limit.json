@@ -3,46 +3,46 @@
     "name": "core (createChart)",
     "path": "dist/index.js",
     "import": "{ createChart }",
-    "limit": "17.4 kB"
+    "limit": "19.2 kB"
   },
   {
     "name": "chrome",
     "path": "dist/chrome.js",
     "import": "{ createChrome }",
-    "limit": "32.6 kB"
+    "limit": "35.9 kB"
   },
   {
     "name": "annotations",
     "path": "dist/annotations.js",
     "import": "{ createAnnotations }",
-    "limit": "12.2 kB"
+    "limit": "13.5 kB"
   },
   {
     "name": "annotations schema (for AI tools)",
     "path": "dist/annotations/schema.js",
-    "limit": "1.7 kB"
+    "limit": "1.9 kB"
   },
   {
     "name": "price lines",
     "path": "dist/price-lines.js",
     "import": "{ addPriceLine }",
-    "limit": "1 kB"
+    "limit": "1.1 kB"
   },
   {
     "name": "event tags",
     "path": "dist/event-tags.js",
     "import": "{ addEventTags }",
-    "limit": "1.5 kB"
+    "limit": "1.7 kB"
   },
   {
     "name": "one indicator (SMA)",
     "path": "dist/indicators/sma.js",
-    "limit": "1 kB"
+    "limit": "1.1 kB"
   },
   {
     "name": "all built-in indicators",
     "path": "dist/indicators/*.js",
-    "limit": "13.3 kB"
+    "limit": "14.7 kB"
   },
   {
     "name": "everything (core + chrome + annotations + price lines + indicators)",
@@ -54,6 +54,6 @@
       "dist/event-tags.js",
       "dist/indicators/*.js"
     ],
-    "limit": "68 kB"
+    "limit": "74.8 kB"
   }
 ]

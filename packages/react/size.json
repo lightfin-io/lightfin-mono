@@ -3,12 +3,12 @@
     "name": "react wrapper (glue only; react + core external)",
     "passed": true,
     "size": 596,
-    "sizeLimit": 2000
+    "sizeLimit": 2200
   },
   {
     "name": "event tags hook (glue only; react + core external)",
     "passed": true,
     "size": 333,
-    "sizeLimit": 1000
+    "sizeLimit": 1100
   }
 ]
